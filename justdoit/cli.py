@@ -15,6 +15,10 @@ from justdoit.fonts import FONTS
 from justdoit.effects.color import COLORS, colorize
 from justdoit.core.rasterizer import render, _FILL_FNS
 from justdoit.effects.spatial import sine_warp, perspective_tilt, shear
+from justdoit.effects.gradient import (
+    linear_gradient, radial_gradient, per_glyph_palette,
+    parse_color, PRESETS,
+)
 from justdoit.output.terminal import print_art
 
 # -------------------------------------------------------------------------
@@ -78,6 +82,24 @@ examples:
     parser.add_argument(
         "--ttf-size", type=int, default=12, metavar="N",
         help="Font size for TTF rasterization (default: 12)",
+    )
+    parser.add_argument(
+        "--gradient", nargs=2, metavar=("FROM", "TO"),
+        help="Linear gradient between two colors (e.g. --gradient red cyan)",
+    )
+    parser.add_argument(
+        "--gradient-dir", default="horizontal",
+        choices=["horizontal", "vertical", "diagonal"],
+        help="Gradient direction (default: horizontal)",
+    )
+    parser.add_argument(
+        "--radial", nargs=2, metavar=("INNER", "OUTER"),
+        help="Radial gradient from center outward (e.g. --radial white blue)",
+    )
+    parser.add_argument(
+        "--palette", default=None,
+        metavar="NAME",
+        help=f"Per-column palette preset: {', '.join(PRESETS.keys())}",
     )
     parser.add_argument(
         "--warp", type=float, default=None, metavar="AMPLITUDE",
@@ -154,6 +176,33 @@ examples:
 
     try:
         output = render(args.text, font=font_name, color=args.color, gap=args.gap, fill=args.fill)
+
+        # Apply gradient/palette color effects (override --color if set)
+        if args.gradient:
+            try:
+                from_col = parse_color(args.gradient[0])
+                to_col = parse_color(args.gradient[1])
+            except ValueError as exc:
+                print(f"Error: {exc}", file=sys.stderr)
+                sys.exit(1)
+            output = linear_gradient(output, from_col, to_col, direction=args.gradient_dir)
+        elif args.radial:
+            try:
+                inner_col = parse_color(args.radial[0])
+                outer_col = parse_color(args.radial[1])
+            except ValueError as exc:
+                print(f"Error: {exc}", file=sys.stderr)
+                sys.exit(1)
+            output = radial_gradient(output, inner_col, outer_col)
+        elif args.palette:
+            if args.palette not in PRESETS:
+                print(
+                    f"Error: Unknown palette '{args.palette}'. "
+                    f"Available: {', '.join(PRESETS.keys())}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            output = per_glyph_palette(output, PRESETS[args.palette])
 
         # Apply spatial effects in order: warp → perspective → shear
         if args.warp is not None:
