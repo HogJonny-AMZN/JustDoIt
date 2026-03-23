@@ -20,6 +20,8 @@ from justdoit.effects.gradient import (
     parse_color, PRESETS,
 )
 from justdoit.effects.isometric import isometric_extrude
+from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve
+from justdoit.animate.player import play
 from justdoit.output.terminal import print_art
 
 # -------------------------------------------------------------------------
@@ -83,6 +85,19 @@ examples:
     parser.add_argument(
         "--ttf-size", type=int, default=12, metavar="N",
         help="Font size for TTF rasterization (default: 12)",
+    )
+    parser.add_argument(
+        "--animate", default=None,
+        choices=["typewriter", "scanline", "glitch", "pulse", "dissolve"],
+        help="Animation preset to play in the terminal",
+    )
+    parser.add_argument(
+        "--fps", type=float, default=12.0,
+        help="Animation frames per second (default: 12)",
+    )
+    parser.add_argument(
+        "--loop", action="store_true",
+        help="Loop animation until Ctrl+C",
     )
     parser.add_argument(
         "--iso", type=int, default=None, metavar="DEPTH",
@@ -225,7 +240,17 @@ examples:
         if args.shear is not None:
             output = shear(output, amount=args.shear, direction=args.shear_dir)
 
-        print_art(output)
+        if args.animate:
+            _PRESETS = {
+                "typewriter": lambda t: typewriter(t),
+                "scanline":   lambda t: scanline(t),
+                "glitch":     lambda t: glitch(t),
+                "pulse":      lambda t: pulse(t),
+                "dissolve":   lambda t: dissolve(t),
+            }
+            play(_PRESETS[args.animate](output), fps=args.fps, loop=args.loop)
+        else:
+            print_art(output)
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
