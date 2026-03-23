@@ -74,11 +74,11 @@ Frame-based terminal animation techniques.
 
 | ID | Name | Description | Novelty | Status |
 |----|------|-------------|---------|--------|
-| A01 | Typewriter | Characters appear sequentially | 1 | `idea` |
-| A02 | Scanline Reveal | Text builds top-to-bottom | 1 | `idea` |
-| A03 | Glitch | Random character corruption, snap back | 2 | `idea` |
-| A04 | Pulse | Brightness/color oscillation | 2 | `idea` |
-| A05 | Particle Dissolve | Characters drift/scatter on exit | 3 | `idea` |
+| A01 | Typewriter | Characters appear sequentially | 1 | `done` |
+| A02 | Scanline Reveal | Text builds top-to-bottom | 1 | `done` |
+| A03 | Glitch | Random character corruption, snap back | 2 | `done` |
+| A04 | Pulse | Brightness/color oscillation | 2 | `done` |
+| A05 | Particle Dissolve | Characters drift/scatter on exit | 3 | `done` |
 | A06 | Living Fill | Cellular automata animating inside glyph mask in real time | 5 | `idea` |
 | A07 | Matrix Rain | Characters falling through the glyph shape | 3 | `idea` |
 | A08 | Flame Simulation | Heat-based upward particle drift inside glyphs | 4 | `idea` |
