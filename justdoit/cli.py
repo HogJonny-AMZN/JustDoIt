@@ -3,7 +3,7 @@ import sys
 
 from justdoit.fonts import FONTS
 from justdoit.effects.color import COLORS, colorize
-from justdoit.core.rasterizer import render
+from justdoit.core.rasterizer import render, _FILL_FNS
 from justdoit.output.terminal import print_art
 
 
@@ -15,12 +15,14 @@ def main():
         epilog=f"""
 fonts:   {', '.join(FONTS.keys())}
 colors:  {', '.join(c for c in COLORS if c != 'reset')}
+fill:    {', '.join(_FILL_FNS.keys())}
 
 examples:
   %(prog)s "Hello World"
   %(prog)s "Just Do It" --font slim --color cyan
   %(prog)s "FIRE" --color rainbow
-  %(prog)s "CO3DEX" --font block --color yellow
+  %(prog)s "CO3DEX" --fill density
+  %(prog)s "JUST" --fill sdf --color cyan
         """,
     )
     parser.add_argument('text', nargs='?', help='Text to render as ASCII art')
@@ -30,6 +32,8 @@ examples:
                         help='Color/effect (default: none)')
     parser.add_argument('--gap', '-g', type=int, default=1,
                         help='Gap between characters in spaces (default: 1)')
+    parser.add_argument('--fill', default=None, choices=list(_FILL_FNS.keys()),
+                        help='Fill style for glyph rendering (default: none)')
     parser.add_argument('--list-fonts', action='store_true',
                         help='List available fonts and exit')
     parser.add_argument('--list-colors', action='store_true',
@@ -56,7 +60,8 @@ examples:
         sys.exit(0)
 
     try:
-        output = render(args.text, font=args.font, color=args.color, gap=args.gap)
+        output = render(args.text, font=args.font, color=args.color, gap=args.gap,
+                        fill=args.fill)
         print_art(output)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
