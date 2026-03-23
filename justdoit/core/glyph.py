@@ -1,30 +1,48 @@
-# Glyph representation.
-#
-# GlyphMask: a 2D grid of floats (0.0 = empty, 1.0 = full ink).
-# glyph_to_mask: converts a list-of-strings glyph into a GlyphMask.
-# mask_to_sdf: computes a signed distance field from a GlyphMask.
+"""
+Package: justdoit.core.glyph
+Glyph data structures and mask conversion utilities.
 
+GlyphMask: a 2D grid of floats (0.0 = empty, 1.0 = full ink).
+glyph_to_mask: converts a list-of-strings glyph into a GlyphMask.
+mask_to_sdf: computes a signed distance field from a GlyphMask.
+"""
+
+import logging as _logging
 from collections import deque
 
-# Type aliases — documents intent without runtime cost.
-Glyph = list       # list[str]
-GlyphMask = list   # list[list[float]]
+# -------------------------------------------------------------------------
+# module global scope
+_MODULE_NAME = "justdoit.core.glyph"
+__updated__ = "2026-03-23 00:00:00"
+__version__ = "0.1.0"
+__author__ = ["jGalloway"]
+
+_LOGGER = _logging.getLogger(_MODULE_NAME)
+
+# Type aliases — document intent without runtime cost.
+Glyph = list      # list[str]
+GlyphMask = list  # list[list[float]]
 
 
-def glyph_to_mask(glyph: list, ink_chars: str = '█') -> list:
+# -------------------------------------------------------------------------
+def glyph_to_mask(glyph: list, ink_chars: str = "█") -> list:
     """Convert a list-of-strings glyph to a 2D float mask.
 
     Characters in ink_chars map to 1.0; spaces map to 0.0.
-    Any other non-space character also maps to 1.0, so this works
-    correctly for fonts that use line-drawing characters (slim font).
+    Any non-space character also maps to 1.0, so this works correctly
+    for fonts that use line-drawing characters (e.g. the slim font).
+
+    :param glyph: List of strings — one string per row of the glyph.
+    :param ink_chars: Characters considered 'ink' (default: '█').
+    :returns: 2D list of floats — 1.0 for ink, 0.0 for empty.
     """
     return [
-        [0.0 if ch == ' ' else (1.0 if (ch in ink_chars or ink_chars == '') else 1.0)
-         for ch in row]
+        [0.0 if ch == " " else 1.0 for ch in row]
         for row in glyph
     ]
 
 
+# -------------------------------------------------------------------------
 def mask_to_sdf(mask: list) -> list:
     """Compute a signed distance field from a float mask.
 
@@ -33,7 +51,10 @@ def mask_to_sdf(mask: list) -> list:
       ~0.5 = at the glyph edge
       0.0 = deep exterior (far from any ink)
 
-    Pure Python, no dependencies.
+    Pure Python — no external dependencies.
+
+    :param mask: 2D list of floats from glyph_to_mask().
+    :returns: 2D list of floats representing the normalized SDF.
     """
     rows = len(mask)
     if rows == 0:
@@ -44,10 +65,14 @@ def mask_to_sdf(mask: list) -> list:
 
     INF = float(rows + cols + 1)
 
-    def bfs_distance(target_val: float) -> list:
-        """BFS distance transform: distance from each cell to nearest cell == target_val."""
+    def _bfs_distance(target_val: float) -> list:
+        """BFS distance transform: distance from each cell to nearest target_val cell.
+
+        :param target_val: The cell value to measure distance from (0.0 or 1.0).
+        :returns: 2D list of floats — distance to nearest target cell.
+        """
         dist = [[INF] * cols for _ in range(rows)]
-        q = deque()
+        q: deque = deque()
         for r in range(rows):
             for c in range(cols):
                 if mask[r][c] == target_val:
@@ -62,18 +87,18 @@ def mask_to_sdf(mask: list) -> list:
                     q.append((nr, nc))
         return dist
 
-    dist_to_empty = bfs_distance(0.0)
-    dist_to_ink = bfs_distance(1.0)
+    dist_to_empty = _bfs_distance(0.0)
+    dist_to_ink = _bfs_distance(1.0)
 
-    # Raw SDF: positive inside, negative outside
+    # Raw SDF: positive inside (distance to edge), negative outside (distance to ink)
     raw = []
     for r in range(rows):
         row = []
         for c in range(cols):
             if mask[r][c] > 0.5:
-                row.append(dist_to_empty[r][c])    # interior: +distance to edge
+                row.append(dist_to_empty[r][c])
             else:
-                row.append(-dist_to_ink[r][c])     # exterior: -distance to ink
+                row.append(-dist_to_ink[r][c])
         raw.append(row)
 
     # Normalize to 0.0–1.0
