@@ -13,8 +13,8 @@ Techniques that determine what characters fill a glyph mask.
 | ID | Name | Description | Novelty | Status |
 |----|------|-------------|---------|--------|
 | F01 | Density ASCII | Map brightness → character density (`@#%+-.`) | 2 | `done` |
-| F02 | Perlin Noise Fill | Noise field drives char selection inside mask | 4 | `idea` |
-| F03 | Cellular Automata Fill | Conway/GoL seeds inside glyph, freeze after N steps | 4 | `idea` |
+| F02 | Perlin Noise Fill | Noise field drives char selection inside mask | 4 | `done` |
+| F03 | Cellular Automata Fill | Conway/GoL seeds inside glyph, freeze after N steps | 4 | `done` |
 | F04 | Reaction-Diffusion | Gray-Scott inside glyph boundary | 5 | `idea` |
 | F05 | Fractal Fill | Mandelbrot/Julia escape time → char density | 4 | `idea` |
 | F06 | SDF Edge Fill | Distance from glyph edge → char selection (outline/glow) | 4 | `done` |
