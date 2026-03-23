@@ -23,6 +23,7 @@ examples:
   %(prog)s "FIRE" --color rainbow
   %(prog)s "CO3DEX" --fill density
   %(prog)s "JUST" --fill sdf --color cyan
+  %(prog)s "Hi" --ttf /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
         """,
     )
     parser.add_argument('text', nargs='?', help='Text to render as ASCII art')
@@ -34,6 +35,10 @@ examples:
                         help='Gap between characters in spaces (default: 1)')
     parser.add_argument('--fill', default=None, choices=list(_FILL_FNS.keys()),
                         help='Fill style for glyph rendering (default: none)')
+    parser.add_argument('--ttf', metavar='PATH',
+                        help='Path to a TTF/OTF font file to use (requires Pillow)')
+    parser.add_argument('--ttf-size', type=int, default=12, metavar='N',
+                        help='Font size for TTF rasterization (default: 12)')
     parser.add_argument('--list-fonts', action='store_true',
                         help='List available fonts and exit')
     parser.add_argument('--list-colors', action='store_true',
@@ -59,8 +64,26 @@ examples:
                 print(f"  {name:<10} {sample}")
         sys.exit(0)
 
+    font_name = args.font
+
+    if args.ttf:
+        try:
+            from justdoit.fonts.ttf import load_ttf_font
+        except ImportError:
+            print("Error: TTF support requires Pillow. Install with: pip install Pillow",
+                  file=sys.stderr)
+            sys.exit(1)
+        try:
+            font_name = load_ttf_font(args.ttf, font_size=args.ttf_size)
+        except ImportError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        except ValueError as e:
+            print(f"Error loading TTF font: {e}", file=sys.stderr)
+            sys.exit(1)
+
     try:
-        output = render(args.text, font=args.font, color=args.color, gap=args.gap,
+        output = render(args.text, font=font_name, color=args.color, gap=args.gap,
                         fill=args.fill)
         print_art(output)
     except ValueError as e:

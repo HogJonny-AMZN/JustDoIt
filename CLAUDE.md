@@ -19,7 +19,12 @@ python justdoit.py --list-colors
 chmod +x justdoit.py && cp justdoit.py /usr/local/bin/justdoit
 ```
 
-No external dependencies — pure Python 3 stdlib. No build step, no tests framework.
+No required external dependencies — core is pure Python 3 stdlib. No build step, no tests framework.
+
+**Optional dependency:** TTF/OTF font support (`--ttf` flag) requires Pillow:
+```bash
+pip install Pillow
+```
 
 ## Architecture
 

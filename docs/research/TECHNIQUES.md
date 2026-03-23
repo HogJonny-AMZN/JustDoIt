@@ -29,7 +29,7 @@ Techniques for generating or importing new glyph sets.
 | ID | Name | Description | Novelty | Status |
 |----|------|-------------|---------|--------|
 | G01 | FIGlet Parser | Parse `.flf` format, unlock 400+ community fonts | 2 | `done` |
-| G02 | TTF/PIL Rasterizer | System fonts → low-res ASCII via Pillow | 3 | `idea` |
+| G02 | TTF/PIL Rasterizer | System fonts → low-res ASCII via Pillow | 3 | `done` |
 | G03 | Bitmap Spritesheet Import | `.png` pixel font → glyph dict | 3 | `idea` |
 | G04 | SDF Font Generator | Letterforms as signed distance fields, rasterize to grid | 5 | `idea` |
 | G05 | Bézier Font Generator | Letters as Bézier curves, rasterize at any resolution | 5 | `idea` |
