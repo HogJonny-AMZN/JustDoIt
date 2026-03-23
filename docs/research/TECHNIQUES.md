@@ -58,13 +58,13 @@ Color systems beyond flat ANSI.
 
 | ID | Name | Description | Novelty | Status |
 |----|------|-------------|---------|--------|
-| C01 | Linear Gradient | Horizontal/vertical gradient across text block | 1 | `idea` |
-| C02 | Radial Gradient | Gradient radiating from center point | 2 | `idea` |
-| C03 | Per-Glyph Palette | Each letter gets its own color | 2 | `idea` |
+| C01 | Linear Gradient | Horizontal/vertical gradient across text block | 1 | `done` |
+| C02 | Radial Gradient | Gradient radiating from center point | 2 | `done` |
+| C03 | Per-Glyph Palette | Each letter gets its own color | 2 | `done` |
 | C04 | Depth Color | Color driven by Z-depth (combine with 3D extrusion) | 3 | `idea` |
 | C05 | Noise-Driven Color | Color field from Perlin noise, independent of shape | 4 | `idea` |
 | C06 | Palette Import | Load palette from image or hex list | 2 | `idea` |
-| C07 | True-Color ANSI | 24-bit RGB via `\033[38;2;r;g;bm` | 2 | `idea` |
+| C07 | True-Color ANSI | 24-bit RGB via `\033[38;2;r;g;bm` | 2 | `done` |
 | C08 | Chromatic Aberration | RGB channels offset slightly | 5 | `idea` |
 | C09 | Scanline Shading | Alternating bright/dim rows (CRT effect) | 3 | `idea` |
 | C10 | Phosphor Glow | Green/amber CRT phosphor palette + bloom simulation | 4 | `idea` |
