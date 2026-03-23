@@ -44,7 +44,7 @@ Geometric transformations applied to the full rasterized grid.
 |----|------|-------------|---------|--------|
 | S01 | Sine Wave Warp | Oscillate rows horizontally — flag/water effect | 2 | `done` |
 | S02 | Perspective Tilt | Vanishing point projection — text receding to horizon | 3 | `done` |
-| S03 | Isometric Extrusion | 3D isometric extrusion with face shading | 5 | `idea` |
+| S03 | Isometric Extrusion | 3D isometric extrusion with face shading | 5 | `done` |
 | S04 | Radial Distortion | Fisheye or pinch on whole text block | 3 | `idea` |
 | S05 | Ripple/Moiré | Overlapping sine interference patterns | 3 | `idea` |
 | S06 | Rotation | Arbitrary angle rotation of grid | 2 | `idea` |
