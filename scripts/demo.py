@@ -69,14 +69,7 @@ def run(text: str = "JDI", pause: bool = False) -> None:
         parse_color, PRESETS,
     )
     from justdoit.effects.generative import noise_fill, cells_fill
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve
-    from justdoit.animate.player import play
-
     plain = render(text, font="block")
-    # Spatial effects need short text — wide renders make offsets invisible
-    # and perspective sampling becomes destructive. Cap at 4 chars.
-    short_text = text[:4] if len(text) > 4 else text
-    short = render(short_text, font="block")
 
     # ------------------------------------------------------------------
     _header("F00  block font (baseline)", "plain render, no effects")
@@ -145,44 +138,44 @@ def run(text: str = "JDI", pause: bool = False) -> None:
         _pause(pause)
 
     # ------------------------------------------------------------------
-    _header("S01  sine warp", f"rows oscillate horizontally — wave/flag effect  [{short_text}]")
-    _show(sine_warp(short, amplitude=4.0, frequency=1.5))
+    _header("S01  sine warp", "rows oscillate horizontally — wave/flag effect")
+    _show(sine_warp(plain, amplitude=4.0, frequency=1.5))
     _pause(pause)
 
     # ------------------------------------------------------------------
-    _header("S02  perspective tilt — top", f"vanishing point narrows toward top  [{short_text}]")
-    _show(perspective_tilt(short, strength=0.5, direction="top"))
+    _header("S02  perspective tilt — top", "vanishing point narrows toward top")
+    _show(perspective_tilt(plain, strength=0.5, direction="top"))
     _pause(pause)
 
     # ------------------------------------------------------------------
-    _header("S02  perspective tilt — bottom", f"vanishing point narrows toward bottom  [{short_text}]")
-    _show(perspective_tilt(short, strength=0.5, direction="bottom"))
+    _header("S02  perspective tilt — bottom", "vanishing point narrows toward bottom")
+    _show(perspective_tilt(plain, strength=0.5, direction="bottom"))
     _pause(pause)
 
     # ------------------------------------------------------------------
-    _header("S08  shear — right", f"italic/oblique offset per row  [{short_text}]")
-    _show(shear(short, amount=1.2, direction="right"))
+    _header("S08  shear — right", "italic/oblique offset per row")
+    _show(shear(plain, amount=1.2, direction="right"))
     _pause(pause)
 
     # ------------------------------------------------------------------
-    _header("S03  isometric 3D extrusion — right", f"chunky block letters with depth shading  [{short_text}]")
-    _show(isometric_extrude(short, depth=4, direction="right"))
+    _header("S03  isometric 3D extrusion — right", "chunky block letters with depth shading")
+    _show(isometric_extrude(plain, depth=4, direction="right"))
     _pause(pause)
 
     # ------------------------------------------------------------------
-    _header("S03  isometric 3D extrusion — left", f"[{short_text}]")
-    _show(isometric_extrude(short, depth=4, direction="left"))
+    _header("S03  isometric 3D extrusion — left", "")
+    _show(isometric_extrude(plain, depth=4, direction="left"))
     _pause(pause)
 
     # ------------------------------------------------------------------
-    _header("S03 + C01  iso + gradient", f"gold→red vertical gradient over 3D extrusion  [{short_text}]")
-    iso = isometric_extrude(short, depth=4)
+    _header("S03 + C01  iso + gradient", "gold→red vertical gradient over 3D extrusion")
+    iso = isometric_extrude(plain, depth=4)
     _show(linear_gradient(iso, parse_color("gold"), parse_color("red"), direction="vertical"))
     _pause(pause)
 
     # ------------------------------------------------------------------
-    _header("S03 + C03 + S01  iso + neon palette + warp", f"everything at once  [{short_text}]")
-    iso_neon = per_glyph_palette(isometric_extrude(short, depth=3), PRESETS["neon"])
+    _header("S03 + C03 + S01  iso + neon palette + warp", "everything at once")
+    iso_neon = per_glyph_palette(isometric_extrude(plain, depth=3), PRESETS["neon"])
     _show(sine_warp(iso_neon, amplitude=2.0))
     _pause(pause)
 
@@ -207,30 +200,9 @@ def run(text: str = "JDI", pause: bool = False) -> None:
         print("  (install Pillow to enable TTF support)")
 
     # ------------------------------------------------------------------
-    # Animations — brief, finite
-    _header("A01  typewriter", "characters appear left-to-right")
-    play(typewriter(plain, chars_per_frame=4), fps=24)
-    _pause(pause)
-
-    _header("A02  scanline", "text builds top to bottom")
-    play(scanline(plain, rows_per_frame=1), fps=10)
-    _pause(pause)
-
-    _header("A03  glitch", "random corruption, snaps back")
-    play(glitch(plain, n_frames=18, intensity=0.3, seed=42), fps=12)
-    _pause(pause)
-
-    _header("A04  pulse", "brightness oscillation")
-    play(pulse(plain, n_cycles=2), fps=10)
-    _pause(pause)
-
-    _header("A05  dissolve", "characters scatter and fade out")
-    play(dissolve(plain, chars_per_frame=4, seed=0), fps=24)
-    _pause(pause)
-
-    # ------------------------------------------------------------------
     print(f"\n{_SEP}{'─' * 60}{_RESET}")
-    print(f"{_BOLD}{_HEADER}All techniques complete.{_RESET}  135 tests passing.\n")
+    print(f"{_BOLD}{_HEADER}Static techniques complete.{_RESET}  135 tests passing.")
+    print(f"{_DIM}Run scripts/demo_animate.py for animation showcase.{_RESET}\n")
 
 
 # -------------------------------------------------------------------------
