@@ -13,6 +13,7 @@ from justdoit.fonts import FONTS
 from justdoit.effects.color import colorize
 from justdoit.core.glyph import glyph_to_mask
 from justdoit.effects.fill import density_fill, sdf_fill
+from justdoit.effects.generative import noise_fill, cells_fill
 
 # -------------------------------------------------------------------------
 # module global scope
@@ -25,7 +26,9 @@ _LOGGER = _logging.getLogger(_MODULE_NAME)
 
 _FILL_FNS: dict = {
     "density": density_fill,
-    "sdf": sdf_fill,
+    "sdf":     sdf_fill,
+    "noise":   noise_fill,
+    "cells":   cells_fill,
 }
 
 
