@@ -19,6 +19,7 @@ from justdoit.effects.gradient import (
     linear_gradient, radial_gradient, per_glyph_palette,
     parse_color, PRESETS,
 )
+from justdoit.effects.isometric import isometric_extrude
 from justdoit.output.terminal import print_art
 
 # -------------------------------------------------------------------------
@@ -82,6 +83,14 @@ examples:
     parser.add_argument(
         "--ttf-size", type=int, default=12, metavar="N",
         help="Font size for TTF rasterization (default: 12)",
+    )
+    parser.add_argument(
+        "--iso", type=int, default=None, metavar="DEPTH",
+        help="Isometric 3D extrusion — depth in layers (e.g. 4)",
+    )
+    parser.add_argument(
+        "--iso-dir", default="right", choices=["right", "left"],
+        help="Isometric extrusion direction (default: right)",
     )
     parser.add_argument(
         "--gradient", nargs=2, metavar=("FROM", "TO"),
@@ -176,6 +185,10 @@ examples:
 
     try:
         output = render(args.text, font=font_name, color=args.color, gap=args.gap, fill=args.fill)
+
+        # Apply isometric extrusion before color effects (color applies on top)
+        if args.iso is not None:
+            output = isometric_extrude(output, depth=args.iso, direction=args.iso_dir)
 
         # Apply gradient/palette color effects (override --color if set)
         if args.gradient:
