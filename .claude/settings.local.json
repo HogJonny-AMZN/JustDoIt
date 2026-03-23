@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python skills/ascii_art_generator/main.py --text=Hello --output=/tmp/justdoit_test.txt)",
+      "Read(//tmp/**)",
+      "Bash(python3 skills/ascii_art_generator/main.py --text=Hello --output=/tmp/justdoit_test.txt)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}
