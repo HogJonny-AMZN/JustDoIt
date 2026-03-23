@@ -14,6 +14,7 @@ from typing import Optional
 from justdoit.fonts import FONTS
 from justdoit.effects.color import COLORS, colorize
 from justdoit.core.rasterizer import render, _FILL_FNS
+from justdoit.effects.spatial import sine_warp, perspective_tilt, shear
 from justdoit.output.terminal import print_art
 
 # -------------------------------------------------------------------------
@@ -79,6 +80,30 @@ examples:
         help="Font size for TTF rasterization (default: 12)",
     )
     parser.add_argument(
+        "--warp", type=float, default=None, metavar="AMPLITUDE",
+        help="Sine wave warp — horizontal row oscillation (e.g. 3.0)",
+    )
+    parser.add_argument(
+        "--warp-freq", type=float, default=1.0, metavar="FREQ",
+        help="Sine warp frequency — cycles across full height (default: 1.0)",
+    )
+    parser.add_argument(
+        "--perspective", type=float, default=None, metavar="STRENGTH",
+        help="Perspective tilt strength 0.0–1.0 — narrows toward top (e.g. 0.4)",
+    )
+    parser.add_argument(
+        "--perspective-dir", default="top", choices=["top", "bottom"],
+        help="Perspective tilt direction (default: top)",
+    )
+    parser.add_argument(
+        "--shear", type=float, default=None, metavar="AMOUNT",
+        help="Shear — italic/oblique offset per row (e.g. 0.5)",
+    )
+    parser.add_argument(
+        "--shear-dir", default="right", choices=["right", "left"],
+        help="Shear direction (default: right)",
+    )
+    parser.add_argument(
         "--list-fonts", action="store_true",
         help="List available fonts and exit",
     )
@@ -129,6 +154,15 @@ examples:
 
     try:
         output = render(args.text, font=font_name, color=args.color, gap=args.gap, fill=args.fill)
+
+        # Apply spatial effects in order: warp → perspective → shear
+        if args.warp is not None:
+            output = sine_warp(output, amplitude=args.warp, frequency=args.warp_freq)
+        if args.perspective is not None:
+            output = perspective_tilt(output, strength=args.perspective, direction=args.perspective_dir)
+        if args.shear is not None:
+            output = shear(output, amount=args.shear, direction=args.shear_dir)
+
         print_art(output)
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
