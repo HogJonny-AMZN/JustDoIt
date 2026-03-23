@@ -90,7 +90,7 @@ def rasterize_ttf(
         resized = cropped.resize((new_w, target_height), Image.LANCZOS)
 
         # Map pixel brightness → density char
-        pixels = list(resized.getdata())
+        pixels = list(resized.getdata()) if not hasattr(resized, 'get_flattened_data') else list(resized.get_flattened_data())
         rows = []
         for row_idx in range(target_height):
             row_pixels = pixels[row_idx * new_w:(row_idx + 1) * new_w]
