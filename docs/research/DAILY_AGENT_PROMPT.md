@@ -70,7 +70,17 @@ In `/home/node/.openclaw/workspace/projects/JustDoIt/`:
    - Output is deterministic (where applicable)
    - Output dimensions are correct
    - Edge cases (empty string, single char, long string)
-4. Run the tests. Iterate until they pass.
+4. Run the tests. The container has no pip/pytest — use this runner instead:
+   ```bash
+   cd /home/node/.openclaw/workspace/projects/JustDoIt
+   python3 - << 'EOF'
+   import sys, traceback
+   sys.path.insert(0, '.')
+   # import your test functions here
+   # run each, print PASS/FAIL
+   EOF
+   ```
+   Iterate until all pass.
 5. Update TECHNIQUES.md status to `done`
 
 ### Step 6: Generate showcase output
