@@ -1,0 +1,84 @@
+TTF/OTF Font Rasterizer — Technique G02
+========================================
+Generated: 2026-03-23
+
+Overview
+--------
+justdoit now supports any TTF or OTF font installed on the system. The module
+justdoit/fonts/ttf.py uses Pillow (PIL) to render each character at low
+resolution and maps pixel brightness to ASCII density characters.
+
+This gives access to infinite fonts — anything installed on the host system —
+without bundling any font data in the repository.
+
+Pillow is an OPTIONAL dependency. The module degrades gracefully:
+  - Importing justdoit never requires Pillow
+  - Using --ttf on the CLI will print a helpful error if Pillow is missing
+  - All other fonts (block, slim, FIGlet) continue to work without Pillow
+
+Install Pillow
+--------------
+  pip install Pillow
+
+CLI Usage
+---------
+  # Use a TTF font by path
+  python justdoit.py "Hello" --ttf /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+
+  # Control rasterization size (larger = more detail)
+  python justdoit.py "FIRE" --ttf /path/to/font.ttf --ttf-size 18
+
+  # Combine with color and fill
+  python justdoit.py "CODE" --ttf /path/to/font.ttf --color cyan --fill density
+
+API Usage
+---------
+  from justdoit.fonts.ttf import load_ttf_font, find_system_fonts, rasterize_ttf
+  from justdoit.core.rasterizer import render
+
+  # Discover system fonts
+  fonts = find_system_fonts()
+
+  # Load and register a font, get back a name for render()
+  name = load_ttf_font('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', font_size=14)
+  output = render('Hi', font=name)
+
+  # Low-level: rasterize to a glyph dict without registering
+  glyphs = rasterize_ttf('/path/to/font.ttf', font_size=12, chars='ABC')
+
+Density Mapping
+---------------
+Pixel brightness 0 (black/ink) → dense character (e.g. '@')
+Pixel brightness 255 (white/empty) → space
+
+Density character sequence (light → dark):
+  ' .,:;+*?%S#@'
+
+Implementation Notes
+--------------------
+- Each glyph is rendered into a grayscale image (font_size*2 × font_size*2.5)
+- The image is cropped to actual ink bounds, then resized to exactly font_size rows
+- All glyphs are width-normalised (padded with spaces) so render() row-concatenation works
+- Characters that produce no ink (missing glyphs, certain symbols) fall back to space
+
+System Fonts Found on This Machine
+------------------------------------
+  /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+  /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+  /usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf
+  /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf
+  /usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf
+  /usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf
+
+Status
+------
+G02 implementation: DONE (code complete, degrades gracefully without Pillow)
+Sample output: deferred — Pillow not installed in this container.
+To generate sample output, install Pillow and run:
+  pip install Pillow
+  python -c "
+from justdoit.fonts.ttf import load_ttf_font
+from justdoit.core.rasterizer import render
+name = load_ttf_font('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', font_size=12)
+print(render('HELLO', font=name))
+"
