@@ -90,9 +90,9 @@ Rendering to non-terminal targets.
 
 | ID | Name | Description | Novelty | Status |
 |----|------|-------------|---------|--------|
-| O01 | HTML/CSS Export | `<pre>` with inline styles | 1 | `idea` |
-| O02 | SVG Export | Each char as positioned `<text>` element | 2 | `idea` |
-| O03 | PNG Export | PIL rasterization | 2 | `idea` |
+| O01 | HTML/CSS Export | `<pre>` with inline styles | 1 | `done` |
+| O02 | SVG Export | Each char as positioned `<text>` element | 2 | `done` |
+| O03 | PNG Export | PIL rasterization | 2 | `done` |
 | O04 | GIF Export | Animated output | 3 | `idea` |
 | O05 | ANSI File | `.ans` format for ANSI art viewers | 2 | `idea` |
 | O06 | Markdown Export | Fenced code block output for docs/README embeds | 1 | `idea` |

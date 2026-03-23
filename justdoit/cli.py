@@ -22,6 +22,8 @@ from justdoit.effects.gradient import (
 from justdoit.effects.isometric import isometric_extrude
 from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve
 from justdoit.animate.player import play
+from justdoit.output.html import save_html
+from justdoit.output.svg import save_svg
 from justdoit.output.terminal import print_art
 
 # -------------------------------------------------------------------------
@@ -85,6 +87,18 @@ examples:
     parser.add_argument(
         "--ttf-size", type=int, default=12, metavar="N",
         help="Font size for TTF rasterization (default: 12)",
+    )
+    parser.add_argument(
+        "--save-html", metavar="PATH",
+        help="Save output as an HTML file (e.g. out.html)",
+    )
+    parser.add_argument(
+        "--save-svg", metavar="PATH",
+        help="Save output as an SVG file (e.g. out.svg)",
+    )
+    parser.add_argument(
+        "--save-png", metavar="PATH",
+        help="Save output as a PNG image (requires Pillow, e.g. out.png)",
     )
     parser.add_argument(
         "--animate", default=None,
@@ -239,6 +253,20 @@ examples:
             output = perspective_tilt(output, strength=args.perspective, direction=args.perspective_dir)
         if args.shear is not None:
             output = shear(output, amount=args.shear, direction=args.shear_dir)
+
+        # Save to file targets (can combine with terminal output)
+        if args.save_html:
+            save_html(output, args.save_html)
+        if args.save_svg:
+            save_svg(output, args.save_svg)
+        if args.save_png:
+            try:
+                from justdoit.output.image import save_png
+            except ImportError:
+                print("Error: PNG output requires Pillow. Install with: pip install Pillow",
+                      file=sys.stderr)
+                sys.exit(1)
+            save_png(output, args.save_png)
 
         if args.animate:
             _PRESETS = {
