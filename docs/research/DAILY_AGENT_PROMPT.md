@@ -5,6 +5,40 @@ The agent reads this, then executes the protocol below.
 
 ---
 
+## Python Environment
+
+**CRITICAL — read before touching any Python:**
+
+This project uses `uv` + a managed `.venv`. Do NOT use `pip`, `pip3`, or `python -m pip`.
+
+```bash
+# The venv lives at:
+/home/node/.openclaw/workspace/projects/JustDoIt/.venv
+
+# Activate (optional — uv run handles it automatically):
+source /home/node/.openclaw/workspace/projects/JustDoIt/.venv/bin/activate
+
+# Run tests (correct):
+cd /home/node/.openclaw/workspace/projects/JustDoIt
+.venv/bin/pytest tests/ -q
+
+# Run a script with venv Python:
+.venv/bin/python scripts/demo.py
+
+# Add a dependency (dev):
+uv add --dev <package>
+
+# NEVER do this:
+# pip install ...       ← wrong, pip may not exist
+# python -m pip ...     ← wrong
+# python3 -m pytest ... ← wrong (uses system Python, not venv)
+```
+
+The venv has: `pytest`, `Pillow`, and the `justdoit` package installed in editable mode.
+System Python (`python3`) does NOT have these — always use `.venv/bin/python` or `uv run`.
+
+---
+
 ## Protocol
 
 ### Step 1: Research (timebox: ~10 min equivalent)
@@ -70,17 +104,14 @@ In `/home/node/.openclaw/workspace/projects/JustDoIt/`:
    - Output is deterministic (where applicable)
    - Output dimensions are correct
    - Edge cases (empty string, single char, long string)
-4. Run the tests. The container has no pip/pytest — use this runner instead:
+4. Run the tests:
    ```bash
    cd /home/node/.openclaw/workspace/projects/JustDoIt
-   python3 - << 'EOF'
-   import sys, traceback
-   sys.path.insert(0, '.')
-   # import your test functions here
-   # run each, print PASS/FAIL
-   EOF
+   .venv/bin/pytest tests/ -q
+   # Or target just the new test file:
+   .venv/bin/pytest tests/test_<your_module>.py -v
    ```
-   Iterate until all pass.
+   Iterate until all pass. Do NOT use `python3 -m pytest` or `pip install`.
 5. Update TECHNIQUES.md status to `done`
 
 ### Step 6: Generate showcase output

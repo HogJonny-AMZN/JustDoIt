@@ -77,8 +77,29 @@ There is also a legacy `justdoit.py` at the repo root for backwards compatibilit
 ### Dependencies
 
 - **Core:** zero — pure Python 3 stdlib
-- **TTF/OTF fonts:** requires `Pillow` (`pip install Pillow` or `uv sync --dev`)
+- **TTF/OTF fonts:** requires `Pillow` (included in dev venv via `uv sync --dev`)
 - **Tests:** `pytest` + `Pillow` (installed via `uv sync --dev`)
+
+### Python Environment — IMPORTANT
+
+This project uses `uv` + a managed `.venv`. **Do not use `pip` or `python3` directly.**
+
+```bash
+# Run tests:
+.venv/bin/pytest tests/ -q
+
+# Run scripts:
+.venv/bin/python scripts/demo.py
+
+# Run CLI:
+.venv/bin/python justdoit.py "Hello"
+
+# Add a dependency:
+uv add --dev <package>
+```
+
+The `.venv` has `pytest`, `Pillow`, and `justdoit` (editable install) already.
+System `python3` does NOT have these — always use `.venv/bin/python` or `uv run`.
 
 Optional Pillow features degrade gracefully — all PIL-gated code checks availability at call time and raises `ImportError` with a helpful install hint.
 
