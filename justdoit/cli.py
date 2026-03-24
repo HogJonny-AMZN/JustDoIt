@@ -15,6 +15,7 @@ from justdoit.fonts import FONTS
 from justdoit.effects.color import COLORS, colorize
 from justdoit.core.rasterizer import render, _FILL_FNS
 from justdoit.effects.spatial import sine_warp, perspective_tilt, shear
+from justdoit.effects.generative import _TRUCHET_STYLES
 from justdoit.effects.gradient import (
     linear_gradient, radial_gradient, per_glyph_palette,
     parse_color, PRESETS,
@@ -75,6 +76,11 @@ examples:
     parser.add_argument(
         "--gap", "-g", type=int, default=1,
         help="Gap between characters in spaces (default: 1)",
+    )
+    parser.add_argument(
+        "--truchet-style", default="diagonal", choices=list(_TRUCHET_STYLES.keys()),
+        help="Truchet tile style when --fill truchet is used (default: diagonal). "
+             f"Options: {', '.join(_TRUCHET_STYLES.keys())}",
     )
     parser.add_argument(
         "--fill", default=None, choices=list(_FILL_FNS.keys()),
@@ -211,6 +217,13 @@ examples:
         except ValueError as exc:
             print(f"Error loading TTF font: {exc}", file=sys.stderr)
             sys.exit(1)
+
+    # If truchet fill is selected, patch the registry to honour --truchet-style
+    if args.fill == "truchet" and args.truchet_style != "diagonal":
+        from justdoit.effects.generative import truchet_fill as _tf
+        from justdoit.core.rasterizer import _FILL_FNS as _fns
+        _chosen_style = args.truchet_style
+        _fns["truchet"] = lambda mask: _tf(mask, style=_chosen_style)
 
     try:
         output = render(args.text, font=font_name, color=args.color, gap=args.gap, fill=args.fill)

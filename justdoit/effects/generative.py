@@ -12,8 +12,12 @@ Implemented techniques:
   F03 — cells_fill:    Conway's Game of Life seeded inside the glyph mask,
                        evolved N steps then frozen. The letter is legible but
                        the interior looks like a biological pattern.
+  F10 — truchet_fill:  Truchet tile tiling inside glyph mask. Each ink cell gets
+                       one of two tile orientations (diagonal ╱╲, arc ╰╮, or
+                       wave-biased diagonals), creating labyrinth / flow patterns.
+                       Inspired by Sébastien Truchet (1704) and the "10 PRINT" demoscene.
 
-Both are pure Python stdlib — no external dependencies.
+All are pure Python stdlib — no external dependencies.
 """
 
 import logging as _logging
@@ -257,6 +261,80 @@ def cells_fill(
                 )
                 shade_idx = min(3, max(1, 3 - alive_nb // 2))
                 line += _CELLS_CHARS[shade_idx]
+        result.append(line)
+
+    return result
+
+
+# -------------------------------------------------------------------------
+# Truchet tile character sets
+#
+# Each style provides exactly 2 tile variants that get assigned randomly.
+# Outside the glyph mask → space.
+#
+# Styles:
+#   "diagonal"  — forward/back diagonals (╱╲), the "10 PRINT" effect
+#   "arc"       — quarter-arc connectors (╰╮ / ╭╯), smooth flow
+#   "cross"     — hash/pipe combo (╋ / ╬ ... or simple + / ×)
+#   "block"     — filled/half-block tiles (▀▄ — emphasise mass)
+
+_TRUCHET_STYLES: dict = {
+    "diagonal": ("╱", "╲"),
+    "arc":      ("╰", "╮"),    # tile A: corners connect BL→TR; tile B: TL→BR
+    "arc2":     ("╭", "╯"),    # variant — opposite corners
+    "cross":    ("+", "×"),
+    "block":    ("▀", "▄"),
+    "sparse":   ("·", "∙"),
+}
+
+_DEFAULT_TRUCHET_STYLE: str = "diagonal"
+
+
+# -------------------------------------------------------------------------
+def truchet_fill(
+    mask: list,
+    style: str = "diagonal",
+    seed: Optional[int] = None,
+    bias: float = 0.5,
+) -> list:
+    """Fill glyph mask with randomised Truchet tiling (F10).
+
+    Each ink cell in the mask is assigned one of two tile characters
+    independently at random (controlled by *bias*). This creates
+    labyrinth-like flow patterns inside the letter form — inspired by
+    Sébastien Truchet (1704) and the demoscene "10 PRINT" one-liner.
+
+    Available styles and their character pairs:
+      "diagonal"  — ╱ / ╲  (10-PRINT style — the classic)
+      "arc"       — ╰ / ╮  (arc connectors — smooth, wave-like)
+      "arc2"      — ╭ / ╯  (arc variant)
+      "cross"     — + / ×  (clean grid cross)
+      "block"     — ▀ / ▄  (half-block emphasis)
+      "sparse"    — · / ∙  (light dot texture)
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param style: Tile style name (default: "diagonal").
+    :param seed: Optional integer seed for reproducibility.
+    :param bias: Probability of choosing tile A vs tile B (default: 0.5 = equal).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If style name is unknown.
+    """
+    if style not in _TRUCHET_STYLES:
+        raise ValueError(
+            f"Unknown truchet style '{style}'. "
+            f"Available: {', '.join(_TRUCHET_STYLES.keys())}"
+        )
+    tile_a, tile_b = _TRUCHET_STYLES[style]
+    rng = random.Random(seed)
+
+    result = []
+    for row in mask:
+        line = ""
+        for val in row:
+            if val < 0.5:
+                line += " "
+            else:
+                line += tile_a if rng.random() < bias else tile_b
         result.append(line)
 
     return result

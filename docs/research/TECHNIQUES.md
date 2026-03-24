@@ -21,7 +21,7 @@ Techniques that determine what characters fill a glyph mask.
 | F07 | Voronoi Fill | Voronoi cells inside glyph, cell borders as chars | 4 | `idea` |
 | F08 | Stipple Fill | Error-diffusion dithering (Floyd-Steinberg) inside mask | 3 | `idea` |
 | F09 | Wave Interference | Two sine waves interfering inside mask | 4 | `idea` |
-| F10 | Truchet Tiles | Tiling patterns inside glyph using arc/diagonal chars | 5 | `idea` |
+| F10 | Truchet Tiles | Tiling patterns inside glyph using arc/diagonal chars | 5 | `done` |
 
 ### B. Font Generation
 Techniques for generating or importing new glyph sets.
