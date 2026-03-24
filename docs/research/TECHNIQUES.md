@@ -15,7 +15,7 @@ Techniques that determine what characters fill a glyph mask.
 | F01 | Density ASCII | Map brightness → character density (`@#%+-.`) | 2 | `done` |
 | F02 | Perlin Noise Fill | Noise field drives char selection inside mask | 4 | `done` |
 | F03 | Cellular Automata Fill | Conway/GoL seeds inside glyph, freeze after N steps | 4 | `done` |
-| F04 | Reaction-Diffusion | Gray-Scott inside glyph boundary | 5 | `idea` |
+| F04 | Reaction-Diffusion | Gray-Scott inside glyph boundary | 5 | `done` |
 | F05 | Fractal Fill | Mandelbrot/Julia escape time → char density | 4 | `idea` |
 | F06 | SDF Edge Fill | Distance from glyph edge → char selection (outline/glow) | 4 | `done` |
 | F07 | Voronoi Fill | Voronoi cells inside glyph, cell borders as chars | 4 | `idea` |
