@@ -1,0 +1,12 @@
+F04 — Reaction-Diffusion (Gray-Scott) Fill
+Preset: coral (f=0.055, k=0.062)
+Text: 'RD', big font, scale=4, seed=42
+
+  .,S%,     .....  
+ .  ## .   .  .. . 
+ . ,%S, .  . +  : .
+ .  S  ;   . @  # .
+ . . . @   , :,SS .
+ ...  S+.  ?#%%#+. 
+                   
+                   

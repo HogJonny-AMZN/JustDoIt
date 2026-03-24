@@ -1,0 +1,12 @@
+F04 — Reaction-Diffusion (Gray-Scott) Fill
+Preset: maze (f=0.060, k=0.062)
+Text: 'HI', big font, scale=4, seed=7
+
+  .    .    #:... 
+ : S  , :  ,#   ..
+ @ ,S## @    ; +  
+ ?  #;  %    # #  
+ S .  , ,   ;# +# 
+ #,.  S@+  ;#S,+@:
+                  
+                  

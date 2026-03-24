@@ -1,0 +1,48 @@
+F04 — Reaction-Diffusion (Gray-Scott) Fill
+All 5 presets on block font 'A', scale=4, seed=99
+
+--- CORAL ---
+  ,S  
+ %?## 
+?@  :.
++#:...
+..  ..
+..  ..
+      
+
+--- SPOTS ---
+  **  
+ ?*;; 
+*S  *S
+*S*+S?
+*S  **
+S?  ;+
+      
+
+--- MAZE ---
+  ,%  
+ %?#; 
++@  :+
+,*,,S#
+..  S+
+..  %,
+      
+
+--- WORMS ---
+  **  
+ ?*;; 
+*S  *S
+*S*+S?
+*S  **
+S?  ;+
+      
+
+--- ZEBRA ---
+  **  
+ ?*;; 
+*S  *S
+*S*+S?
+*S  **
+S?  ;+
+      
+
