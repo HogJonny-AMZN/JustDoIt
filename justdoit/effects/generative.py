@@ -21,6 +21,11 @@ Implemented techniques:
                        one of two tile orientations (diagonal ╱╲, arc ╰╮, or
                        wave-biased diagonals), creating labyrinth / flow patterns.
                        Inspired by Sébastien Truchet (1704) and the "10 PRINT" demoscene.
+  N10 — slime_mold_fill: Physarum polycephalum (slime mold) agent-based simulation.
+                       Agents move by chemotaxis — they deposit trail and sense
+                       chemical concentration in front, rotating toward the strongest
+                       gradient. The resulting trail map creates organic vein-like
+                       networks inside the glyph mask.
 
 All are pure Python stdlib — no external dependencies.
 """
@@ -619,6 +624,250 @@ def reaction_diffusion_fill(
                 idx = int(t * (n_chars - 1) + 0.5)
                 idx = max(0, min(n_chars - 1, idx))
                 line += chars[n_chars - 1 - idx]       # high V → chars[0] (dense)
+        result.append(line)
+
+    return result
+
+
+# -------------------------------------------------------------------------
+# Slime Mold Simulation (Physarum polycephalum) fill — N10
+#
+# Inspired by Jeff Jones (2010) "Characteristics of Pattern Formation and
+# Evolution in Approximations of Physarum Transport Networks"
+# Int. Journal of Unconventional Computing.
+#
+# Algorithm overview:
+#   1. Spawn N agents scattered inside the glyph ink mask.
+#   2. Each agent has a position (continuous float) and a heading angle.
+#   3. Per step — sense phase: sample trail at three sensor points
+#      (forward-left, forward, forward-right), rotate toward the strongest.
+#   4. Motor phase: move forward one step. If the target cell is outside
+#      the mask boundary, pick a new random heading and try again.
+#   5. Deposit phase: add DEPOSIT amount to the trail grid at current pos.
+#   6. Diffuse phase: 3×3 box-blur the trail grid (inside-mask cells only).
+#   7. Decay phase: multiply all trail values by (1 - DECAY).
+#
+# After all steps the trail grid is normalised and mapped to chars.
+# Dense trail (heavily-used vein) → dense chars; sparse trail → light chars.
+#
+# The mask boundary acts as a natural containment — agents bounce off
+# the edge, so the network always stays inside the glyph shape.
+
+_SLIME_DENSE: str = "@#S%?*+;:,. "
+
+
+# -------------------------------------------------------------------------
+def slime_mold_fill(
+    mask: list,
+    n_agents: int = 200,
+    steps: int = 150,
+    sensor_angle: float = 0.523599,   # 30° in radians
+    sensor_dist: float = 2.5,
+    turn_speed: float = 0.523599,     # 30° in radians
+    deposit: float = 1.0,
+    decay: float = 0.05,
+    density_chars: Optional[str] = None,
+    seed: Optional[int] = None,
+) -> list:
+    """Fill glyph mask with a Physarum polycephalum (slime mold) simulation (N10).
+
+    Agents perform chemotaxis — they deposit a chemical trail and navigate
+    toward the strongest gradient sensed ahead of them. After simulation,
+    the accumulated trail map (normalised) is used to drive character density.
+    Heavily-traversed veins appear as dense chars; sparse regions are lighter.
+
+    The simulation is confined inside the glyph mask — agents that reach
+    the mask boundary pick a new random heading, so the network never
+    leaves the letter form.
+
+    Parameters control:
+      n_agents     — population size. More agents → denser/faster coverage.
+      steps        — simulation iterations. More steps → more elaborate networks.
+      sensor_angle — half-angle between forward and side sensors (radians, default 30°).
+      sensor_dist  — distance ahead to sample trail (cells, default 2.5).
+      turn_speed   — max rotation per step toward best sensor (radians, default 30°).
+      deposit      — trail deposit per step per agent (default 1.0).
+      decay        — trail decay rate per step, 0.0–1.0 (default 0.05).
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param n_agents: Number of Physarum agents (default: 200).
+    :param steps: Simulation iterations (default: 150).
+    :param sensor_angle: Half-angle between forward and side sensors in radians.
+    :param sensor_dist: Look-ahead distance in cells.
+    :param turn_speed: Max rotation toward strongest sensor per step (radians).
+    :param deposit: Trail chemical deposited per agent per step.
+    :param decay: Fractional trail evaporation per step (0 = no decay, 1 = instant).
+    :param density_chars: Darkest-to-lightest char sequence.
+    :param seed: Optional integer seed for reproducibility.
+    :returns: List of strings — one per row, same shape as input mask.
+    """
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    chars = density_chars if density_chars is not None else _SLIME_DENSE
+    n_chars = len(chars)
+    rng = random.Random(seed)
+    TWO_PI = 2.0 * math.pi
+
+    # -------------------------------------------------------------------------
+    # Build ink mask (bool grid)
+    ink = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    # Collect all ink cells as candidate spawn/sensor positions
+    ink_cells = [(r, c) for r in range(rows) for c in range(cols) if ink[r][c]]
+    if not ink_cells:
+        return [" " * cols for _ in range(rows)]
+
+    # -------------------------------------------------------------------------
+    # Trail grid — float, same size as mask; only updated inside ink cells
+    trail = [[0.0] * cols for _ in range(rows)]
+
+    # -------------------------------------------------------------------------
+    # Agent state: list of [py (float), px (float), angle (float)]
+    # py/px are continuous floats; clamped to ink cells on each step.
+    # Use all ink cells if n_agents > population, else sample.
+    sample_size = min(n_agents, len(ink_cells))
+    spawn_cells = rng.sample(ink_cells, sample_size)
+    # Pad if n_agents > available cells by repeating random choices
+    while len(spawn_cells) < n_agents:
+        spawn_cells.append(rng.choice(ink_cells))
+
+    agents = []
+    for (ar, ac) in spawn_cells:
+        angle = rng.uniform(0.0, TWO_PI)
+        agents.append([float(ar) + rng.uniform(-0.4, 0.4),
+                       float(ac) + rng.uniform(-0.4, 0.4),
+                       angle])
+
+    # -------------------------------------------------------------------------
+    def _sense(py: float, px: float, angle: float) -> float:
+        """Sample trail at a sensor point ahead of (py, px) at given angle.
+
+        Returns 0.0 if the sensor point is outside the ink mask.
+
+        :param py: Agent row (float).
+        :param px: Agent column (float).
+        :param angle: Sensor direction angle (radians).
+        :returns: Trail value at sensor point, or 0.0 if outside mask.
+        """
+        sr = int(round(py + sensor_dist * math.sin(angle)))
+        sc = int(round(px + sensor_dist * math.cos(angle)))
+        if 0 <= sr < rows and 0 <= sc < cols and ink[sr][sc]:
+            return trail[sr][sc]
+        return 0.0
+
+    # -------------------------------------------------------------------------
+    def _diffuse() -> None:
+        """In-place 3×3 box-blur of trail, restricted to ink cells.
+
+        Each ink cell's new value is the average of itself and its ink neighbours
+        (including diagonals). Outside cells contribute 0 to the average, so
+        the blur never pulls trail past the mask boundary.
+        """
+        new_trail = [row[:] for row in trail]
+        for r in range(rows):
+            for c in range(cols):
+                if not ink[r][c]:
+                    continue
+                total = 0.0
+                count = 0
+                for dr in (-1, 0, 1):
+                    for dc in (-1, 0, 1):
+                        nr, nc = r + dr, c + dc
+                        if 0 <= nr < rows and 0 <= nc < cols and ink[nr][nc]:
+                            total += trail[nr][nc]
+                            count += 1
+                new_trail[r][c] = total / count if count > 0 else 0.0
+        for r in range(rows):
+            for c in range(cols):
+                trail[r][c] = new_trail[r][c]
+
+    # -------------------------------------------------------------------------
+    # Main simulation loop
+    for _step in range(steps):
+        # --- Sense & rotate ---
+        for agent in agents:
+            py, px, angle = agent
+            f  = _sense(py, px, angle)                   # forward
+            fl = _sense(py, px, angle - sensor_angle)    # forward-left
+            fr = _sense(py, px, angle + sensor_angle)    # forward-right
+
+            if f >= fl and f >= fr:
+                # Forward is best — keep heading
+                pass
+            elif fl > fr:
+                agent[2] = (angle - turn_speed) % TWO_PI
+            elif fr > fl:
+                agent[2] = (angle + turn_speed) % TWO_PI
+            else:
+                # Equal — random turn
+                agent[2] = (angle + (turn_speed if rng.random() < 0.5
+                                     else -turn_speed)) % TWO_PI
+
+        # --- Move & deposit ---
+        for agent in agents:
+            py, px, angle = agent
+            ny = py + math.sin(angle)
+            nx = px + math.cos(angle)
+            nr = int(round(ny))
+            nc = int(round(nx))
+
+            if 0 <= nr < rows and 0 <= nc < cols and ink[nr][nc]:
+                agent[0] = ny
+                agent[1] = nx
+            else:
+                # Hit boundary — pick a new random heading and stay put
+                agent[2] = rng.uniform(0.0, TWO_PI)
+                nr, nc = int(round(py)), int(round(px))
+
+            # Deposit at clamped grid cell
+            dr = max(0, min(rows - 1, nr))
+            dc = max(0, min(cols - 1, nc))
+            if ink[dr][dc]:
+                trail[dr][dc] += deposit
+
+        # --- Diffuse ---
+        _diffuse()
+
+        # --- Decay ---
+        decay_factor = 1.0 - decay
+        for r in range(rows):
+            for c in range(cols):
+                trail[r][c] *= decay_factor
+
+    # -------------------------------------------------------------------------
+    # Normalise trail and map to chars
+    trail_vals = [trail[r][c] for r in range(rows) for c in range(cols)
+                  if ink[r][c]]
+    if not trail_vals:
+        return [" " * cols for _ in range(rows)]
+
+    min_t = min(trail_vals)
+    max_t = max(trail_vals)
+    span = max_t - min_t
+
+    result = []
+    for r in range(rows):
+        line = ""
+        for c in range(cols):
+            if not ink[r][c]:
+                line += " "
+                continue
+            if span < 1e-9:
+                line += chars[n_chars // 2]
+                continue
+            t = (trail[r][c] - min_t) / span    # 0.0..1.0
+            t = max(0.0, min(1.0, t))
+            idx = int(t * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += chars[n_chars - 1 - idx]    # high trail → chars[0] (dense)
         result.append(line)
 
     return result

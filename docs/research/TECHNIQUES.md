@@ -111,4 +111,4 @@ Things that don't fit elsewhere. The truly weird stuff.
 | N07 | ASCII Raytracer | Simple raytracer rendering 3D scene in ASCII | 5 | `idea` |
 | N08 | Strange Attractor | Lorenz/Rössler attractor projected into glyph mask | 5 | `idea` |
 | N09 | Turing Pattern | Reaction-diffusion yielding biological spot/stripe patterns | 5 | `idea` |
-| N10 | Slime Mold Simulation | Physarum polycephalum agent sim inside glyph | 5 | `idea` |
+| N10 | Slime Mold Simulation | Physarum polycephalum agent sim inside glyph | 5 | `done` |
