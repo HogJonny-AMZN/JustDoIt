@@ -27,16 +27,17 @@ Reordered after each session. Top = next bite.
 
 | Priority | Technique | ID | Novelty | Status |
 |----------|-----------|-----|---------|--------|
-| 1 | Slime Mold Simulation | N10 | 5 | `idea` |
-| 2 | Strange Attractor | N08 | 5 | `idea` |
-| 3 | L-System Growth | N06 | 5 | `idea` |
-| 4 | Typographic Recursion | N01 | 5 | `idea` |
-| 5 | SDF Font Generator | G04 | 5 | `idea` |
-| 6 | Wave Interference Fill | F09 | 4 | `idea` |
-| 7 | Voronoi Fill | F07 | 4 | `idea` |
-| 8 | Plasma Wave Animation | A10 | 4 | `idea` |
-| 9 | Flame Simulation | A08 | 4 | `idea` |
-| 10 | Fractal Fill (Mandelbrot) | F05 | 4 | `idea` |
+| 1 | Strange Attractor | N08 | 5 | `idea` |
+| 2 | L-System Growth | N06 | 5 | `idea` |
+| 3 | Typographic Recursion | N01 | 5 | `idea` |
+| 4 | SDF Font Generator | G04 | 5 | `idea` |
+| 5 | Wave Interference Fill | F09 | 4 | `idea` |
+| 6 | Voronoi Fill | F07 | 4 | `idea` |
+| 7 | Plasma Wave Animation | A10 | 4 | `idea` |
+| 8 | Flame Simulation | A08 | 4 | `idea` |
+| 9 | Fractal Fill (Mandelbrot) | F05 | 4 | `idea` |
+| 10 | Chromatic Aberration | C08 | 5 | `idea` |
+| — | Slime Mold Simulation | N10 | 5 | `done` |
 
 ---
 
@@ -59,3 +60,11 @@ Reordered after each session. Top = next bite.
 **Sources:** Pearson (1993) "Complex Patterns in a Simple System" Science 261, 189–192; Karl Sims Gray-Scott parameter exploration; Xenomachina Gray-Scott interactive explorer reference values
 **Key insight:** Gray-Scott RD on tiny ASCII glyph masks (7×6 cells) requires an upscale-simulate-downsample strategy — patterns need room (~30×30 cells minimum) to establish before the boundary kill effect dominates. Also discovered that "coral" f=0.060 k=0.058 converges to a trivial homogeneous fixed point; better parameter tuning comes from numerical exploration of the (f,k) phase space. For thin-stroke glyphs where V dies entirely (too much boundary), using inverted-U as the signal source recovers meaningful spatial variation. The full system now degrades gracefully through three fallback levels: V-based → U-based → Perlin-based.
 **Priority queue update:** F04 complete. N10 (Slime Mold / Physarum polycephalum simulation) promoted to #1 — it uses agent-based simulation rather than PDE, which sidesteps the grid-size problem entirely. Each agent explores the mask with chemotaxis, naturally adapting to boundary shape.
+
+## Session 2026-03-26
+
+**Research focus:** Physarum polycephalum agent-based simulation (slime mold), Jones (2010) chemotaxis algorithm, sensor-motor-deposit model, boundary confinement strategies for glyph-constrained agent sims
+**New techniques found:** 0 new (web search unavailable; session implemented N10 from prior knowledge of Jones 2010 and Physarum literature)
+**Sources:** Jeff Jones (2010) "Characteristics of Pattern Formation and Evolution in Approximations of Physarum Transport Networks" Int. Journal of Unconventional Computing; prior knowledge of agent-based chemotaxis models
+**Key insight:** The Physarum simulation adapts beautifully to the glyph-mask constraint because it's agent-based rather than PDE-based. Agents that hit the mask boundary simply pick a new random heading — no ghost cells or Neumann conditions required. The resulting trail maps form organic vein-like networks that trace the interior shape of each letter. Sensor angle is the most expressive parameter: narrow angles (~15°) yield fine parallel filaments; wide angles (~45°) yield dense branching networks. Decay rate controls whether ancient paths fade or accumulate indefinitely. Three output files generated showing range.
+**Priority queue update:** N10 complete. Next: N08 (Strange Attractor — Lorenz/Rössler projected into glyph mask, novelty 5) is now #1. Agent-based and chaotic-system approaches are proving more robust than PDE on small grids, so N08's projection approach should work well. N06 (L-System Growth) is #2.
