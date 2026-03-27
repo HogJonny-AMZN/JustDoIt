@@ -21,6 +21,15 @@ Implemented techniques:
                        one of two tile orientations (diagonal ╱╲, arc ╰╮, or
                        wave-biased diagonals), creating labyrinth / flow patterns.
                        Inspired by Sébastien Truchet (1704) and the "10 PRINT" demoscene.
+  N08 — strange_attractor_fill: Chaotic strange attractor projected into glyph mask.
+                       Integrates a continuous ODE (Lorenz, Rössler) or iterates a
+                       discrete map (De Jong, Clifford) for many steps, then builds
+                       a 2D density histogram of the trajectory. Each glyph ink cell
+                       samples the density at its proportional position in the
+                       attractor's bounding box — dense trajectory regions → heavy
+                       chars, sparse regions → light chars. The result is a
+                       calligraphically beautiful fill that encodes chaotic geometry
+                       inside each letterform.
   N10 — slime_mold_fill: Physarum polycephalum (slime mold) agent-based simulation.
                        Agents move by chemotaxis — they deposit trail and sense
                        chemical concentration in front, rotating toward the strongest
@@ -868,6 +877,368 @@ def slime_mold_fill(
             idx = int(t * (n_chars - 1) + 0.5)
             idx = max(0, min(n_chars - 1, idx))
             line += chars[n_chars - 1 - idx]    # high trail → chars[0] (dense)
+        result.append(line)
+
+    return result
+
+
+# -------------------------------------------------------------------------
+# Strange Attractor fill — N08
+#
+# Chaotic attractor trajectory projected into a 2D density histogram,
+# then mapped to character density inside the glyph ink mask.
+#
+# Supported attractors:
+#   "lorenz"   — Lorenz (1963) continuous ODE; parameters σ=10, ρ=28, β=8/3.
+#                Classic butterfly attractor. Projected to (x, y) plane.
+#                dt = 0.005 (RK4 integration).
+#
+#   "rossler"  — Rössler (1976) continuous ODE; parameters a=0.1, b=0.1, c=14.
+#                Thin band spiral in (x, y) plane. dt = 0.05 (RK4 integration).
+#
+#   "dejong"   — Peter de Jong discrete map:
+#                  x' = sin(a·y) - cos(b·x)
+#                  y' = sin(c·x) - cos(d·y)
+#                Default parameters: a=−2.0, b=−2.0, c=−1.2, d=2.0.
+#                Produces intricate lattice-like patterns.
+#
+#   "clifford" — Clifford Pickover attractor:
+#                  x' = sin(a·y) + c·cos(a·x)
+#                  y' = sin(b·x) + d·cos(b·y)
+#                Default parameters: a=−1.4, b=1.6, c=1.0, d=0.7.
+#                Produces layered petals and woven filaments.
+#
+# Algorithm:
+#   1. Warm up: discard first WARMUP steps so the trajectory is on the attractor.
+#   2. Collect STEPS (x, y) samples.
+#   3. Build a density histogram on a grid sized (BIN_ROWS × BIN_COLS).
+#   4. Apply log1p compression to reduce the dynamic range (sparse/dense cells).
+#   5. For each glyph ink cell (r, c), map to a histogram bin by proportional
+#      position and sample the density.
+#   6. Normalise and map to character density — high density → dense chars.
+#
+# The density histogram grid can be larger than the glyph mask — it acts as
+# a virtual "canvas" that gets sampled at glyph-mask resolution.
+
+_ATTRACTOR_DENSE: str = "@#S%?*+;:,. "
+
+# Warmup steps to discard before collecting trajectory
+_ATTRACTOR_WARMUP: int = 1000
+# Default histogram bin dimensions — more bins = finer detail
+_ATTRACTOR_BIN_ROWS: int = 120
+_ATTRACTOR_BIN_COLS: int = 120
+
+# Named preset parameter bundles for De Jong and Clifford
+_DEJONG_PRESETS: dict = {
+    "default": {"a": -2.0,  "b": -2.0,  "c": -1.2,  "d":  2.0},
+    "classic": {"a": -1.4,  "b":  1.6,  "c":  1.0,  "d":  0.7},
+    "thorn":   {"a":  2.01, "b": -2.53, "c":  1.61, "d": -0.33},
+    "crystal": {"a": -0.8,  "b": -0.9,  "c": -0.5,  "d":  0.7},
+}
+
+_CLIFFORD_PRESETS: dict = {
+    "default":  {"a": -1.4,  "b":  1.6,  "c":  1.0,  "d":  0.7},
+    "spider":   {"a": -1.7,  "b":  1.3,  "c": -0.1,  "d": -1.2},
+    "woven":    {"a": -1.3,  "b": -1.3,  "c": -1.8,  "d": -1.9},
+    "spiral":   {"a":  1.7,  "b":  1.7,  "c":  0.6,  "d":  1.2},
+}
+
+
+# -------------------------------------------------------------------------
+def _lorenz_trajectory(steps: int, dt: float = 0.005) -> list:
+    """Integrate the Lorenz system using 4th-order Runge-Kutta.
+
+    Parameters: σ=10, ρ=28, β=8/3 (classic chaos regime).
+    Warmup: _ATTRACTOR_WARMUP steps discarded before collection.
+
+    :param steps: Number of (x, y, z) points to collect.
+    :param dt: Integration time step (default 0.005).
+    :returns: List of (x, y) tuples (z discarded; x–y plane shows butterfly wings).
+    """
+    sigma, rho, beta = 10.0, 28.0, 8.0 / 3.0
+    x, y, z = 1.0, 0.5, 0.5
+
+    def _deriv(x_: float, y_: float, z_: float):
+        return (sigma * (y_ - x_), x_ * (rho - z_) - y_, x_ * y_ - beta * z_)
+
+    def _rk4(x_: float, y_: float, z_: float):
+        dx1, dy1, dz1 = _deriv(x_, y_, z_)
+        dx2, dy2, dz2 = _deriv(x_ + 0.5*dt*dx1, y_ + 0.5*dt*dy1, z_ + 0.5*dt*dz1)
+        dx3, dy3, dz3 = _deriv(x_ + 0.5*dt*dx2, y_ + 0.5*dt*dy2, z_ + 0.5*dt*dz2)
+        dx4, dy4, dz4 = _deriv(x_ + dt*dx3, y_ + dt*dy3, z_ + dt*dz3)
+        return (
+            x_ + dt * (dx1 + 2*dx2 + 2*dx3 + dx4) / 6.0,
+            y_ + dt * (dy1 + 2*dy2 + 2*dy3 + dy4) / 6.0,
+            z_ + dt * (dz1 + 2*dz2 + 2*dz3 + dz4) / 6.0,
+        )
+
+    # Warm up — get onto the attractor
+    for _ in range(_ATTRACTOR_WARMUP):
+        x, y, z = _rk4(x, y, z)
+
+    pts = []
+    for _ in range(steps):
+        x, y, z = _rk4(x, y, z)
+        pts.append((x, y))   # project to x–y plane
+    return pts
+
+
+# -------------------------------------------------------------------------
+def _rossler_trajectory(steps: int, dt: float = 0.05) -> list:
+    """Integrate the Rössler system using 4th-order Runge-Kutta.
+
+    Parameters: a=0.1, b=0.1, c=14.0 (funnel/band chaos regime).
+    Projected to (x, y) plane — shows the spiraling band structure.
+
+    :param steps: Number of (x, y) points to collect.
+    :param dt: Integration time step (default 0.05).
+    :returns: List of (x, y) tuples.
+    """
+    a, b, c = 0.1, 0.1, 14.0
+    x, y, z = 1.0, 0.0, 0.0
+
+    def _deriv(x_: float, y_: float, z_: float):
+        return (-y_ - z_, x_ + a * y_, b + z_ * (x_ - c))
+
+    def _rk4(x_: float, y_: float, z_: float):
+        dx1, dy1, dz1 = _deriv(x_, y_, z_)
+        dx2, dy2, dz2 = _deriv(x_ + 0.5*dt*dx1, y_ + 0.5*dt*dy1, z_ + 0.5*dt*dz1)
+        dx3, dy3, dz3 = _deriv(x_ + 0.5*dt*dx2, y_ + 0.5*dt*dy2, z_ + 0.5*dt*dz2)
+        dx4, dy4, dz4 = _deriv(x_ + dt*dx3, y_ + dt*dy3, z_ + dt*dz3)
+        return (
+            x_ + dt * (dx1 + 2*dx2 + 2*dx3 + dx4) / 6.0,
+            y_ + dt * (dy1 + 2*dy2 + 2*dy3 + dy4) / 6.0,
+            z_ + dt * (dz1 + 2*dz2 + 2*dz3 + dz4) / 6.0,
+        )
+
+    for _ in range(_ATTRACTOR_WARMUP):
+        x, y, z = _rk4(x, y, z)
+
+    pts = []
+    for _ in range(steps):
+        x, y, z = _rk4(x, y, z)
+        pts.append((x, y))
+    return pts
+
+
+# -------------------------------------------------------------------------
+def _dejong_trajectory(steps: int, params: dict) -> list:
+    """Iterate the Peter de Jong attractor map.
+
+    Map equations:
+      x' = sin(a·y) - cos(b·x)
+      y' = sin(c·x) - cos(d·y)
+
+    :param steps: Number of (x, y) iterations to collect.
+    :param params: Dict with keys 'a', 'b', 'c', 'd'.
+    :returns: List of (x, y) tuples.
+    """
+    a, b, c, d = params["a"], params["b"], params["c"], params["d"]
+    x, y = 0.1, 0.1
+
+    # Warm up
+    for _ in range(_ATTRACTOR_WARMUP):
+        x, y = math.sin(a * y) - math.cos(b * x), math.sin(c * x) - math.cos(d * y)
+
+    pts = []
+    for _ in range(steps):
+        x, y = math.sin(a * y) - math.cos(b * x), math.sin(c * x) - math.cos(d * y)
+        pts.append((x, y))
+    return pts
+
+
+# -------------------------------------------------------------------------
+def _clifford_trajectory(steps: int, params: dict) -> list:
+    """Iterate the Clifford attractor map.
+
+    Map equations:
+      x' = sin(a·y) + c·cos(a·x)
+      y' = sin(b·x) + d·cos(b·y)
+
+    :param steps: Number of (x, y) iterations to collect.
+    :param params: Dict with keys 'a', 'b', 'c', 'd'.
+    :returns: List of (x, y) tuples.
+    """
+    a, b, c, d = params["a"], params["b"], params["c"], params["d"]
+    x, y = 0.1, 0.1
+
+    for _ in range(_ATTRACTOR_WARMUP):
+        x, y = (math.sin(a * y) + c * math.cos(a * x),
+                math.sin(b * x) + d * math.cos(b * y))
+
+    pts = []
+    for _ in range(steps):
+        x, y = (math.sin(a * y) + c * math.cos(a * x),
+                math.sin(b * x) + d * math.cos(b * y))
+        pts.append((x, y))
+    return pts
+
+
+# -------------------------------------------------------------------------
+def _build_density_grid(pts: list, bin_rows: int, bin_cols: int) -> list:
+    """Build a 2D density histogram from trajectory points.
+
+    Each point is mapped to its histogram bin by normalising the bounding box
+    of the trajectory to [0, bin_rows) × [0, bin_cols). Log1p compression
+    is applied to reduce dynamic range (very dense core vs sparse edges).
+
+    :param pts: List of (x, y) tuples from a trajectory generator.
+    :param bin_rows: Number of histogram rows.
+    :param bin_cols: Number of histogram columns.
+    :returns: 2D list[list[float]] of normalised density values (0.0–1.0),
+              shape bin_rows × bin_cols.
+    """
+    if not pts:
+        return [[0.0] * bin_cols for _ in range(bin_rows)]
+
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+
+    range_x = max_x - min_x or 1.0
+    range_y = max_y - min_y or 1.0
+
+    # Build count grid
+    grid = [[0] * bin_cols for _ in range(bin_rows)]
+    for x, y in pts:
+        col = int((x - min_x) / range_x * (bin_cols - 1) + 0.5)
+        row = int((y - min_y) / range_y * (bin_rows - 1) + 0.5)
+        col = max(0, min(bin_cols - 1, col))
+        row = max(0, min(bin_rows - 1, row))
+        grid[row][col] += 1
+
+    # Log1p compression — reduces the extreme density contrast
+    float_grid = [[math.log1p(grid[r][c]) for c in range(bin_cols)]
+                  for r in range(bin_rows)]
+
+    # Normalise to 0.0–1.0
+    all_vals = [float_grid[r][c] for r in range(bin_rows) for c in range(bin_cols)]
+    max_v = max(all_vals) if all_vals else 1.0
+    if max_v < 1e-12:
+        return [[0.0] * bin_cols for _ in range(bin_rows)]
+
+    return [[float_grid[r][c] / max_v for c in range(bin_cols)]
+            for r in range(bin_rows)]
+
+
+# -------------------------------------------------------------------------
+def strange_attractor_fill(
+    mask: list,
+    attractor: str = "lorenz",
+    steps: int = 80000,
+    density_chars: Optional[str] = None,
+    preset: Optional[str] = None,
+    bin_rows: int = _ATTRACTOR_BIN_ROWS,
+    bin_cols: int = _ATTRACTOR_BIN_COLS,
+) -> list:
+    """Fill glyph mask using a chaotic strange attractor density projection (N08).
+
+    Integrates or iterates the selected attractor for *steps* steps, building a
+    2D density histogram of the trajectory. Each glyph ink cell is mapped to its
+    proportional position in the attractor's bounding box and samples the density
+    there. Dense trajectory regions (where the orbit spends most time) → heavy
+    chars; sparse regions (rare excursions) → light chars.
+
+    The histogram is log1p-compressed before mapping to reduce the extreme
+    contrast between the dense core and the sparse outer filaments of the attractor.
+
+    Available attractors:
+      "lorenz"   — Lorenz butterfly (σ=10, ρ=28, β=8/3), projected to x–y plane.
+                   Produces asymmetric wing-like density with dense orbital bands.
+      "rossler"  — Rössler funnel (a=0.1, b=0.1, c=14.0), projected to x–y plane.
+                   Produces a dense spiral disk with a lighter outer band.
+      "dejong"   — Peter de Jong discrete map. Rich lattice / petal patterns.
+                   Named presets: 'default', 'classic', 'thorn', 'crystal'.
+      "clifford" — Clifford Pickover attractor. Layered filaments and woven loops.
+                   Named presets: 'default', 'spider', 'woven', 'spiral'.
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param attractor: Attractor name (default: 'lorenz').
+    :param steps: Trajectory length in iterations/steps (default: 80000).
+    :param density_chars: Darkest-to-lightest char sequence (default: _ATTRACTOR_DENSE).
+    :param preset: Named parameter preset for 'dejong' or 'clifford' attractors.
+                   Ignored for 'lorenz' and 'rossler'.
+    :param bin_rows: Density histogram height in bins (default: 120).
+    :param bin_cols: Density histogram width in bins (default: 120).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If attractor name is unknown or preset name is invalid.
+    """
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    # Strip trailing space from char set for ink cells — ink cells should never
+    # be empty regardless of density. The space at the end of the default set is
+    # for "outside the mask" only. We keep it in the user-supplied set only if
+    # all characters happen to be spaces (unusual edge case).
+    raw_chars = density_chars if density_chars is not None else _ATTRACTOR_DENSE
+    ink_chars = raw_chars.rstrip(" ") or raw_chars[0]  # at least one char
+    n_chars = len(ink_chars)
+
+    # -------------------------------------------------------------------------
+    # Build ink mask
+    ink = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    # -------------------------------------------------------------------------
+    # Generate trajectory
+    attractor = attractor.lower()
+    if attractor == "lorenz":
+        pts = _lorenz_trajectory(steps)
+    elif attractor == "rossler":
+        pts = _rossler_trajectory(steps)
+    elif attractor == "dejong":
+        params = _DEJONG_PRESETS.get(preset or "default")
+        if params is None:
+            raise ValueError(
+                f"Unknown De Jong preset '{preset}'. "
+                f"Available: {', '.join(_DEJONG_PRESETS.keys())}"
+            )
+        pts = _dejong_trajectory(steps, params)
+    elif attractor == "clifford":
+        params = _CLIFFORD_PRESETS.get(preset or "default")
+        if params is None:
+            raise ValueError(
+                f"Unknown Clifford preset '{preset}'. "
+                f"Available: {', '.join(_CLIFFORD_PRESETS.keys())}"
+            )
+        pts = _clifford_trajectory(steps, params)
+    else:
+        raise ValueError(
+            f"Unknown attractor '{attractor}'. "
+            f"Available: lorenz, rossler, dejong, clifford"
+        )
+
+    # -------------------------------------------------------------------------
+    # Build density histogram
+    density = _build_density_grid(pts, bin_rows, bin_cols)
+
+    # -------------------------------------------------------------------------
+    # Map each ink cell to a density bin and select a character
+    result = []
+    for r in range(rows):
+        line = ""
+        for c in range(cols):
+            if not ink[r][c]:
+                line += " "
+                continue
+            # Map (r, c) proportionally to density grid coordinates
+            # r ranges 0..rows-1 → bin_row 0..bin_rows-1
+            # c ranges 0..cols-1 → bin_col 0..bin_cols-1
+            br = int(r / max(rows - 1, 1) * (bin_rows - 1) + 0.5)
+            bc = int(c / max(cols - 1, 1) * (bin_cols - 1) + 0.5)
+            br = max(0, min(bin_rows - 1, br))
+            bc = max(0, min(bin_cols - 1, bc))
+            d = density[br][bc]   # 0.0–1.0, log-compressed
+            idx = int(d * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += ink_chars[n_chars - 1 - idx]    # high density → ink_chars[0] (dense)
         result.append(line)
 
     return result
