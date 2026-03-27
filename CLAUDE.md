@@ -29,6 +29,7 @@ uv sync --dev     # Create .venv, install pytest + Pillow
 uv run pytest     # Run all tests
 uv run pytest -v  # Verbose
 uv run pytest -q  # Quiet
+uv run pytest tests/test_figlet.py -v  # Single test module
 
 # Optional: install globally (legacy single-file)
 chmod +x justdoit.py && cp justdoit.py /usr/local/bin/justdoit
@@ -40,7 +41,7 @@ chmod +x justdoit.py && cp justdoit.py /usr/local/bin/justdoit
 
 ### Package Structure
 
-```
+```text
 justdoit/
 ├── __init__.py            # Public API
 ├── cli.py                 # argparse entry point → main()
@@ -74,6 +75,21 @@ There is also a legacy `justdoit.py` at the repo root for backwards compatibilit
 
 **Hard constraint:** All glyphs in a font must have the same row count (height). The pipeline zips rows across characters — mismatched heights corrupt output.
 
+### Font Types
+
+| Font | Source | Height | Requires |
+| ---- | ------ | ------ | -------- |
+| `block` | `builtin/block.py` | 7 rows | nothing |
+| `slim` | `builtin/slim.py` | 3 rows | nothing |
+| `banner`, `big`, `bubble`, `digital`, `slant` (figlet) | bundled `.flf` | varies | nothing |
+| TTF/OTF system fonts | Pillow rasterizer | configurable (default 7) | Pillow |
+
+### Adding New Fonts
+
+**Builtin font:** Create `justdoit/fonts/builtin/myfont.py` with `MYFONT: dict[str, list[str]]`, ensure all glyphs have identical row counts, then register in `justdoit/fonts/__init__.py`.
+
+**FIGlet font:** Drop `.flf` into `justdoit/fonts/figlet_fonts/` and register in `justdoit/fonts/__init__.py`. No parser changes needed.
+
 ### Dependencies
 
 - **Core:** zero — pure Python 3 stdlib
@@ -102,6 +118,57 @@ The `.venv` has `pytest`, `Pillow`, and `justdoit` (editable install) already.
 System `python3` does NOT have these — always use `.venv/bin/python` or `uv run`.
 
 Optional Pillow features degrade gracefully — all PIL-gated code checks availability at call time and raises `ImportError` with a helpful install hint.
+
+---
+
+## Module Structure
+
+Every Python module must follow this header pattern (from `.github/python-instructions.md`):
+
+```python
+"""
+Package: justdoit.subpackage.module
+Brief one-line description.
+"""
+
+import logging as _logging
+
+# -------------------------------------------------------------------------
+# module global scope
+_MODULE_NAME = "justdoit.subpackage.module"  # must match Package docstring
+__updated__ = "YYYY-MM-DD HH:MM:SS"
+__version__ = "X.Y.Z"
+__author__ = ["jGalloway"]
+
+_LOGGER = _logging.getLogger(_MODULE_NAME)  # use _MODULE_NAME, NOT __name__
+```
+
+Every top-level function/class must be preceded by a separator line:
+
+```python
+# -------------------------------------------------------------------------
+def my_function() -> None:
+```
+
+**Key rules:**
+
+- No `print()` in library code — use `_LOGGER` with appropriate level
+- Line length: 120 characters (PEP 8 extended)
+- All functions require type hints and ReST-format docstrings
+- Use `pathlib.Path` for all paths, not string operations
+- PIL-gated tests: `pytest.importorskip("PIL")` — never hard-fail
+- Imports: stdlib → third-party (guarded) → local absolute
+
+---
+
+## Commit Conventions
+
+- `feat:` new font, effect, or CLI flag
+- `fix:` bug fix
+- `refactor:` structural improvement
+- `test:` test additions or fixes
+- `docs:` documentation updates
+- `chore:` build, tooling, deps
 
 ---
 
