@@ -31,8 +31,8 @@ packages = ["justdoit"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=8.0",
     "Pillow>=10.0",
 ]
