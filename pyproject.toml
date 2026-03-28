@@ -31,6 +31,12 @@ packages = ["justdoit"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+ignore = ["E221"]  # allow aligned assignments (used throughout for dict/list readability)
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",
