@@ -1,15 +1,23 @@
 """
 Package: justdoit.effects.shape_fill
-Shape-vector / gradient-edge fill (F07).
+Shape-vector / contour-following fill (F07).
 
-Uses the SDF of the glyph mask to identify three regions:
-  - Exterior  (SDF < 0.20): space
-  - Edge band (SDF 0.20-0.60): directional character chosen by SDF gradient angle
-  - Interior  (SDF > 0.60): density character scaled by SDF depth
+Uses 4-cardinal-neighbor connectivity to classify each ink cell:
 
-The gradient of the SDF at each edge cell encodes the local contour direction.
-That angle is mapped to a directional ASCII character (| / \\ -) so strokes
-follow the actual shape of the glyph rather than a uniform density fill.
+  - Exterior  (mask == 0): space
+  - Interior  (all 4 cardinal neighbors have ink): density char scaled by
+      8-neighbor fill count — fully surrounded → densest, near-edge → lighter
+  - Edge      (≥1 cardinal neighbor is empty): directional char that draws the
+      glyph boundary passing through that cell:
+        top+left empty  →  /   top+right empty  →  \\
+        bottom+left     →  \\  bottom+right      →  /
+        top/bottom only →  -   left/right only   →  |
+        complex junction → +
+
+This approach works correctly at character resolution (1 mask cell = 1 output
+cell) because it reads the *connectivity pattern* of the binary mask rather
+than trying to differentiate continuous SDF gradient levels that do not exist
+at this resolution.
 
 Pure Python at render time — no external dependencies.
 The Pillow-based character DB (_get_char_db) is retained for tests and for
@@ -17,7 +25,6 @@ future use in photo-to-ASCII rendering where sub-cell resolution is available.
 """
 
 import logging as _logging
-import math
 import string
 from typing import Optional
 
@@ -25,7 +32,7 @@ from typing import Optional
 # module global scope
 _MODULE_NAME = "justdoit.effects.shape_fill"
 __updated__ = "2026-03-28 00:00:00"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __author__ = ["jGalloway"]
 
 _LOGGER = _logging.getLogger(_MODULE_NAME)
@@ -40,22 +47,8 @@ _CELL_W: int = 8
 # Module-level DB cache: (charset, cell_h, cell_w) → {char: [6 floats]}
 _DB_CACHE: dict = {}
 
-# Interior density ramp — densest to lightest
+# Interior density ramp — densest (8 filled neighbors) to lightest (4 filled)
 _INTERIOR_CHARS: str = "@#S%*+;:,. "
-
-# Edge-band characters indexed by contour angle (degrees, 0–180)
-# Angle is measured from the SDF gradient; 0°=horizontal, 90°=vertical
-_EDGE_ANGLE_MAP: list = [
-    (0,   22,  "-"),    # horizontal stroke
-    (22,  68,  "/"),    # rising diagonal
-    (68,  112, "|"),    # vertical stroke
-    (112, 158, "\\"),   # falling diagonal
-    (158, 180, "-"),    # horizontal stroke (other side)
-]
-
-# SDF thresholds
-_EXTERIOR_MAX: float  = 0.20
-_INTERIOR_MIN: float  = 0.60
 
 
 # -------------------------------------------------------------------------
@@ -180,62 +173,83 @@ def _nearest_char(vec: list, db: dict) -> str:
 
 
 # -------------------------------------------------------------------------
-def _sdf_val(sdf: list, r: int, c: int, rows: int, cols: int) -> float:
-    """Clamp-safe SDF lookup.
+def _cell_char(mask: list, r: int, c: int, rows: int, cols: int) -> str:
+    """Select a character for an ink cell using 4-cardinal neighbor analysis.
 
-    :param sdf: 2D SDF grid.
-    :param r: Row index (may be out of bounds).
-    :param c: Column index (may be out of bounds).
-    :param rows: Grid row count.
-    :param cols: Grid column count.
-    :returns: SDF float value, clamped to grid boundary.
-    """
-    return sdf[max(0, min(rows - 1, r))][max(0, min(cols - 1, c))]
+    Classifies the cell by examining which cardinal directions (top, bottom,
+    left, right) have empty (non-ink) cells, then maps that connectivity
+    pattern to a directional character that visually draws the boundary:
 
+      - All 4 filled  → interior density char (8-neighbor count)
+      - Top+left      → /    Top+right  → \\
+      - Bottom+left   → \\   Bottom+right → /
+      - Top/bottom    → -    Left/right → |
+      - Complex       → +
 
-# -------------------------------------------------------------------------
-def _edge_char(sdf: list, r: int, c: int, rows: int, cols: int) -> str:
-    """Choose a directional character for an edge cell using the SDF gradient.
-
-    Computes the gradient of the SDF at (r, c) via central differences.
-    The gradient angle (0°=horizontal, 90°=vertical) is mapped to a
-    directional ASCII character that follows the local contour direction.
-
-    :param sdf: 2D SDF grid.
+    :param mask: 2D list of floats (0.0=empty, 1.0=ink).
     :param r: Row index.
     :param c: Column index.
     :param rows: Grid row count.
     :param cols: Grid column count.
-    :returns: Single directional character.
+    :returns: Single character.
     """
-    dx = _sdf_val(sdf, r, c + 1, rows, cols) - _sdf_val(sdf, r, c - 1, rows, cols)
-    dy = _sdf_val(sdf, r + 1, c, rows, cols) - _sdf_val(sdf, r - 1, c, rows, cols)
-    mag = math.sqrt(dx * dx + dy * dy)
+    def empty(dr: int, dc: int) -> bool:
+        nr, nc = r + dr, c + dc
+        if not (0 <= nr < rows and 0 <= nc < cols):
+            return True  # treat out-of-bounds as empty
+        return mask[nr][nc] <= 0.5
 
-    if mag < 0.05:
-        return "+"  # no clear gradient — ambiguous corner/junction
+    t  = empty(-1,  0)
+    b  = empty(+1,  0)
+    le = empty( 0, -1)
+    ri = empty( 0, +1)
 
-    angle = math.degrees(math.atan2(abs(dy), abs(dx)))  # 0°–90°
-    # Mirror into 0°–180° using sign of dy*dx to distinguish / vs \
-    if dx * dy < 0:
-        angle = 180.0 - angle
+    # Interior: all 4 cardinal neighbors have ink
+    if not (t or b or le or ri):
+        filled = sum(
+            1
+            for dr in (-1, 0, 1)
+            for dc in (-1, 0, 1)
+            if (dr, dc) != (0, 0)
+            and 0 <= r + dr < rows
+            and 0 <= c + dc < cols
+            and mask[r + dr][c + dc] > 0.5
+        )
+        # filled = 0–8; 8 = deep interior → densest char
+        n = len(_INTERIOR_CHARS)
+        idx = int((8 - filled) * (n - 1) / 8)
+        return _INTERIOR_CHARS[max(0, min(n - 1, idx))]
 
-    for a0, a1, ch in _EDGE_ANGLE_MAP:
-        if a0 <= angle < a1:
-            return ch
-    return "-"
+    # Corner: exactly one vertical + one horizontal cardinal empty
+    if t and le and not b and not ri:  return "/"
+    if t and ri and not b and not le:  return "\\"
+    if b and le and not t and not ri:  return "\\"
+    if b and ri and not t and not le:  return "/"
+
+    # Edge: count empties per axis to determine dominant boundary direction
+    v_count = int(t) + int(b)    # empties on vertical axis → horizontal boundary
+    h_count = int(le) + int(ri)  # empties on horizontal axis → vertical boundary
+
+    if v_count > h_count:  return "-"
+    if h_count > v_count:  return "|"
+
+    # Equal (e.g. all 4 empty = isolated cell, or T-junction)
+    return "+"
 
 
 # -------------------------------------------------------------------------
 def shape_fill(mask: list, charset: Optional[str] = None) -> list:
-    """Fill using SDF gradient edge-character selection (F07).
+    """Fill using 4-neighbor connectivity character selection (F07).
 
-    Three-region fill based on the signed distance field of the mask:
+    Each ink cell is assigned a character that visually draws the glyph
+    boundary passing through it, based on which of its four cardinal
+    neighbors (top / bottom / left / right) are empty:
 
-      - Exterior  (SDF < 0.20): space
-      - Edge band (SDF 0.20–0.60): directional char from contour angle
-          | for vertical strokes, - for horizontal, / and \\ for diagonals
-      - Interior  (SDF > 0.60): density char scaled by depth (@→.)
+      - Exterior cells (mask == 0): space
+      - Interior cells (all 4 cardinal neighbors have ink): density char
+          chosen by 8-neighbor fill count (@→lightest; deep interior→dense)
+      - Edge cells: directional char matching the boundary orientation
+          /  \\  -  |  +
 
     Pure Python — no external dependencies at render time.
 
@@ -244,34 +258,19 @@ def shape_fill(mask: list, charset: Optional[str] = None) -> list:
         rendering where a Pillow-based character DB will be used.
     :returns: List of strings — one per row, same shape as input mask.
     """
-    from justdoit.core.glyph import mask_to_sdf
-
     rows = len(mask)
     cols = len(mask[0]) if mask else 0
 
-    # No ink — return all spaces immediately (mask_to_sdf returns 0.5 uniformly
-    # for a blank mask, which would produce edge-band chars instead of spaces)
     if not any(mask[r][c] > 0.5 for r in range(rows) for c in range(cols)):
         return [" " * cols for _ in range(rows)]
-
-    sdf = mask_to_sdf(mask)
-    n_interior = len(_INTERIOR_CHARS)
 
     result = []
     for r in range(rows):
         line = ""
         for c in range(cols):
-            sv = _sdf_val(sdf, r, c, rows, cols)
-
-            if sv < _EXTERIOR_MAX:
+            if mask[r][c] <= 0.5:
                 line += " "
-            elif sv > _INTERIOR_MIN:
-                # Interior: map SDF depth to density char (deep → dense)
-                t = (sv - _INTERIOR_MIN) / (1.0 - _INTERIOR_MIN)
-                idx = int((1.0 - t) * (n_interior - 1))
-                line += _INTERIOR_CHARS[max(0, min(n_interior - 1, idx))]
             else:
-                line += _edge_char(sdf, r, c, rows, cols)
-
+                line += _cell_char(mask, r, c, rows, cols)
         result.append(line)
     return result

@@ -7,10 +7,9 @@ import pytest
 from justdoit.core.glyph import glyph_to_mask
 from justdoit.effects.shape_fill import (
     SHAPE_CHARS,
-    _edge_char,
+    _cell_char,
     _get_char_db,
     _nearest_char,
-    _sdf_val,
     shape_fill,
 )
 
@@ -55,58 +54,101 @@ def test_space_char_is_near_zero():
 
 
 # -------------------------------------------------------------------------
-# SDF lookup tests (pure Python — no Pillow)
+# _cell_char tests (pure Python — no Pillow)
 
-def test_sdf_val_in_bounds():
-    sdf = [[0.1, 0.5], [0.8, 1.0]]
-    assert _sdf_val(sdf, 0, 0, 2, 2) == pytest.approx(0.1)
-    assert _sdf_val(sdf, 1, 1, 2, 2) == pytest.approx(1.0)
-
-
-def test_sdf_val_clamps_negative():
-    sdf = [[0.5, 0.9], [0.2, 0.7]]
-    # Out-of-bounds indices should clamp
-    assert _sdf_val(sdf, -1, 0, 2, 2) == _sdf_val(sdf, 0, 0, 2, 2)
-    assert _sdf_val(sdf, 0, -1, 2, 2) == _sdf_val(sdf, 0, 0, 2, 2)
+def _make_mask(rows, cols, ink_set):
+    """Helper: build a mask where (r,c) in ink_set → 1.0, else 0.0."""
+    return [[1.0 if (r, c) in ink_set else 0.0 for c in range(cols)] for r in range(rows)]
 
 
-def test_sdf_val_clamps_overflow():
-    sdf = [[0.5, 0.9], [0.2, 0.7]]
-    assert _sdf_val(sdf, 5, 0, 2, 2) == _sdf_val(sdf, 1, 0, 2, 2)
-    assert _sdf_val(sdf, 0, 5, 2, 2) == _sdf_val(sdf, 0, 1, 2, 2)
+def test_cell_char_interior_is_dense():
+    # A cell fully surrounded by ink on all 4 cardinal sides → dense interior char
+    # Use a 3×3 all-ink mask; center cell has all 4 neighbors filled
+    mask = [[1.0] * 3 for _ in range(3)]
+    ch = _cell_char(mask, 1, 1, 3, 3)
+    assert ch in "@#S%*+;:,. ", f"Expected interior char, got {ch!r}"
+    # Center of 3×3 all-ink: all 8 neighbors filled → deepest interior char
+    assert ch == "@"
 
 
-# -------------------------------------------------------------------------
-# Edge character tests (pure Python — no Pillow)
-
-def test_edge_char_returns_string():
-    # Flat horizontal gradient (high right, low left) → "-"
-    sdf = [[0.0] * 5 for _ in range(5)]
-    for r in range(5):
-        for c in range(5):
-            sdf[r][c] = c * 0.2  # gradient in x direction
-    ch = _edge_char(sdf, 2, 2, 5, 5)
-    assert isinstance(ch, str) and len(ch) == 1
+def test_cell_char_top_only_empty_gives_dash():
+    # Cell has ink below, left, right but empty above → horizontal boundary → "-"
+    mask = [
+        [0.0, 0.0, 0.0],
+        [1.0, 1.0, 1.0],
+        [1.0, 1.0, 1.0],
+    ]
+    ch = _cell_char(mask, 1, 1, 3, 3)
+    assert ch == "-", f"Expected '-', got {ch!r}"
 
 
-def test_edge_char_horizontal_gradient_gives_dash():
-    # Pure x-gradient → angle near 0° → "-"
-    sdf = [[c * 0.2 for c in range(5)] for _ in range(5)]
-    ch = _edge_char(sdf, 2, 2, 5, 5)
-    assert ch == "-"
+def test_cell_char_left_only_empty_gives_pipe():
+    # Cell has ink above, below, right but empty left → vertical boundary → "|"
+    mask = [
+        [0.0, 1.0, 1.0],
+        [0.0, 1.0, 1.0],
+        [0.0, 1.0, 1.0],
+    ]
+    ch = _cell_char(mask, 1, 1, 3, 3)
+    assert ch == "|", f"Expected '|', got {ch!r}"
 
 
-def test_edge_char_vertical_gradient_gives_pipe():
-    # Pure y-gradient → angle near 90° → "|"
-    sdf = [[r * 0.2 for _ in range(5)] for r in range(5)]
-    ch = _edge_char(sdf, 2, 2, 5, 5)
-    assert ch == "|"
+def test_cell_char_top_left_empty_gives_slash():
+    # Cell has ink below and right, empty top and left → upper-left corner → "/"
+    mask = [
+        [0.0, 0.0, 0.0],
+        [0.0, 1.0, 1.0],
+        [0.0, 1.0, 1.0],
+    ]
+    ch = _cell_char(mask, 1, 1, 3, 3)
+    assert ch == "/", f"Expected '/', got {ch!r}"
 
 
-def test_edge_char_flat_field_gives_plus():
-    # Uniform SDF → near-zero gradient → "+"
-    sdf = [[0.5] * 5 for _ in range(5)]
-    ch = _edge_char(sdf, 2, 2, 5, 5)
+def test_cell_char_top_right_empty_gives_backslash():
+    # Empty top and right → upper-right corner → "\\"
+    mask = [
+        [0.0, 0.0, 0.0],
+        [1.0, 1.0, 0.0],
+        [1.0, 1.0, 0.0],
+    ]
+    ch = _cell_char(mask, 1, 1, 3, 3)
+    assert ch == "\\", f"Expected '\\\\', got {ch!r}"
+
+
+def test_cell_char_bottom_left_empty_gives_backslash():
+    # Empty bottom and left → lower-left corner → "\\"
+    mask = [
+        [0.0, 1.0, 1.0],
+        [0.0, 1.0, 1.0],
+        [0.0, 0.0, 0.0],
+    ]
+    ch = _cell_char(mask, 1, 1, 3, 3)
+    assert ch == "\\", f"Expected '\\\\', got {ch!r}"
+
+
+def test_cell_char_bottom_right_empty_gives_slash():
+    # Empty bottom and right → lower-right corner → "/"
+    mask = [
+        [1.0, 1.0, 0.0],
+        [1.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0],
+    ]
+    ch = _cell_char(mask, 1, 1, 3, 3)
+    assert ch == "/", f"Expected '/', got {ch!r}"
+
+
+def test_cell_char_oob_treated_as_empty():
+    # Cell at corner of grid — out-of-bounds neighbors treated as empty
+    mask = [[1.0, 1.0], [1.0, 1.0]]
+    # Top-left corner: top OOB, left OOB → top+left empty → "/"
+    ch = _cell_char(mask, 0, 0, 2, 2)
+    assert ch == "/", f"Expected '/', got {ch!r}"
+
+
+def test_cell_char_isolated_gives_plus():
+    # Single ink cell surrounded by empty on all 4 sides → "+"
+    mask = [[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 0.0]]
+    ch = _cell_char(mask, 1, 1, 3, 3)
     assert ch == "+"
 
 
@@ -149,6 +191,16 @@ def test_shape_fill_empty_mask():
     assert all(set(row) <= {" "} for row in result), "Empty mask should produce spaces"
 
 
+def test_shape_fill_exterior_cells_are_spaces():
+    mask = [[0.0] * 5 for _ in range(5)]
+    for r in range(1, 4):
+        for c in range(1, 4):
+            mask[r][c] = 1.0
+    result = shape_fill(mask)
+    assert result[0][0] == " "
+    assert result[4][4] == " "
+
+
 def test_shape_fill_via_render():
     from justdoit.core.rasterizer import render
     result = render("AB", font="block", fill="shape")
@@ -163,24 +215,31 @@ def test_shape_fill_deterministic():
     assert r1 == r2
 
 
-def test_shape_fill_interior_chars_present():
-    # A large solid block should produce interior density characters
-    mask = [[1.0] * 20 for _ in range(20)]
+def test_shape_fill_vertical_stroke_gives_pipes():
+    # A single-cell-wide vertical stroke → all cells should be "|"
+    mask = [[0.0, 1.0, 0.0] for _ in range(5)]
     result = shape_fill(mask)
-    interior_chars = set("@#S%*+;:,.")
-    all_chars = set("".join(result))
-    assert all_chars & interior_chars, f"Expected interior chars, got: {all_chars}"
+    for row in result:
+        assert row[1] == "|", f"Expected '|' in vertical stroke, got {row[1]!r}"
 
 
-def test_shape_fill_exterior_is_space():
-    # Surrounded by a thick border of zeros — outer cells must be space
-    mask = [[0.0] * 10 for _ in range(10)]
-    for r in range(3, 7):
-        for c in range(3, 7):
-            mask[r][c] = 1.0
+def test_shape_fill_horizontal_stroke_gives_dashes():
+    # A single-cell-tall horizontal stripe → all cells should be "-"
+    mask = [
+        [0.0, 0.0, 0.0, 0.0, 0.0],
+        [1.0, 1.0, 1.0, 1.0, 1.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0],
+    ]
     result = shape_fill(mask)
-    # Corner cells are pure exterior
-    assert result[0][0] == " "
-    assert result[0][9] == " "
-    assert result[9][0] == " "
-    assert result[9][9] == " "
+    for ch in result[1]:
+        assert ch == "-", f"Expected '-' in horizontal stroke, got {ch!r}"
+
+
+def test_shape_fill_rectangle_corners():
+    # 5×5 filled rectangle → corners should be /  \\  \\  /
+    mask = [[1.0] * 5 for _ in range(5)]
+    result = shape_fill(mask)
+    assert result[0][0] == "/",  "Top-left corner should be '/'"
+    assert result[0][4] == "\\", "Top-right corner should be '\\\\'"
+    assert result[4][0] == "\\", "Bottom-left corner should be '\\\\'"
+    assert result[4][4] == "/",  "Bottom-right corner should be '/'"
