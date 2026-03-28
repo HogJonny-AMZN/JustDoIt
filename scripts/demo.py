@@ -54,10 +54,10 @@ def _pause(enabled: bool) -> None:
 
 
 # -------------------------------------------------------------------------
-def run(text: str = "JDI", pause: bool = False) -> None:
+def run(text: str = "Just Do It", pause: bool = False) -> None:
     """Render and print every technique to the terminal.
 
-    :param text: Text to render (default: 'JDI').
+    :param text: Text to render (default: 'Just Do It').
     :param pause: If True, wait for Enter between each technique.
     """
     from justdoit.core.rasterizer import render
@@ -211,8 +211,8 @@ if __name__ == "__main__":
         description="Visual showcase of all JustDoIt techniques.",
     )
     parser.add_argument(
-        "text", nargs="?", default="JDI",
-        help="Text to render (default: JDI)",
+        "text", nargs="?", default="Just Do It",
+        help="Text to render (default: Just Do It)",
     )
     parser.add_argument(
         "--pause", action="store_true",
