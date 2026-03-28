@@ -47,6 +47,7 @@ Search the web for new ASCII art techniques, demoscene rendering tricks,
 generative art approaches, and terminal graphics innovations.
 
 Search terms to rotate through (pick 2-3 per session):
+
 - "ascii art rendering techniques novel"
 - "demoscene text effect algorithms"
 - "terminal graphics python"
@@ -64,6 +65,7 @@ Search terms to rotate through (pick 2-3 per session):
 Read `/home/node/.openclaw/workspace/projects/JustDoIt/docs/research/TECHNIQUES.md`.
 
 For each finding:
+
 - If it's already listed: update the entry if new info warrants it
 - If it's genuinely new: add it to the appropriate category with proper ID, novelty score, and `idea` status
 - Never duplicate. Merge variants of the same technique.
@@ -85,6 +87,7 @@ Append a session entry to `RESEARCH_LOG.md`:
 ### Step 4: Pick today's technique
 
 From TECHNIQUES.md, select the highest-priority `idea` status technique that:
+
 - Has not been implemented yet
 - Is achievable in a focused session
 - Preferably has novelty score 4 or 5
@@ -105,21 +108,37 @@ In `/home/node/.openclaw/workspace/projects/JustDoIt/`:
    - Output dimensions are correct
    - Edge cases (empty string, single char, long string)
 4. Run the tests:
+
    ```bash
    cd /home/node/.openclaw/workspace/projects/JustDoIt
    .venv/bin/pytest tests/ -q
    # Or target just the new test file:
    .venv/bin/pytest tests/test_<your_module>.py -v
    ```
+
    Iterate until all pass. Do NOT use `python3 -m pytest` or `pip install`.
 5. Update TECHNIQUES.md status to `done`
 
 ### Step 6: Generate showcase output
 
-Run the new technique and save output to:
-`docs/research/output/YYYY-MM-DD-<technique-id>.txt`
+Run the new technique and save 3 text outputs to:
+`docs/research/output/YYYY-MM-DD-<technique-id>-[1|2|3].txt`
 
-Generate at least 3 sample outputs showing the technique's range.
+Also save 1 SVG to the gallery for the most visually representative sample:
+`docs/gallery/YYYY-MM-DD-<technique-id>.svg`
+
+```python
+from justdoit.output.svg import save_svg
+from justdoit.core.rasterizer import render
+# ... apply your new effect ...
+save_svg(rendered, "docs/gallery/YYYY-MM-DD-<technique-id>.svg")
+```
+
+Then rebuild the gallery index:
+
+```bash
+.venv/bin/python scripts/generate_gallery.py --index-only
+```
 
 ### Step 7: Commit
 
@@ -134,6 +153,7 @@ git commit -m "Daily bite YYYY-MM-DD: <technique-id> — <technique-name>
 ### Step 8: Report
 
 Return a summary:
+
 - What was researched
 - What technique was implemented
 - Test results
@@ -148,6 +168,7 @@ If after thorough research you genuinely cannot find a new technique or approach
 that hasn't been implemented or logged — do not implement a duplicate.
 
 Instead:
+
 1. Write a `STUCK.md` note in `docs/research/` explaining what you searched, what you found, and why nothing is new
 2. Flag this to Jonny with the message: "I've exhausted my current research surface — time to think bigger."
 3. Do NOT implement something just to fill the day. Quality over output.
