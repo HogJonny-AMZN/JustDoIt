@@ -1,45 +1,61 @@
 """
 Package: justdoit.effects.shape_fill
-Shape-vector character matching fill (F07).
+Shape-vector / gradient-edge fill (F07).
 
-Implements a 6-dimensional shape-vector approach inspired by the character-
-morphology matching technique described in ASCII art rendering research.
-Each candidate character is described by ink density in 6 spatial zones
-(2-column × 3-row). During fill, each mask cell's local ink distribution
-is sampled using 2×2 corner averages across its neighborhood, then matched
-to the nearest character in the precomputed shape DB.
+Uses the SDF of the glyph mask to identify three regions:
+  - Exterior  (SDF < 0.20): space
+  - Edge band (SDF 0.20-0.60): directional character chosen by SDF gradient angle
+  - Interior  (SDF > 0.60): density character scaled by SDF depth
 
-Unlike density fill (1D brightness → fixed density char), shape fill captures
-directional ink distribution: edge cells yield directional characters (/ \\ | -)
-that follow contours; interior cells yield solid chars; exterior cells yield space.
+The gradient of the SDF at each edge cell encodes the local contour direction.
+That angle is mapped to a directional ASCII character (| / \\ -) so strokes
+follow the actual shape of the glyph rather than a uniform density fill.
 
-Pillow-gated: DB precomputation requires Pillow (render chars to bitmaps).
-Matching at render time is pure Python — no additional dependencies.
+Pure Python at render time — no external dependencies.
+The Pillow-based character DB (_get_char_db) is retained for tests and for
+future use in photo-to-ASCII rendering where sub-cell resolution is available.
 """
 
 import logging as _logging
+import math
 import string
 from typing import Optional
 
 # -------------------------------------------------------------------------
 # module global scope
 _MODULE_NAME = "justdoit.effects.shape_fill"
-__updated__ = "2026-03-27 00:00:00"
-__version__ = "0.1.0"
+__updated__ = "2026-03-28 00:00:00"
+__version__ = "0.2.0"
 __author__ = ["jGalloway"]
 
 _LOGGER = _logging.getLogger(_MODULE_NAME)
 
-# Default character vocabulary — all 95 printable ASCII chars
+# Default character vocabulary for the Pillow-based DB (tests / future use)
 SHAPE_CHARS: str = string.printable[:95]
 
-# Cell dimensions (pixels) used when rendering chars for the shape DB.
-# These represent typical monospace terminal proportions (2:1 height:width).
+# Cell dimensions used when rendering chars for the Pillow-based DB
 _CELL_H: int = 16
 _CELL_W: int = 8
 
-# Module-level cache: (charset, cell_h, cell_w) → {char: [6 floats]}
+# Module-level DB cache: (charset, cell_h, cell_w) → {char: [6 floats]}
 _DB_CACHE: dict = {}
+
+# Interior density ramp — densest to lightest
+_INTERIOR_CHARS: str = "@#S%*+;:,. "
+
+# Edge-band characters indexed by contour angle (degrees, 0–180)
+# Angle is measured from the SDF gradient; 0°=horizontal, 90°=vertical
+_EDGE_ANGLE_MAP: list = [
+    (0,   22,  "-"),    # horizontal stroke
+    (22,  68,  "/"),    # rising diagonal
+    (68,  112, "|"),    # vertical stroke
+    (112, 158, "\\"),   # falling diagonal
+    (158, 180, "-"),    # horizontal stroke (other side)
+]
+
+# SDF thresholds
+_EXTERIOR_MAX: float  = 0.20
+_INTERIOR_MIN: float  = 0.60
 
 
 # -------------------------------------------------------------------------
@@ -52,15 +68,13 @@ def _require_pil() -> None:
         import PIL  # noqa: F401
     except ImportError:
         raise ImportError(
-            "Shape fill requires Pillow. Install with: uv add --dev Pillow"
+            "Shape fill character DB requires Pillow. Install with: uv add --dev Pillow"
         )
 
 
 # -------------------------------------------------------------------------
 def _find_mono_font(size: int):
     """Return a PIL ImageFont for a monospace face at the given size.
-
-    Tries common system monospace fonts in order; falls back to PIL default.
 
     :param size: Font size in pixels.
     :returns: PIL ImageFont instance.
@@ -88,15 +102,12 @@ def _find_mono_font(size: int):
 def _char_zone_densities(char: str, cell_h: int, cell_w: int) -> list:
     """Render a character and compute its 6-zone ink density vector.
 
-    Zones (2-column × 3-row layout):
-        UL  UR     rows 0   .. h/2,     cols 0..w/2 and w/2..w
-        ML  MR     rows h/3 .. 2h/3,    cols 0..w/2 and w/2..w
-        LL  LR     rows h/2 .. h,       cols 0..w/2 and w/2..w
+    Zones (2-column × 3-row):  UL UR / ML MR / LL LR
 
     :param char: Single character to render.
     :param cell_h: Cell height in pixels.
     :param cell_w: Cell width in pixels.
-    :returns: List of 6 floats in [0.0, 1.0] — [UL, UR, ML, MR, LL, LR].
+    :returns: List of 6 floats in [0.0, 1.0].
     """
     from PIL import Image, ImageDraw
 
@@ -111,17 +122,14 @@ def _char_zone_densities(char: str, cell_h: int, cell_w: int) -> list:
         area = (r1 - r0) * (c1 - c0)
         return total / (area * 255.0) if area > 0 else 0.0
 
-    h2 = cell_h // 2
-    h3 = cell_h // 3
-    w2 = cell_w // 2
-
+    h2, h3, w2 = cell_h // 2, cell_h // 3, cell_w // 2
     return [
-        zone(0,   h2,      0,  w2),        # UL
-        zone(0,   h2,      w2, cell_w),    # UR
-        zone(h3,  2 * h3,  0,  w2),        # ML (middle band, left)
-        zone(h3,  2 * h3,  w2, cell_w),    # MR (middle band, right)
-        zone(h2,  cell_h,  0,  w2),        # LL
-        zone(h2,  cell_h,  w2, cell_w),    # LR
+        zone(0,  h2,      0,  w2),
+        zone(0,  h2,      w2, cell_w),
+        zone(h3, 2 * h3,  0,  w2),
+        zone(h3, 2 * h3,  w2, cell_w),
+        zone(h2, cell_h,  0,  w2),
+        zone(h2, cell_h,  w2, cell_w),
     ]
 
 
@@ -142,7 +150,7 @@ def _build_char_db(charset: str, cell_h: int, cell_w: int) -> dict:
 
 # -------------------------------------------------------------------------
 def _get_char_db(charset: str = SHAPE_CHARS) -> dict:
-    """Return the cached shape DB for charset, building it if needed.
+    """Return the cached Pillow-based shape DB for charset.
 
     :param charset: Character vocabulary.
     :returns: Dict mapping char → list of 6 floats.
@@ -154,46 +162,8 @@ def _get_char_db(charset: str = SHAPE_CHARS) -> dict:
 
 
 # -------------------------------------------------------------------------
-def _sample_cell(mask: list, r: int, c: int) -> list:
-    """Sample the 6-zone neighborhood vector for cell (r, c).
-
-    Uses 2×2 corner averages to capture directional ink distribution:
-
-        UL = avg(mask[r-1][c-1], mask[r-1][c], mask[r][c-1], mask[r][c])
-        UR = avg(mask[r-1][c],   mask[r-1][c+1], mask[r][c], mask[r][c+1])
-        ML = avg(mask[r][c-1], mask[r][c])
-        MR = avg(mask[r][c],   mask[r][c+1])
-        LL = avg(mask[r][c-1], mask[r][c], mask[r+1][c-1], mask[r+1][c])
-        LR = avg(mask[r][c],   mask[r][c+1], mask[r+1][c], mask[r+1][c+1])
-
-    Out-of-bounds indices are clamped to the mask boundary.
-
-    :param mask: 2D list of floats (GlyphMask).
-    :param r: Row index.
-    :param c: Column index.
-    :returns: List of 6 floats in [0.0, 1.0] — [UL, UR, ML, MR, LL, LR].
-    """
-    rows = len(mask)
-    cols = len(mask[0]) if mask else 0
-
-    def m(row: int, col: int) -> float:
-        return mask[max(0, min(rows - 1, row))][max(0, min(cols - 1, col))]
-
-    return [
-        (m(r-1, c-1) + m(r-1, c) + m(r, c-1) + m(r, c)) / 4.0,          # UL
-        (m(r-1, c) + m(r-1, c+1) + m(r, c) + m(r, c+1)) / 4.0,          # UR
-        (m(r, c-1) + m(r, c)) / 2.0,                                       # ML
-        (m(r, c) + m(r, c+1)) / 2.0,                                       # MR
-        (m(r, c-1) + m(r, c) + m(r+1, c-1) + m(r+1, c)) / 4.0,          # LL
-        (m(r, c) + m(r, c+1) + m(r+1, c) + m(r+1, c+1)) / 4.0,          # LR
-    ]
-
-
-# -------------------------------------------------------------------------
 def _nearest_char(vec: list, db: dict) -> str:
     """Find the character whose shape vector is nearest to vec.
-
-    Uses squared Euclidean distance (no sqrt needed for argmin).
 
     :param vec: 6D input vector.
     :param db: Shape DB from _get_char_db().
@@ -210,31 +180,98 @@ def _nearest_char(vec: list, db: dict) -> str:
 
 
 # -------------------------------------------------------------------------
+def _sdf_val(sdf: list, r: int, c: int, rows: int, cols: int) -> float:
+    """Clamp-safe SDF lookup.
+
+    :param sdf: 2D SDF grid.
+    :param r: Row index (may be out of bounds).
+    :param c: Column index (may be out of bounds).
+    :param rows: Grid row count.
+    :param cols: Grid column count.
+    :returns: SDF float value, clamped to grid boundary.
+    """
+    return sdf[max(0, min(rows - 1, r))][max(0, min(cols - 1, c))]
+
+
+# -------------------------------------------------------------------------
+def _edge_char(sdf: list, r: int, c: int, rows: int, cols: int) -> str:
+    """Choose a directional character for an edge cell using the SDF gradient.
+
+    Computes the gradient of the SDF at (r, c) via central differences.
+    The gradient angle (0°=horizontal, 90°=vertical) is mapped to a
+    directional ASCII character that follows the local contour direction.
+
+    :param sdf: 2D SDF grid.
+    :param r: Row index.
+    :param c: Column index.
+    :param rows: Grid row count.
+    :param cols: Grid column count.
+    :returns: Single directional character.
+    """
+    dx = _sdf_val(sdf, r, c + 1, rows, cols) - _sdf_val(sdf, r, c - 1, rows, cols)
+    dy = _sdf_val(sdf, r + 1, c, rows, cols) - _sdf_val(sdf, r - 1, c, rows, cols)
+    mag = math.sqrt(dx * dx + dy * dy)
+
+    if mag < 0.05:
+        return "+"  # no clear gradient — ambiguous corner/junction
+
+    angle = math.degrees(math.atan2(abs(dy), abs(dx)))  # 0°–90°
+    # Mirror into 0°–180° using sign of dy*dx to distinguish / vs \
+    if dx * dy < 0:
+        angle = 180.0 - angle
+
+    for a0, a1, ch in _EDGE_ANGLE_MAP:
+        if a0 <= angle < a1:
+            return ch
+    return "-"
+
+
+# -------------------------------------------------------------------------
 def shape_fill(mask: list, charset: Optional[str] = None) -> list:
-    """Fill using 6D shape-vector character matching (F07).
+    """Fill using SDF gradient edge-character selection (F07).
 
-    For each cell, samples ink density in 6 directional zones using
-    neighborhood averages, then selects the character whose rendered shape
-    most closely matches. Interior cells yield solid/dense characters;
-    edge cells yield directional characters that follow contours;
-    exterior cells yield space.
+    Three-region fill based on the signed distance field of the mask:
 
-    Pillow-gated: raises ImportError if Pillow is not installed.
-    First call precomputes and caches the character shape DB (~95 chars).
+      - Exterior  (SDF < 0.20): space
+      - Edge band (SDF 0.20–0.60): directional char from contour angle
+          | for vertical strokes, - for horizontal, / and \\ for diagonals
+      - Interior  (SDF > 0.60): density char scaled by depth (@→.)
+
+    Pure Python — no external dependencies at render time.
 
     :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
-    :param charset: Character vocabulary (default: all 95 printable ASCII).
+    :param charset: Unused in default mode; reserved for future photo-to-ASCII
+        rendering where a Pillow-based character DB will be used.
     :returns: List of strings — one per row, same shape as input mask.
-    :raises ImportError: If Pillow is not installed.
     """
-    _require_pil()
-    db = _get_char_db(charset if charset is not None else SHAPE_CHARS)
+    from justdoit.core.glyph import mask_to_sdf
+
+    rows = len(mask)
+    cols = len(mask[0]) if mask else 0
+
+    # No ink — return all spaces immediately (mask_to_sdf returns 0.5 uniformly
+    # for a blank mask, which would produce edge-band chars instead of spaces)
+    if not any(mask[r][c] > 0.5 for r in range(rows) for c in range(cols)):
+        return [" " * cols for _ in range(rows)]
+
+    sdf = mask_to_sdf(mask)
+    n_interior = len(_INTERIOR_CHARS)
 
     result = []
-    for r, row in enumerate(mask):
+    for r in range(rows):
         line = ""
-        for c in range(len(row)):
-            vec = _sample_cell(mask, r, c)
-            line += _nearest_char(vec, db)
+        for c in range(cols):
+            sv = _sdf_val(sdf, r, c, rows, cols)
+
+            if sv < _EXTERIOR_MAX:
+                line += " "
+            elif sv > _INTERIOR_MIN:
+                # Interior: map SDF depth to density char (deep → dense)
+                t = (sv - _INTERIOR_MIN) / (1.0 - _INTERIOR_MIN)
+                idx = int((1.0 - t) * (n_interior - 1))
+                line += _INTERIOR_CHARS[max(0, min(n_interior - 1, idx))]
+            else:
+                line += _edge_char(sdf, r, c, rows, cols)
+
         result.append(line)
     return result
