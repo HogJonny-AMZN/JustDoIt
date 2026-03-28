@@ -62,6 +62,7 @@ def _curated_entries(text: str) -> list[tuple[str, str, str]]:
     # Fill effects
     add("S-F01-density-fill",     "F01 — Density fill",               render(text, font="block", fill="density"))
     add("S-F06-sdf-fill",         "F06 — SDF fill",                   render(text, font="block", fill="sdf"))
+    add("S-F07-shape-fill",       "F07 — Shape fill",                 render(text, font="block", fill="shape"))
     add("S-F02-noise-fill",       "F02 — Perlin noise fill",          render(text, font="block", fill="noise"))
     add("S-F03-cells-fill",       "F03 — Cellular automata fill",     render(text, font="block", fill="cells"))
 

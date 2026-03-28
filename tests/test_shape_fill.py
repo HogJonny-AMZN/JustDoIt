@@ -7,9 +7,10 @@ import pytest
 from justdoit.core.glyph import glyph_to_mask
 from justdoit.effects.shape_fill import (
     SHAPE_CHARS,
+    _edge_char,
     _get_char_db,
     _nearest_char,
-    _sample_cell,
+    _sdf_val,
     shape_fill,
 )
 
@@ -54,43 +55,59 @@ def test_space_char_is_near_zero():
 
 
 # -------------------------------------------------------------------------
-# Mask sampling tests (pure Python — no Pillow)
+# SDF lookup tests (pure Python — no Pillow)
 
-def test_sample_cell_interior():
-    # All-ink mask → all zones should be ~1.0
-    mask = [[1.0] * 4 for _ in range(4)]
-    vec = _sample_cell(mask, 2, 2)
-    assert len(vec) == 6
-    assert all(v == pytest.approx(1.0) for v in vec)
+def test_sdf_val_in_bounds():
+    sdf = [[0.1, 0.5], [0.8, 1.0]]
+    assert _sdf_val(sdf, 0, 0, 2, 2) == pytest.approx(0.1)
+    assert _sdf_val(sdf, 1, 1, 2, 2) == pytest.approx(1.0)
 
 
-def test_sample_cell_exterior():
-    # All-empty mask → all zones should be 0.0
-    mask = [[0.0] * 4 for _ in range(4)]
-    vec = _sample_cell(mask, 2, 2)
-    assert all(v == pytest.approx(0.0) for v in vec)
+def test_sdf_val_clamps_negative():
+    sdf = [[0.5, 0.9], [0.2, 0.7]]
+    # Out-of-bounds indices should clamp
+    assert _sdf_val(sdf, -1, 0, 2, 2) == _sdf_val(sdf, 0, 0, 2, 2)
+    assert _sdf_val(sdf, 0, -1, 2, 2) == _sdf_val(sdf, 0, 0, 2, 2)
 
 
-def test_sample_cell_left_edge():
-    # Ink on left, empty on right — ML should exceed MR
-    mask = [
-        [0.0, 0.0, 0.0, 0.0],
-        [1.0, 1.0, 0.0, 0.0],
-        [1.0, 1.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0, 0.0],
-    ]
-    vec = _sample_cell(mask, 2, 1)  # cell at the ink/empty boundary
-    ul, ur, ml, mr, ll, lr = vec
-    assert ml > mr, f"Expected ML > MR at left edge, got ML={ml}, MR={mr}"
+def test_sdf_val_clamps_overflow():
+    sdf = [[0.5, 0.9], [0.2, 0.7]]
+    assert _sdf_val(sdf, 5, 0, 2, 2) == _sdf_val(sdf, 1, 0, 2, 2)
+    assert _sdf_val(sdf, 0, 5, 2, 2) == _sdf_val(sdf, 0, 1, 2, 2)
 
 
-def test_sample_cell_boundary_clamping():
-    # Sampling at corners should not raise IndexError
-    mask = [[1.0] * 3 for _ in range(3)]
-    _sample_cell(mask, 0, 0)
-    _sample_cell(mask, 0, 2)
-    _sample_cell(mask, 2, 0)
-    _sample_cell(mask, 2, 2)
+# -------------------------------------------------------------------------
+# Edge character tests (pure Python — no Pillow)
+
+def test_edge_char_returns_string():
+    # Flat horizontal gradient (high right, low left) → "-"
+    sdf = [[0.0] * 5 for _ in range(5)]
+    for r in range(5):
+        for c in range(5):
+            sdf[r][c] = c * 0.2  # gradient in x direction
+    ch = _edge_char(sdf, 2, 2, 5, 5)
+    assert isinstance(ch, str) and len(ch) == 1
+
+
+def test_edge_char_horizontal_gradient_gives_dash():
+    # Pure x-gradient → angle near 0° → "-"
+    sdf = [[c * 0.2 for c in range(5)] for _ in range(5)]
+    ch = _edge_char(sdf, 2, 2, 5, 5)
+    assert ch == "-"
+
+
+def test_edge_char_vertical_gradient_gives_pipe():
+    # Pure y-gradient → angle near 90° → "|"
+    sdf = [[r * 0.2 for _ in range(5)] for r in range(5)]
+    ch = _edge_char(sdf, 2, 2, 5, 5)
+    assert ch == "|"
+
+
+def test_edge_char_flat_field_gives_plus():
+    # Uniform SDF → near-zero gradient → "+"
+    sdf = [[0.5] * 5 for _ in range(5)]
+    ch = _edge_char(sdf, 2, 2, 5, 5)
+    assert ch == "+"
 
 
 # -------------------------------------------------------------------------
@@ -111,10 +128,9 @@ def test_nearest_char_closest():
 
 
 # -------------------------------------------------------------------------
-# Full shape_fill integration tests (Pillow-gated)
+# Full shape_fill integration tests (pure Python — no Pillow required)
 
 def test_shape_fill_output_shape():
-    pytest.importorskip("PIL")
     mask = [[1.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
     result = shape_fill(mask)
     assert len(result) == 3
@@ -122,21 +138,18 @@ def test_shape_fill_output_shape():
 
 
 def test_shape_fill_output_is_strings():
-    pytest.importorskip("PIL")
     mask = [[float(c % 2) for c in range(5)] for _ in range(5)]
     result = shape_fill(mask)
     assert all(isinstance(row, str) for row in result)
 
 
 def test_shape_fill_empty_mask():
-    pytest.importorskip("PIL")
     mask = [[0.0] * 4 for _ in range(4)]
     result = shape_fill(mask)
     assert all(set(row) <= {" "} for row in result), "Empty mask should produce spaces"
 
 
 def test_shape_fill_via_render():
-    pytest.importorskip("PIL")
     from justdoit.core.rasterizer import render
     result = render("AB", font="block", fill="shape")
     assert isinstance(result, str)
@@ -144,18 +157,30 @@ def test_shape_fill_via_render():
 
 
 def test_shape_fill_deterministic():
-    pytest.importorskip("PIL")
     mask = glyph_to_mask([" ██ ", "█  █", "████", "█  █", "█  █", "    ", "    "])
     r1 = shape_fill(mask)
     r2 = shape_fill(mask)
     assert r1 == r2
 
 
-def test_shape_fill_custom_charset():
-    pytest.importorskip("PIL")
-    charset = "@#. "
-    mask = [[1.0, 1.0, 0.0], [0.0, 1.0, 0.0]]
-    result = shape_fill(mask, charset=charset)
-    for row in result:
-        for ch in row:
-            assert ch in charset, f"Unexpected char {ch!r} not in charset {charset!r}"
+def test_shape_fill_interior_chars_present():
+    # A large solid block should produce interior density characters
+    mask = [[1.0] * 20 for _ in range(20)]
+    result = shape_fill(mask)
+    interior_chars = set("@#S%*+;:,.")
+    all_chars = set("".join(result))
+    assert all_chars & interior_chars, f"Expected interior chars, got: {all_chars}"
+
+
+def test_shape_fill_exterior_is_space():
+    # Surrounded by a thick border of zeros — outer cells must be space
+    mask = [[0.0] * 10 for _ in range(10)]
+    for r in range(3, 7):
+        for c in range(3, 7):
+            mask[r][c] = 1.0
+    result = shape_fill(mask)
+    # Corner cells are pure exterior
+    assert result[0][0] == " "
+    assert result[0][9] == " "
+    assert result[9][0] == " "
+    assert result[9][9] == " "
