@@ -92,6 +92,11 @@ def run(text: str = "Just Do It", pause: bool = False, gallery: bool = False) ->
     _pause(pause)
 
     # ------------------------------------------------------------------
+    _header("F07  shape-vector fill", "6D directional character matching — edges follow contours")
+    show("S-F07-shape-fill", render(text, font="block", fill="shape"))
+    _pause(pause)
+
+    # ------------------------------------------------------------------
     _header("F02  Perlin noise fill", "organic textured interior — different every run")
     show("S-F02-noise-fill", render(text, font="block", fill="noise"))
     _pause(pause)
