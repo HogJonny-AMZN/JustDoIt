@@ -27,15 +27,16 @@ Reordered after each session. Top = next bite.
 
 | Priority | Technique | ID | Novelty | Status |
 |----------|-----------|-----|---------|--------|
-| 1 | L-System Growth | N06 | 5 | `idea` |
-| 2 | Typographic Recursion | N01 | 5 | `idea` |
-| 3 | SDF Font Generator | G04 | 5 | `idea` |
+| 1 | Typographic Recursion | N01 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | Turing Pattern | N09 | 5 | `idea` |
 | 4 | Wave Interference Fill | F09 | 4 | `idea` |
 | 5 | Voronoi Fill | F07 | 4 | `idea` |
 | 6 | Plasma Wave Animation | A10 | 4 | `idea` |
 | 7 | Flame Simulation | A08 | 4 | `idea` |
 | 8 | Fractal Fill (Mandelbrot) | F05 | 4 | `idea` |
 | 9 | Chromatic Aberration | C08 | 5 | `idea` |
+| — | L-System Growth | N06 | 5 | `done` |
 | — | Strange Attractor | N08 | 5 | `done` |
 | — | Slime Mold Simulation | N10 | 5 | `done` |
 
@@ -76,3 +77,11 @@ Reordered after each session. Top = next bite.
 **Sources:** Lorenz E.N. (1963) "Deterministic Nonperiodic Flow" J. Atmos. Sci. 20:130–141; Rössler O.E. (1976) "An equation for continuous chaos" Phys. Lett. A 57(5):397–398; Peter de Jong (iterated function system); Clifford Pickover "Chaos in Wonderland" (1994); prior knowledge of 2D density histogram visualization
 **Key insight:** The density histogram approach generalises beautifully across attractor types. Lorenz and Rössler are continuous ODEs (RK4 integration) yielding orbits that densely cover a bounded region; De Jong and Clifford are discrete maps that iterate instantly. All four fill the glyph mask with a density field that reflects the chaotic geometry — the dense core of the Lorenz butterfly maps to heavy chars, the sparse orbital arms map to light chars. Log1p compression is essential: raw hit counts have 100:1 dynamic range, which collapses to ~1:1 without it. The 120×120 bin histogram acts as an intermediary "canvas" sampled at glyph-mask resolution, decoupling attractor scale from glyph scale entirely. 41 tests, all passing.
 **Priority queue update:** N08 complete. Next: N06 (L-System Growth — Lindenmayer system branching inside glyph, novelty 5) is now #1. L-systems are string-rewriting systems that produce self-similar branching structures; constraining growth to the glyph mask boundary should produce elegant fractal letterforms.
+
+## Session 2026-03-28
+
+**Research focus:** Lindenmayer systems for ASCII art fill — classic L-system presets from "The Algorithmic Beauty of Plants" (Prusinkiewicz & Lindenmayer, 1990), Heighway Dragon curve, Koch snowflake variants, turtle-graphics rendering, Bresenham rasterisation of fractal geometry, density histogram approach (identical to N08 but with geometric instead of chaotic source).
+**New techniques found:** 0 new (web search unavailable; implemented N06 from prior knowledge of L-system literature and Prusinkiewicz & Lindenmayer 1990)
+**Sources:** Prusinkiewicz & Lindenmayer (1990) "The Algorithmic Beauty of Plants" Springer; Lindenmayer A. (1968) "Mathematical models for cellular interactions in development" J. Theor. Biology 18; Heighway J. (1966) Dragon curve (first described); Koch H. von (1904) "Sur une courbe continue sans tangente, obtenue par une construction géométrique élémentaire" Ark. Mat. Astron. Fys. 1(3); prior knowledge of turtle graphics (Logo, LOGO derivatives)
+**Key insight:** The density histogram approach generalises perfectly from attractor trajectories to L-system segments — instead of ODE trajectory points we rasterise turtle-graphics segments via Bresenham's algorithm into the same 120×120 bin canvas. The fractal self-similarity of L-systems means the density field has a characteristic multi-scale structure: the trunk region gets painted many times (high density → dense chars), while terminal branches appear once (low density → light chars). This matches the visual metaphor perfectly — letters filled with botanic growth, reading from dense root to fine leaf tip. 8 named presets covering plant, fern, sierpinski, dragon, bush, algae, tree32, crystal. 50 tests, all passing.
+**Priority queue update:** N06 complete. Next: N01 (Typographic Recursion — glyphs made of smaller instances of the same text, novelty 5) is now #1. N09 (Turing Pattern — reaction-diffusion yielding biological spot/stripe patterns, distinct from N10's Gray-Scott approach) is now #3.

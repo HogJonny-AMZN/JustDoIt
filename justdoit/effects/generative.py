@@ -18,6 +18,15 @@ Implemented techniques:
                        Named presets (coral, spots, maze, worms, zebra) from
                        Pearson 1993. Final V concentration drives char density.
   F10 — truchet_fill:  Truchet tile tiling inside glyph mask. Each ink cell gets
+  N06 — lsystem_fill:  Lindenmayer system (L-system) branching grown inside
+                       the glyph mask. A turtle-graphics renderer traces the
+                       L-system string, depositing density onto a grid. The
+                       accumulated branch density drives character selection —
+                       branch intersections and trunk regions → dense chars,
+                       leaf tips → light chars. Named presets cover classic
+                       botanical L-systems: plant, fern, sierpinski, dragon,
+                       bush, algae (fractal branching). The fractal self-similarity
+                       produces letterforms that look like they grew there.
                        one of two tile orientations (diagonal ╱╲, arc ╰╮, or
                        wave-biased diagonals), creating labyrinth / flow patterns.
                        Inspired by Sébastien Truchet (1704) and the "10 PRINT" demoscene.
@@ -1239,6 +1248,409 @@ def strange_attractor_fill(
             idx = int(d * (n_chars - 1) + 0.5)
             idx = max(0, min(n_chars - 1, idx))
             line += ink_chars[n_chars - 1 - idx]    # high density → ink_chars[0] (dense)
+        result.append(line)
+
+    return result
+
+
+# -------------------------------------------------------------------------
+# L-System (Lindenmayer System) Growth fill — N06
+#
+# A Lindenmayer system is a parallel string-rewriting system originally
+# developed by biologist Aristid Lindenmayer (1968) to model plant growth.
+# An axiom string is repeatedly rewritten by production rules, then
+# interpreted as turtle-graphics instructions to draw branching structures.
+#
+# Algorithm:
+#   1. Expand the axiom string by applying productions N times (iterations).
+#   2. Interpret the resulting string with a turtle:
+#        F  — move forward, draw a segment (deposit density along the line)
+#        f  — move forward, no draw (move only)
+#        +  — turn left by angle
+#        -  — turn right by angle
+#        [  — push state (pos, heading, step_length)
+#        ]  — pop state
+#        |  — reverse direction (U-turn)
+#        <  — multiply step length by contraction factor
+#        >  — multiply step length by 1 / contraction_factor
+#        X, Y, Z, A–W  — variables (no action, only rewritten)
+#   3. Collect all drawn segments; for each segment rasterise it onto a
+#      density grid using Bresenham's line algorithm with integer coordinates.
+#   4. Map the density grid to the glyph mask:
+#      - Scale the bounding box of all drawn points to fit the glyph.
+#      - For each ink cell, sample the density at its mapped position.
+#   5. Apply log1p compression to handle the density dynamic range.
+#   6. Normalise to 0..1 and map to character density.
+#
+# Named presets from classic L-system literature:
+#   "plant"      — Prusinkiewicz & Lindenmayer "Algorithmic Beauty of Plants" Fig 1.24
+#   "fern"       — barnsley-fern like branching (Fractal Fern variant)
+#   "sierpinski" — Sierpinski triangle / arrowhead curve
+#   "dragon"     — Heighway Dragon curve
+#   "bush"       — dense multi-branch bush
+#   "algae"      — Lindenmayer's original two-symbol algae string (purely linear)
+#   "tree32"     — binary tree at 32° branch angle
+#   "crystal"    — Koch snowflake variant (hexagonal symmetry)
+
+_LSYSTEM_DENSE: str = "@#S%?*+;:,. "
+
+_LSYSTEM_PRESETS: dict = {
+    # axiom, rules, angle_deg, iterations, contraction
+    "plant": {
+        "axiom":       "X",
+        "rules":       {"X": "F+[[X]-X]-F[-FX]+X", "F": "FF"},
+        "angle_deg":   25.0,
+        "iterations":  4,
+        "contraction": 1.0,
+    },
+    "fern": {
+        "axiom":       "X",
+        "rules":       {"X": "F+[[X]-X]-F[-FX]+X", "F": "FF"},
+        "angle_deg":   22.5,
+        "iterations":  4,
+        "contraction": 1.0,
+    },
+    "sierpinski": {
+        "axiom":       "F-G-G",
+        "rules":       {"F": "F-G+F+G-F", "G": "GG"},
+        "angle_deg":   120.0,
+        "iterations":  4,
+        "contraction": 1.0,
+    },
+    "dragon": {
+        "axiom":       "FX",
+        "rules":       {"X": "X+YF+", "Y": "-FX-Y"},
+        "angle_deg":   90.0,
+        "iterations":  8,
+        "contraction": 1.0,
+    },
+    "bush": {
+        "axiom":       "F",
+        "rules":       {"F": "FF+[+F-F-F]-[-F+F+F]"},
+        "angle_deg":   22.5,
+        "iterations":  3,
+        "contraction": 1.0,
+    },
+    "algae": {
+        # Lindenmayer's original (1968) — A → AB, B → A
+        # Purely linear; grows into a Fibonacci-sequence-length string.
+        "axiom":       "A",
+        "rules":       {"A": "AB", "B": "A"},
+        "angle_deg":   45.0,
+        "iterations":  6,
+        "contraction": 1.0,
+    },
+    "tree32": {
+        "axiom":       "F",
+        "rules":       {"F": "F[+F]F[-F]F"},
+        "angle_deg":   32.0,
+        "iterations":  4,
+        "contraction": 1.0,
+    },
+    "crystal": {
+        "axiom":       "F++F++F",
+        "rules":       {"F": "F-F++F-F"},
+        "angle_deg":   60.0,
+        "iterations":  4,
+        "contraction": 1.0,
+    },
+}
+
+
+# -------------------------------------------------------------------------
+def _lsystem_expand(axiom: str, rules: dict, iterations: int) -> str:
+    """Expand an L-system axiom by applying production rules N times.
+
+    Each character not in `rules` is preserved unchanged.
+
+    :param axiom: Starting string (the axiom / seed).
+    :param rules: Dict mapping each symbol to its replacement string.
+    :param iterations: Number of rewriting steps to perform.
+    :returns: Expanded string after `iterations` applications of the rules.
+    """
+    s = axiom
+    for _ in range(iterations):
+        s = "".join(rules.get(ch, ch) for ch in s)
+    return s
+
+
+# -------------------------------------------------------------------------
+def _lsystem_segments(
+    s: str,
+    angle_deg: float,
+    step: float = 1.0,
+    contraction: float = 1.0,
+    start_angle_deg: float = 90.0,
+) -> list:
+    """Interpret an L-system string as turtle-graphics and collect segments.
+
+    Turtle state: (x, y, heading_deg, step_length).
+    Stack supports branching via [ and ].
+
+    Only 'F' draws; 'f' moves without drawing. All other valid symbols
+    are processed but produce no segments.
+
+    :param s: Expanded L-system string.
+    :param angle_deg: Turn angle per + or - command (degrees).
+    :param step: Initial forward step length (default: 1.0).
+    :param contraction: Step-length multiplier for '<' (>1 contracts, default 1.0).
+    :param start_angle_deg: Initial heading in degrees (default: 90 = upward).
+    :returns: List of (x0, y0, x1, y1) tuples representing drawn segments.
+    """
+    segments = []
+    stack = []
+    x, y, heading = 0.0, 0.0, start_angle_deg
+    step_len = step
+
+    for ch in s:
+        if ch == "F":
+            rad = math.radians(heading)
+            nx = x + step_len * math.cos(rad)
+            ny = y + step_len * math.sin(rad)
+            segments.append((x, y, nx, ny))
+            x, y = nx, ny
+        elif ch == "f":
+            rad = math.radians(heading)
+            x += step_len * math.cos(rad)
+            y += step_len * math.sin(rad)
+        elif ch == "+":
+            heading += angle_deg
+        elif ch == "-":
+            heading -= angle_deg
+        elif ch == "[":
+            stack.append((x, y, heading, step_len))
+        elif ch == "]":
+            if stack:
+                x, y, heading, step_len = stack.pop()
+        elif ch == "|":
+            heading = (heading + 180.0) % 360.0
+        elif ch == "<":
+            step_len *= contraction
+        elif ch == ">":
+            step_len /= contraction if contraction != 0.0 else 1.0
+        # Variable symbols (X, Y, Z, G, A, B, W, etc.) — no action
+
+    return segments
+
+
+# -------------------------------------------------------------------------
+def _bresenham_density(
+    x0: int, y0: int, x1: int, y1: int,
+    grid: list, rows: int, cols: int,
+) -> None:
+    """Rasterise a line segment into a density grid using Bresenham's algorithm.
+
+    Increments each grid cell the segment passes through by 1.
+    Out-of-bounds cells are silently skipped.
+
+    :param x0: Start column (integer).
+    :param y0: Start row (integer).
+    :param x1: End column (integer).
+    :param y1: End row (integer).
+    :param grid: 2D list of ints — density accumulator (rows × cols).
+    :param rows: Grid height.
+    :param cols: Grid width.
+    """
+    dx = abs(x1 - x0)
+    dy = abs(y1 - y0)
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    err = dx - dy
+    while True:
+        if 0 <= y0 < rows and 0 <= x0 < cols:
+            grid[y0][x0] += 1
+        if x0 == x1 and y0 == y1:
+            break
+        e2 = 2 * err
+        if e2 > -dy:
+            err -= dy
+            x0 += sx
+        if e2 < dx:
+            err += dx
+            y0 += sy
+
+
+# -------------------------------------------------------------------------
+def _lsystem_density_grid(
+    segments: list,
+    bin_rows: int,
+    bin_cols: int,
+) -> list:
+    """Build a density grid from L-system turtle segments.
+
+    Scales all segments so they fit within the bin_rows × bin_cols canvas,
+    then rasterises each segment with Bresenham's algorithm. Applies log1p
+    compression and normalises to 0.0–1.0.
+
+    :param segments: List of (x0, y0, x1, y1) float tuples.
+    :param bin_rows: Grid height in cells.
+    :param bin_cols: Grid width in cells.
+    :returns: 2D list[list[float]] of normalised density values (0.0–1.0),
+              shape bin_rows × bin_cols. All-zero if no segments provided.
+    """
+    if not segments:
+        return [[0.0] * bin_cols for _ in range(bin_rows)]
+
+    # Gather all endpoints to find bounding box
+    all_x = [pt for seg in segments for pt in (seg[0], seg[2])]
+    all_y = [pt for seg in segments for pt in (seg[1], seg[3])]
+    min_x, max_x = min(all_x), max(all_x)
+    min_y, max_y = min(all_y), max(all_y)
+
+    range_x = max_x - min_x or 1.0
+    range_y = max_y - min_y or 1.0
+
+    # Add a 5% margin on each side so branches don't sit exactly on edges
+    margin_c = max(1, int(bin_cols * 0.05))
+    margin_r = max(1, int(bin_rows * 0.05))
+    inner_cols = bin_cols - 2 * margin_c
+    inner_rows = bin_rows - 2 * margin_r
+    if inner_cols < 1:
+        inner_cols = 1
+    if inner_rows < 1:
+        inner_rows = 1
+
+    def _to_grid(sx: float, sy: float):
+        gc = int((sx - min_x) / range_x * inner_cols + margin_c)
+        gr = int((max_y - sy) / range_y * inner_rows + margin_r)  # flip Y (screen coords)
+        return (
+            max(0, min(bin_cols - 1, gc)),
+            max(0, min(bin_rows - 1, gr)),
+        )
+
+    grid = [[0] * bin_cols for _ in range(bin_rows)]
+    for x0, y0, x1, y1 in segments:
+        gc0, gr0 = _to_grid(x0, y0)
+        gc1, gr1 = _to_grid(x1, y1)
+        _bresenham_density(gc0, gr0, gc1, gr1, grid, bin_rows, bin_cols)
+
+    # Log1p compression
+    float_grid = [[math.log1p(grid[r][c]) for c in range(bin_cols)]
+                  for r in range(bin_rows)]
+
+    # Normalise to 0.0–1.0
+    all_vals = [float_grid[r][c] for r in range(bin_rows) for c in range(bin_cols)]
+    max_v = max(all_vals) if all_vals else 1.0
+    if max_v < 1e-12:
+        return [[0.0] * bin_cols for _ in range(bin_rows)]
+
+    return [[float_grid[r][c] / max_v for c in range(bin_cols)]
+            for r in range(bin_rows)]
+
+
+# -------------------------------------------------------------------------
+def lsystem_fill(
+    mask: list,
+    preset: str = "plant",
+    axiom: Optional[str] = None,
+    rules: Optional[dict] = None,
+    angle_deg: Optional[float] = None,
+    iterations: Optional[int] = None,
+    start_angle_deg: float = 90.0,
+    density_chars: Optional[str] = None,
+    bin_rows: int = 120,
+    bin_cols: int = 120,
+) -> list:
+    """Fill glyph mask using an L-system branching structure (N06).
+
+    A Lindenmayer system string-rewriting system generates fractal branching
+    geometry, which is then rendered via turtle graphics onto a density grid.
+    The density at each glyph cell drives character selection — dense trunk and
+    intersection regions → heavy chars, fine branch tips → light chars.
+
+    The fractal geometry is scaled to fit the glyph bounding box, so the
+    branching pattern fills the letterform completely regardless of letter size.
+
+    Named presets (all pure Python, no external deps):
+      "plant"      — Classic Prusinkiewicz plant (Fig 1.24, ABP 1990)
+      "fern"       — Fern frond variant (22.5° angle)
+      "sierpinski" — Sierpinski triangle / arrowhead curve (120° turns)
+      "dragon"     — Heighway Dragon curve (90° turns)
+      "bush"       — Multi-branch dense bush (22.5°, 3 iterations)
+      "algae"      — Lindenmayer's original algae (linear Fibonacci sequence)
+      "tree32"     — Binary tree at 32° branch angle
+      "crystal"    — Koch snowflake variant (60°, hexagonal)
+
+    You can also override any preset parameter or supply fully custom rules:
+      axiom       — starting string (overrides preset axiom)
+      rules       — production rules dict (overrides preset rules)
+      angle_deg   — turn angle in degrees (overrides preset angle)
+      iterations  — rewriting depth (overrides preset iterations)
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param preset: Named preset (default: 'plant').
+    :param axiom: Optional axiom override.
+    :param rules: Optional rules dict override.
+    :param angle_deg: Optional angle override (degrees).
+    :param iterations: Optional iteration count override.
+    :param start_angle_deg: Initial turtle heading (default: 90 = upward).
+    :param density_chars: Darkest-to-lightest char sequence (default: _LSYSTEM_DENSE).
+    :param bin_rows: Density grid height (default: 120).
+    :param bin_cols: Density grid width (default: 120).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset name is unknown.
+    """
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    if preset not in _LSYSTEM_PRESETS:
+        raise ValueError(
+            f"Unknown L-system preset '{preset}'. "
+            f"Available: {', '.join(_LSYSTEM_PRESETS.keys())}"
+        )
+
+    cfg = _LSYSTEM_PRESETS[preset]
+    _axiom = axiom if axiom is not None else cfg["axiom"]
+    _rules = rules if rules is not None else cfg["rules"]
+    _angle = angle_deg if angle_deg is not None else cfg["angle_deg"]
+    _iters = iterations if iterations is not None else cfg["iterations"]
+    _contraction = cfg.get("contraction", 1.0)
+
+    raw_chars = density_chars if density_chars is not None else _LSYSTEM_DENSE
+    ink_chars = raw_chars.rstrip(" ") or raw_chars[0]
+    n_chars = len(ink_chars)
+
+    # Build ink mask
+    ink = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    # Generate L-system string
+    lstr = _lsystem_expand(_axiom, _rules, _iters)
+
+    # Generate turtle segments
+    segments = _lsystem_segments(
+        lstr,
+        angle_deg=_angle,
+        step=1.0,
+        contraction=_contraction,
+        start_angle_deg=start_angle_deg,
+    )
+
+    # Build density grid
+    density = _lsystem_density_grid(segments, bin_rows, bin_cols)
+
+    # Map each ink cell to a density bin and select a character
+    result = []
+    for r in range(rows):
+        line = ""
+        for c in range(cols):
+            if not ink[r][c]:
+                line += " "
+                continue
+            br = int(r / max(rows - 1, 1) * (bin_rows - 1) + 0.5)
+            bc = int(c / max(cols - 1, 1) * (bin_cols - 1) + 0.5)
+            br = max(0, min(bin_rows - 1, br))
+            bc = max(0, min(bin_cols - 1, bc))
+            d = density[br][bc]   # 0.0–1.0, log-compressed
+            idx = int(d * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += ink_chars[n_chars - 1 - idx]   # high density → ink_chars[0] (dense)
         result.append(line)
 
     return result

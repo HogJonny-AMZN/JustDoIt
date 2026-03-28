@@ -107,7 +107,7 @@ Things that don't fit elsewhere. The truly weird stuff.
 | N03 | Terrain Generation | Glyph fills driven by procedural heightmap (looks like topographic map) | 5 | `idea` |
 | N04 | Fluid Simulation | Shallow water equations inside glyph mask | 5 | `idea` |
 | N05 | Music-Reactive | ASCII art driven by audio FFT data | 5 | `idea` |
-| N06 | L-System Growth | Lindenmayer system branching inside glyph | 5 | `idea` |
+| N06 | L-System Growth | Lindenmayer system branching inside glyph | 5 | `done` |
 | N07 | ASCII Raytracer | Simple raytracer rendering 3D scene in ASCII | 5 | `idea` |
 | N08 | Strange Attractor | Lorenz/Rössler attractor projected into glyph mask | 5 | `done` |
 | N09 | Turing Pattern | Reaction-diffusion yielding biological spot/stripe patterns | 5 | `idea` |
