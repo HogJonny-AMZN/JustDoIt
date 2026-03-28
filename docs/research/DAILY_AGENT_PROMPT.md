@@ -13,13 +13,13 @@ This project uses `uv` + a managed `.venv`. Do NOT use `pip`, `pip3`, or `python
 
 ```bash
 # The venv lives at:
-/home/node/.openclaw/workspace/projects/JustDoIt/.venv
+/home/hogjonny/.openclaw/workspace/projects/JustDoIt/.venv
 
 # Activate (optional — uv run handles it automatically):
-source /home/node/.openclaw/workspace/projects/JustDoIt/.venv/bin/activate
+source /home/hogjonny/.openclaw/workspace/projects/JustDoIt/.venv/bin/activate
 
 # Run tests (correct):
-cd /home/node/.openclaw/workspace/projects/JustDoIt
+cd /home/hogjonny/.openclaw/workspace/projects/JustDoIt
 .venv/bin/pytest tests/ -q
 
 # Run a script with venv Python:
@@ -40,6 +40,13 @@ System Python (`python3`) does NOT have these — always use `.venv/bin/python` 
 ---
 
 ## Protocol
+
+### Step 0: Pull latest
+
+```bash
+cd /home/hogjonny/.openclaw/workspace/projects/JustDoIt
+git pull --rebase
+```
 
 ### Step 1: Research (timebox: ~10 min equivalent)
 
@@ -62,7 +69,7 @@ Search terms to rotate through (pick 2-3 per session):
 
 ### Step 2: Update TECHNIQUES.md
 
-Read `/home/node/.openclaw/workspace/projects/JustDoIt/docs/research/TECHNIQUES.md`.
+Read `/home/hogjonny/.openclaw/workspace/projects/JustDoIt/docs/research/TECHNIQUES.md`.
 
 For each finding:
 
@@ -98,7 +105,7 @@ Update the technique status to `in-progress` in TECHNIQUES.md.
 
 ### Step 5: Implement
 
-In `/home/node/.openclaw/workspace/projects/JustDoIt/`:
+In `/home/hogjonny/.openclaw/workspace/projects/JustDoIt/`:
 
 1. Create or update the appropriate module (e.g. `justdoit/effects/`, `justdoit/fonts/`, `justdoit/core/`)
 2. Wire it into the pipeline and CLI where it makes sense
@@ -110,7 +117,7 @@ In `/home/node/.openclaw/workspace/projects/JustDoIt/`:
 4. Run the tests:
 
    ```bash
-   cd /home/node/.openclaw/workspace/projects/JustDoIt
+   cd /home/hogjonny/.openclaw/workspace/projects/JustDoIt
    .venv/bin/pytest tests/ -q
    # Or target just the new test file:
    .venv/bin/pytest tests/test_<your_module>.py -v
@@ -140,14 +147,15 @@ Then rebuild the gallery index:
 .venv/bin/python scripts/generate_gallery.py --index-only
 ```
 
-### Step 7: Commit
+### Step 7: Commit and push
 
 ```bash
-cd /home/node/.openclaw/workspace/projects/JustDoIt
+cd /home/hogjonny/.openclaw/workspace/projects/JustDoIt
 git add -A
 git commit -m "Daily bite YYYY-MM-DD: <technique-id> — <technique-name>
 
 <1-2 line description of what was implemented>"
+git push
 ```
 
 ### Step 8: Report
