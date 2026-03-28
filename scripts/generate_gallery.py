@@ -256,7 +256,7 @@ def build_index() -> None:
 
 
 # -------------------------------------------------------------------------
-def run(text: str = "JDI") -> None:
+def run(text: str = "Just Do It") -> None:
     """Render curated showcase SVGs and rebuild the gallery index.
 
     :param text: Text to render (default: 'JDI').
@@ -274,8 +274,8 @@ if __name__ == "__main__":
         description="Generate JustDoIt SVG gallery and README index.",
     )
     parser.add_argument(
-        "--text", default="JDI",
-        help="Text to render (default: JDI)",
+        "--text", default="Just Do It",
+        help="Text to render (default: Just Do It)",
     )
     parser.add_argument(
         "--index-only", action="store_true",
