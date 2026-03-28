@@ -13,7 +13,7 @@ from justdoit.fonts import FONTS
 from justdoit.effects.color import colorize
 from justdoit.core.glyph import glyph_to_mask
 from justdoit.effects.fill import density_fill, sdf_fill
-from justdoit.effects.generative import noise_fill, cells_fill, truchet_fill, reaction_diffusion_fill, slime_mold_fill, strange_attractor_fill
+from justdoit.effects.generative import noise_fill, cells_fill, truchet_fill, reaction_diffusion_fill, slime_mold_fill, strange_attractor_fill, lsystem_fill
 
 # -------------------------------------------------------------------------
 # module global scope
@@ -33,6 +33,7 @@ _FILL_FNS: dict = {
     "rd":        reaction_diffusion_fill,
     "slime":     slime_mold_fill,
     "attractor": strange_attractor_fill,
+    "lsystem":   lsystem_fill,
 }
 
 
