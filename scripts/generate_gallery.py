@@ -113,50 +113,52 @@ def render_showcase(text: str) -> None:
         print(f"  saved  {path.name}  ({label})")
 
 
+# Category metadata: code prefix → (heading, anchor, description)
+_CATEGORIES: dict = {
+    "G": ("Fonts",          "fonts",        "Builtin, FIGlet, and TTF rasterized fonts"),
+    "F": ("Fill Effects",   "fill-effects", "Character fill modes applied inside glyph masks"),
+    "C": ("Color Effects",  "color-effects","Gradients, palettes, and ANSI colorization"),
+    "S": ("Spatial & 3D",   "spatial--3d",  "Warps, perspective, shear, and isometric extrusion"),
+}
+
+
 # -------------------------------------------------------------------------
-def build_index() -> None:
-    """Scan docs/gallery/ for all SVGs and regenerate README.md.
+def _showcase_label(stem: str) -> str:
+    """Convert a showcase SVG stem to a human-readable label.
 
-    Showcase SVGs (S- prefix) are listed first, then daily agent outputs
-    (YYYY-MM-DD- prefix) sorted by date descending.
+    :param stem: SVG filename stem, e.g. 'S-F07-shape-fill'.
+    :returns: Label string, e.g. 'F07 — Shape Fill'.
     """
-    svgs = sorted(GALLERY_DIR.glob("*.svg"))
-    if not svgs:
-        print("  no SVGs found — nothing to index")
-        return
+    rest = stem[2:]  # strip "S-"
+    parts = rest.split("-", 1)
+    code = parts[0].upper()
+    slug = parts[1].replace("-", " ").title() if len(parts) > 1 else ""
+    return f"{code} — {slug}"
 
-    showcase = [p for p in svgs if p.stem.startswith("S-")]
-    daily    = [p for p in svgs if not p.stem.startswith("S-")]
-    daily    = sorted(daily, reverse=True)   # newest first
-    ordered  = showcase + daily
 
-    def _label(stem: str) -> str:
-        if stem.startswith("S-"):
-            # S-F00-block-baseline → "F00 — Block Baseline"
-            rest = stem[2:]
-            parts = rest.split("-", 1)
-            code = parts[0].upper()
-            slug = parts[1].replace("-", " ").title() if len(parts) > 1 else ""
-            return f"{code} — {slug}"
-        # 2026-03-26-N10-slime-mold → "2026-03-26 · N10 Slime Mold"
-        parts = stem.split("-", 3)
-        if len(parts) >= 4:
-            date = "-".join(parts[:3])
-            rest = parts[3].replace("-", " ").title()
-            return f"{date} · {rest}"
-        return stem.replace("-", " ").title()
+# -------------------------------------------------------------------------
+def _daily_label(stem: str) -> str:
+    """Convert a daily agent SVG stem to a human-readable label.
 
-    pairs = [(p.name, _label(p.stem)) for p in ordered]
+    :param stem: SVG filename stem, e.g. '2026-03-26-N10-slime-mold'.
+    :returns: Label string, e.g. '2026-03-26 · N10 Slime Mold'.
+    """
+    parts = stem.split("-", 3)
+    if len(parts) >= 4:
+        date = "-".join(parts[:3])
+        rest = parts[3].replace("-", " ").title()
+        return f"{date} · {rest}"
+    return stem.replace("-", " ").title()
 
-    lines = [
-        "# JustDoIt Gallery",
-        "",
-        "Auto-generated visual showcase of rendering techniques.",
-        "Run `python scripts/generate_gallery.py` to regenerate.",
-        "",
-        "<!-- showcase -->",
-        '<table>',
-    ]
+
+# -------------------------------------------------------------------------
+def _table(pairs: list) -> list:
+    """Render a list of (filename, label) pairs as an HTML grid table.
+
+    :param pairs: List of (svg_filename, label) tuples.
+    :returns: List of HTML lines.
+    """
+    lines = ['<table>']
     for i in range(0, len(pairs), _GRID_COLS):
         lines.append("<tr>")
         for fname, label in pairs[i:i + _GRID_COLS]:
@@ -167,17 +169,89 @@ def build_index() -> None:
                 f'</td>'
             )
         lines.append("</tr>")
-    lines.extend([
-        "</table>",
+    lines.append("</table>")
+    return lines
+
+
+# -------------------------------------------------------------------------
+def build_index() -> None:
+    """Scan docs/gallery/ for all SVGs and regenerate README.md.
+
+    Showcase SVGs (S- prefix) are grouped by technique category with
+    section headers and a table of contents. Daily agent outputs
+    (YYYY-MM-DD- prefix) appear in a separate section, newest first.
+    """
+    svgs = sorted(GALLERY_DIR.glob("*.svg"))
+    if not svgs:
+        print("  no SVGs found — nothing to index")
+        return
+
+    # Split into showcase (S- prefix) and daily (date prefix)
+    showcase = [p for p in svgs if p.stem.startswith("S-")]
+    daily    = sorted([p for p in svgs if not p.stem.startswith("S-")], reverse=True)
+
+    # Group showcase by category letter (second char of code after "S-")
+    groups: dict = {k: [] for k in _CATEGORIES}
+    for p in showcase:
+        code = p.stem[2:].split("-")[0].upper()   # e.g. "F07"
+        cat = code[0] if code else "S"
+        groups.setdefault(cat, []).append((p.name, _showcase_label(p.stem)))
+
+    total = len(showcase) + len(daily)
+
+    # --- Table of contents ---
+    lines = [
+        "# JustDoIt Gallery",
         "",
+        "Auto-generated visual showcase of rendering techniques.",
+        "Run `python scripts/demo.py --gallery` to regenerate.",
+        "",
+        "## Contents",
+        "",
+    ]
+    for cat, (heading, anchor, _) in _CATEGORIES.items():
+        if groups.get(cat):
+            n = len(groups[cat])
+            lines.append(f"- [{heading} ({n})](#{anchor})")
+    if daily:
+        lines.append(f"- [Daily Techniques ({len(daily)})](#daily-techniques)")
+    lines.append("")
+
+    # --- Showcase sections ---
+    for cat, (heading, anchor, desc) in _CATEGORIES.items():
+        pairs = groups.get(cat, [])
+        if not pairs:
+            continue
+        lines += [
+            f"## {heading}",
+            "",
+            f"*{desc}*",
+            "",
+        ]
+        lines += _table(pairs)
+        lines.append("")
+
+    # --- Daily section ---
+    if daily:
+        lines += [
+            "## Daily Techniques",
+            "",
+            "*New technique added each day by the daily agent — newest first.*",
+            "",
+        ]
+        daily_pairs = [(_p.name, _daily_label(_p.stem)) for _p in daily]
+        lines += _table(daily_pairs)
+        lines.append("")
+
+    lines.append(
         f"*Last updated: {datetime.now().strftime('%Y-%m-%d')} — "
-        f"{len(pairs)} technique{'s' if len(pairs) != 1 else ''}*",
-        "",
-    ])
+        f"{total} technique{'s' if total != 1 else ''}*"
+    )
+    lines.append("")
 
     readme = GALLERY_DIR / "README.md"
     readme.write_text("\n".join(lines), encoding="utf-8")
-    print(f"  index  {readme}  ({len(pairs)} entries)")
+    print(f"  index  {readme}  ({total} entries)")
 
 
 # -------------------------------------------------------------------------
