@@ -102,6 +102,15 @@ Rendering to non-terminal targets.
 | O05 | ANSI File | `.ans` format for ANSI art viewers | 2 | `idea` |
 | O06 | Markdown Export | Fenced code block output for docs/README embeds | 1 | `idea` |
 
+### I. Sound
+Synchronized audio output — optional, gracefully degraded if unavailable.
+
+| ID | Name | Description | Novelty | Status |
+|----|------|-------------|---------|--------|
+| SO01 | Synthesized Sound Engine | Optional `sounddevice`+`numpy` audio layer; procedural tone generation synchronized to animation frames; gated import, silent fallback | 5 | `idea` |
+| SO02 | Transporter Beam Audio | TNG/TOS transporter sound synthesized procedurally — frequency sweep + bandpass noise + reverb tail, synced to A11 materialize animation frames | 5 | `idea` |
+| SO03 | Sound Asset Playback | WAV/OGG file playback via `pygame.mixer` for pre-recorded effects; asset pipeline for bundled sounds | 3 | `idea` |
+
 ### H. Pipeline & Composition
 Architectural ideas — not a single technique but a way of combining them at a higher level.
 
