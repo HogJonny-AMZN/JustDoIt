@@ -101,7 +101,7 @@ TTF fonts auto-register via `justdoit/fonts/ttf.py` — no code changes needed.
 
 Test with:
 ```bash
-.venv/bin/python justdoit.py "Hello" --ttf DejaVuSans
+uv run python justdoit.py "Hello" --ttf DejaVuSans
 ```
 
 TTF tests require Pillow and use `pytest.importorskip("PIL")` — never hard-fail.
@@ -110,7 +110,7 @@ TTF tests require Pillow and use `pytest.importorskip("PIL")` — never hard-fai
 
 ## All paths: final checklist
 
-- [ ] Tests pass: `.venv/bin/pytest tests/ -q`
+- [ ] Tests pass: `uv run pytest tests/ -q`
 - [ ] `python justdoit.py --list-fonts` shows the new font
 - [ ] `render("HELLO", font="myfont")` produces correct output
 - [ ] Commit: `feat: add <fontname> font (Path A/B/C)`

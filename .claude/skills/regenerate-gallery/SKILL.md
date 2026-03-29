@@ -13,7 +13,7 @@ Regenerate all gallery SVGs and update the gallery README.
 ### 1 — Run the gallery generator
 
 ```bash
-.venv/bin/python scripts/generate_gallery.py
+uv run python scripts/generate_gallery.py
 ```
 
 This overwrites all SVGs in `docs/gallery/`. Expect it to take 30–60 seconds.

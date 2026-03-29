@@ -113,24 +113,32 @@ There is also a legacy `justdoit.py` at the repo root for backwards compatibilit
 
 ### Python Environment — IMPORTANT
 
-This project uses `uv` + a managed `.venv`. **Do not use `pip` or `python3` directly.**
+This project uses `uv`. **Do not use `pip`, `python3`, or `.venv/bin/` paths directly.**
+The `.venv` shebangs are hardcoded to the machine that built them — they break in Docker/CI.
+Always use `uv run` instead. It works everywhere.
 
 ```bash
 # Run tests:
-.venv/bin/pytest tests/ -q
+uv run pytest tests/ -q
+
+# Run a single test file:
+uv run pytest tests/test_fill.py -v
 
 # Run scripts:
-.venv/bin/python scripts/demo.py
+uv run python scripts/demo.py
+uv run python scripts/generate_gallery.py
 
 # Run CLI:
-.venv/bin/python justdoit.py "Hello"
+uv run python justdoit.py "Hello"
 
 # Add a dependency:
 uv add --dev <package>
+
+# Sync environment (after clone or dependency change):
+uv sync --dev
 ```
 
-The `.venv` has `pytest`, `Pillow`, and `justdoit` (editable install) already.
-System `python3` does NOT have these — always use `.venv/bin/python` or `uv run`.
+`uv run` automatically uses the project's `.venv` regardless of working directory or platform.
 
 Optional Pillow features degrade gracefully — all PIL-gated code checks availability at call time and raises `ImportError` with a helpful install hint.
 
