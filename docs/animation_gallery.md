@@ -25,6 +25,21 @@ embeddable in a README, and executable in a real terminal.
 
 ---
 
+## Format Comparison
+
+| Format | Quality | File size | GitHub inline | Browser | Terminal | Deps |
+|--------|---------|-----------|---------------|---------|----------|------|
+| Animated SVG (SMIL) | Good | Large | ✅ | ✅ | ❌ | None |
+| APNG | Excellent | Medium | ✅ | ✅ | ❌ | Pillow |
+| GIF | OK (256 color) | Small | ✅ | ✅ | ❌ | Pillow |
+| HTML+CSS | Excellent | Medium | ❌ | ✅ | ❌ | None |
+| asciinema .cast | Perfect (terminal) | Tiny | ❌ | ✅* | ✅ | None |
+| MP4/WebM | Best | Tiny | ❌ | ✅ | ❌ | ffmpeg (system) |
+
+*via asciinema player web component
+
+---
+
 ## Design Goals
 
 1. **Every animation effect has a gallery artifact** — no second-class effects
@@ -510,9 +525,7 @@ once the pipeline is in place.
 
 ## Open Questions for Jonny
 
-- [ ] **Loop behavior** — infinite loop or play-once-and-hold-last-frame in gallery?
-  Recommendation: infinite for ambient effects (pulse, living fill), play-once
-  for narrative effects (transporter materialize).
+- [x] **Loop behavior** — **per-effect configurable.** Ambient effects (pulse, living fill, glitch) → `loop: 0` (infinite). Narrative effects (transporter, typewriter) → `loop: 1` (play-once, hold last frame). Each effect registers its own preference in SHOWCASE. The infrastructure was already designed for this — `loop` param exists in `save_apng`.
 - [ ] **APNG background** — `#111111` terminal dark or transparent?
   Transparent looks great on dark docs, breaks on light backgrounds.
 - [ ] **GitHub Pages** — is this the right long-term gallery home, or CO3DEX integration?

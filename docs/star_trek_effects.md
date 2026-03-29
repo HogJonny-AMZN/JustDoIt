@@ -235,64 +235,24 @@ ENT:  ,  .  ?  +  *  #  @  █   (with random noise chars mixed in)
 
 ## SO01 / SO02 — Sound Engine + Transporter Audio
 
-### Architecture
+> Full sound architecture, synthesis specs, and general design principles live in
+> `sound_design.md`. This section covers Trek-specific audio notes and open
+> questions requiring Jonny's input.
 
-```
-justdoit/sound/
-  __init__.py
-  synth.py      # procedural tone generation (numpy + sounddevice)
-  player.py     # frame-synchronized playback
-  presets.py    # named sound presets (transporter_tos, transporter_tng, etc.)
-  assets/       # optional: bundled WAV files for non-synthesizable sounds
-```
+### Trek Audio Summary
 
-Optional import — silent fallback if `sounddevice`/`numpy` not installed:
-
-```python
-try:
-    from justdoit.sound import player
-    SOUND_AVAILABLE = True
-except ImportError:
-    SOUND_AVAILABLE = False
-```
-
-### TNG Transporter — Synthesized
-
-The TNG transporter beam is approximately:
-
-```
-Base:     Sine sweep 300Hz → 1800Hz over 1.2s (materialize)
-Shimmer:  Bandpass-filtered white noise, -20dB below base
-Sparkle:  Random short sine bursts (50–100ms), 800Hz–3kHz, very low amplitude
-Tail:     Reverb simulation — exponential decay of base frequency
-```
-
-> **[JONNY]** This is my best guess from listening to the effect dozens of  
-> times. You shipped a Trek game — did your audio team have the actual  
-> Paramount sound design notes or did you reconstruct from reference?  
-> Any specific frequency or envelope details you remember?
-
-### TOS Transporter — Synthesized
-
-```
-Base:     Sharper sweep, 150Hz → 2500Hz over 0.8s
-Waveform: Slightly sawtooth (not pure sine) — that's the "electrical" quality
-Noise:    Higher ratio of white noise to tone vs. TNG
-Reverb:   Minimal — dry room
-```
-
-### ENT Transporter — Synthesized  
-
-```
-Base:     Slower, uncertain sweep — 200Hz → 1200Hz over 2.0s
-Variation: Pitch wavers slightly — prototype instability
-Noise:    Higher noise floor throughout
-Resolution: Incomplete — add a brief descending tone at end (prototype hiccup)
-```
+| Era | Base sweep | Waveform | Noise ratio | Reverb | Duration |
+|-----|-----------|----------|-------------|--------|----------|
+| TOS | 150Hz → 2500Hz | Sawtooth | High | Dry | 0.8s |
+| TNG | 300Hz → 1800Hz | Sine | Low | Warm | 1.2s |
+| ENT | 200Hz → 1200Hz (wavers) | Sine + tremolo | Very high | Minimal | 2.0s |
+| Kelvin | 400Hz → 3000Hz | Sine | Low | None | 0.4s |
 
 ### Frame Sync
 
-The animation player calls `sound.player.update(frame, total_frames)` each frame. The player advances the audio envelope to match. If sound is unavailable, the animation runs silently at the same timing.
+The animation player calls `sound.player.update(frame, total_frames)` each frame.
+The audio envelope advances to match the current animation phase. If sound is
+unavailable, the animation runs silently at the same timing.
 
 ---
 
