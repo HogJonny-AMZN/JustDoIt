@@ -31,7 +31,8 @@ Gate with graceful `ImportError` fallback — never hard-require.
 - **`Pillow`** — TTF fonts, PNG export. Existing pattern.
 
 ### Tier 4 — Requires explicit approval
-Anything not in Tiers 1–3. Ask before adding.
+Anything not in Tiers 1–3. Score it using **ADR-006** (dependency approval
+rubric). Score ≥ 15/25 = auto-approved. Score < 15 = flag to Jonny.
 
 ## Numpy Refactoring Flag
 

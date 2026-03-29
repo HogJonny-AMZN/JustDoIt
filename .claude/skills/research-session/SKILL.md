@@ -212,7 +212,10 @@ novel. Flag early, flag often.
 Don't refactor existing code in the same session — just log the opportunity
 in a `docs/decisions/ADR-005-numpy-refactor.md`.
 
-**Adding anything else?** Flag to Jonny first. See ADR-001 for full policy.
+**Adding anything else?** Score it using ADR-006 rubric first.
+- Score ≥ 15/25 → auto-approved, document scores in commit message
+- Score < 15 → stop, flag to Jonny with breakdown, wait for approval
+- Any supply-chain score of 0 → escalate regardless of total
 
 ---
 
