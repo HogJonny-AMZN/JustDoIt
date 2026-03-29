@@ -20,21 +20,28 @@ of what has been built and why. Read them before acting.
 
 ## Environment — Read First, Every Time
 
-**CRITICAL:** This project uses `uv` + `.venv`. Never use `pip`, `python3`, or
-`python -m pytest`.
+**CRITICAL:** This project uses `uv`. Never use `pip`, `python3`, `.venv/bin/`,
+or `python -m pytest`. The `.venv` shebangs are hardcoded to the build machine
+and break in Docker/CI. Always use `uv run`.
 
 ```bash
-# Always cd first:
-cd /home/hogjonny/.openclaw/workspace/projects/JustDoIt
+# Always cd to the project root first:
+cd /path/to/JustDoIt   # adjust for your environment
+
+# Sync environment (after clone or if deps seem missing):
+uv sync --dev
 
 # Run tests:
-.venv/bin/pytest tests/ -q
+uv run pytest tests/ -q
+
+# Run a single test file:
+uv run pytest tests/test_fill.py -v
 
 # Run a script:
-.venv/bin/python scripts/demo.py
+uv run python scripts/demo.py
+uv run python scripts/generate_gallery.py
 
-# The venv has: pytest, Pillow, justdoit (editable install)
-# System python3 does NOT have these
+# `uv run` resolves the venv automatically — no activation needed
 ```
 
 ---
@@ -43,11 +50,20 @@ cd /home/hogjonny/.openclaw/workspace/projects/JustDoIt
 
 ### Step 0 — Orient
 
-Pull latest and read the state of the world:
+Check state and pull latest:
 
 ```bash
-git pull --rebase
+git status                  # see what's dirty before touching anything
+git stash                   # stash any uncommitted work if present
+git pull --rebase origin main
+git stash pop               # restore stashed work if applicable
 ```
+
+If there are merge conflicts after pull:
+- Read both sides carefully before resolving
+- Never blindly accept either `ours` or `theirs`
+- Run `uv run pytest tests/ -q` after resolving to confirm nothing broke
+- Commit the merge resolution before implementing anything new
 
 Then read:
 1. `docs/research/TECHNIQUES.md` — the technique registry (what's done, what's next)
@@ -114,7 +130,7 @@ For fills, also follow `.claude/skills/add-fill-effect/SKILL.md`.
 ### Step 5 — Test
 
 ```bash
-.venv/bin/pytest tests/ -q
+uv run pytest tests/ -q
 ```
 
 Must pass before continuing. No exceptions.
@@ -130,11 +146,12 @@ Minimum test coverage for any new technique:
 
 Save gallery SVG:
 ```bash
-.venv/bin/python scripts/generate_gallery.py
+uv run python scripts/generate_gallery.py
 ```
 
-If that's too slow, save a targeted output:
+If that's too slow, save a targeted output only:
 ```python
+# run via: uv run python -c "..."
 from justdoit.output.svg import save_svg
 from justdoit.core.rasterizer import render
 result = render("JUST DO IT", fill="mykey")

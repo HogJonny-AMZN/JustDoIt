@@ -65,7 +65,7 @@ def test_my_fill_via_render():
     assert len(out) > 0
 ```
 
-Run: `.venv/bin/pytest tests/ -q` — must pass before proceeding.
+Run: `uv run pytest tests/ -q` — must pass before proceeding.
 
 ## Step 5 — Add to gallery
 
