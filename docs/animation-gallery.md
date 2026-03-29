@@ -203,8 +203,7 @@ No backend required — all static files.
 
 ### Jonny (decisions)
 
-- [ ] **[JONNY-1]** FPS preference — 12fps feels like ANSI art, 24fps feels like video.
-  Which target for the gallery default?
+- [x] **[JONNY-1]** FPS preference — **24fps**. On a Federation starship we do not do things halfway.
 - [ ] **[JONNY-2]** Loop behavior — infinite loop or play-once-and-hold-last-frame?
   For gallery display, play-once feels more intentional.
 - [ ] **[JONNY-3]** GitHub Pages — is this the right long-term home for the gallery?
