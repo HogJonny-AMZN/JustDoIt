@@ -17,6 +17,7 @@ Use these when asked to perform common tasks — load the SKILL.md, follow it ex
 
 | Task | Skill |
 |------|-------|
+| Research session / daily build | [`.claude/skills/research-session/SKILL.md`](.claude/skills/research-session/SKILL.md) |
 | Add a new fill effect | [`.claude/skills/add-fill-effect/SKILL.md`](.claude/skills/add-fill-effect/SKILL.md) |
 | Add a new font | [`.claude/skills/add-font/SKILL.md`](.claude/skills/add-font/SKILL.md) |
 | Regenerate gallery SVGs | [`.claude/skills/regenerate-gallery/SKILL.md`](.claude/skills/regenerate-gallery/SKILL.md) |
