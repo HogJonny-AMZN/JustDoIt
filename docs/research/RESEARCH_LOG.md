@@ -27,15 +27,15 @@ Reordered after each session. Top = next bite.
 
 | Priority | Technique | ID | Novelty | Status |
 |----------|-----------|-----|---------|--------|
-| 1 | Typographic Recursion | N01 | 5 | `idea` |
-| 2 | SDF Font Generator | G04 | 5 | `idea` |
-| 3 | Turing Pattern | N09 | 5 | `idea` |
-| 4 | Wave Interference Fill | F09 | 4 | `idea` |
-| 5 | Voronoi Fill | F07 | 4 | `idea` |
-| 6 | Plasma Wave Animation | A10 | 4 | `idea` |
-| 7 | Flame Simulation | A08 | 4 | `idea` |
-| 8 | Fractal Fill (Mandelbrot) | F05 | 4 | `idea` |
-| 9 | Chromatic Aberration | C08 | 5 | `idea` |
+| 1 | SDF Font Generator | G04 | 5 | `idea` |
+| 2 | Turing Pattern | N09 | 5 | `idea` |
+| 3 | Wave Interference Fill | F09 | 4 | `idea` |
+| 4 | Voronoi Fill | F07 | 4 | `idea` |
+| 5 | Plasma Wave Animation | A10 | 4 | `idea` |
+| 6 | Flame Simulation | A08 | 4 | `idea` |
+| 7 | Fractal Fill (Mandelbrot) | F05 | 4 | `idea` |
+| 8 | Chromatic Aberration | C08 | 5 | `idea` |
+| — | Typographic Recursion | N01 | 5 | `done` |
 | — | L-System Growth | N06 | 5 | `done` |
 | — | Strange Attractor | N08 | 5 | `done` |
 | — | Slime Mold Simulation | N10 | 5 | `done` |
@@ -242,3 +242,11 @@ This reframes JustDoIt from a text-art CLI into a **universal visual-to-ASCII re
 **Novelty score:** 5
 **Priority:** `idea`
 **ID:** P05
+
+## Session 2026-03-29
+
+**Research focus:** Typographic recursion — text made of itself. Self-referential letterform rendering. Web search unavailable; worked from prior knowledge of typographic recursion as an art technique (Escher-style self-referential structures, "text as texture" approaches in computational typography, and the well-established concept in generative art of replacing pixels with meaningful symbols from the source content).
+**New techniques found:** 0 new (N01 was already registered; session implemented it from first principles)
+**Sources:** Prior knowledge of typographic recursion in generative art; computational typography literature; the fundamental concept that any symbol-replacement pass on a bitmapped text render yields self-similar letterforms.
+**Key insight:** The implementation is deceptively simple: render the text to a grid of rows (each char is either space or an ink char), then walk every non-space cell in reading order and replace it with the next character from the source text cycling. The word "HELLO" rendered in block font has ~340 ink cells; cycling H→E→L→L→O→H→E→... replaces all 340 with meaningful characters. The effect: letterforms that "spell themselves out" at cell scale. One subtle engineering issue: the inline `colorize()` call in the render loop wraps each glyph row in ANSI escape codes — if recursion runs after colorization, it walks into the escape sequences. Fix: defer colorization until after the recursion pass completes (controlled by `defer_color` flag). This keeps the character-replacement pass on clean ASCII, then ANSI wraps the finished rows.
+**Priority queue update:** N01 complete. Next: G04 (SDF Font Generator — signed distance field letterforms rasterized to any resolution, novelty 5) is now #1. Turing Pattern (N09) is #2.

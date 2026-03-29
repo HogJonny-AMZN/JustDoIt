@@ -119,7 +119,7 @@ Things that don't fit elsewhere. The truly weird stuff.
 
 | ID | Name | Description | Novelty | Status |
 |----|------|-------------|---------|--------|
-| N01 | Typographic Recursion | Glyphs made of smaller instances of the same text | 5 | `idea` |
+| N01 | Typographic Recursion | Glyphs made of smaller instances of the same text | 5 | `done` |
 | N02 | Semantic Fill | Fill chars chosen for thematic meaning (e.g. "FIRE" filled with fire chars) | 5 | `idea` |
 | N03 | Terrain Generation | Glyph fills driven by procedural heightmap (looks like topographic map) | 5 | `idea` |
 | N04 | Fluid Simulation | Shallow water equations inside glyph mask | 5 | `idea` |
