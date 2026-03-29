@@ -4,7 +4,7 @@
 **Created:** 2026-03-29  
 **Author:** NumberOne  
 **Creative Direction:** Jonny Galloway  
-**Default FPS:** 24 — Federation standard  
+**Default FPS:** Configurable per-effect. 24 is the baseline. 60 is worth trying. We won't know until we try.  
 
 > "Make it so." — J.L. Picard
 
@@ -273,7 +273,8 @@ images[0].save(
 ## New Script: `scripts/generate_anim_gallery.py`
 
 Parallel to `generate_gallery.py`. Declarative showcase list — each entry
-defines a technique, its frame generator call, and its output variants.
+defines a technique, its frame generator call, output variants, and its own
+fps. **FPS is per-effect.** The effect knows best.
 
 ```python
 SHOWCASE = [
@@ -284,7 +285,20 @@ SHOWCASE = [
             {
                 "label": "typewriter",
                 "frames": lambda: typewriter_frames("JUST DO IT", font="block"),
+                "fps": 12,          # typewriter is intentionally slow — it's the effect
+                "loop": False,      # play once, hold final frame
+            }
+        ],
+    },
+    {
+        "id": "A03",
+        "name": "glitch",
+        "variants": [
+            {
+                "label": "glitch",
+                "frames": lambda: glitch_frames("JUST DO IT"),
                 "fps": 24,
+                "loop": True,       # ambient — loops naturally
             }
         ],
     },
@@ -295,23 +309,33 @@ SHOWCASE = [
             {
                 "label": "transporter-tng",
                 "frames": lambda: transporter_frames("ENERGIZE", era="tng"),
-                "fps": 24,
+                "fps": 24,          # start here — try 60 once visual is solid
+                "loop": False,      # narrative effect — play once
+                "fps_candidates": [24, 30, 60],  # worth benchmarking all three
             },
             {
                 "label": "transporter-tos",
                 "frames": lambda: transporter_frames("ENERGIZE", era="tos"),
-                "fps": 24,
+                "fps": 30,          # TOS is faster/sharper — higher fps feels right
+                "loop": False,
             },
             {
                 "label": "transporter-ent",
                 "frames": lambda: transporter_frames("ENERGIZE", era="ent"),
-                "fps": 24,
+                "fps": 18,          # ENT prototype is slow, uncertain — lower fps matches
+                "loop": False,
             },
         ],
     },
     # ... all animation techniques
+    # Rule: fps is not assumed. Each variant sets its own.
+    # fps_candidates = list of fps values worth generating for comparison.
 ]
 ```
+
+**The fps principle:** the effect registers its *preferred* fps, which may differ
+from the gallery default. A typewriter at 60fps is just fast typing. A transporter
+at 60fps might be spectacular. We generate and compare — the best goes in the gallery.
 
 For each variant:
 1. Generate frames (call the lambda)

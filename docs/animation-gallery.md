@@ -203,7 +203,7 @@ No backend required — all static files.
 
 ### Jonny (decisions)
 
-- [x] **[JONNY-1]** FPS preference — **24fps**. On a Federation starship we do not do things halfway.
+- [x] **[JONNY-1]** FPS — **configurable per-effect**. Default 24, but 60 is explicitly on the table. Each effect registers its own preferred fps range. The transporter at 60fps might be spectacular. We find out empirically.
 - [ ] **[JONNY-2]** Loop behavior — infinite loop or play-once-and-hold-last-frame?
   For gallery display, play-once feels more intentional.
 - [ ] **[JONNY-3]** GitHub Pages — is this the right long-term home for the gallery?

@@ -1,6 +1,23 @@
-# VISION.md — JustDoIt: The Most Robust Python ASCII Art Generator on Earth
+# VISION.md — JustDoIt: The Best Terminal Font Rendering Codebase on Earth
 
 > *"How do you eat a whale? One bite at a time."*
+
+## The Real North Star
+
+Not "a cool ASCII art tool." Not "a fun terminal toy."
+
+**The best terminal font rendering codebase on earth.**
+
+That means:
+- Every effect is configurable, composable, and production-quality
+- Framerates are not assumed — 24fps is a default, 60fps is worth trying, the effect decides
+- The rendering pipeline is a serious piece of software that happens to output to a terminal
+- When someone needs to render text in a terminal with maximum expressiveness, this is what they reach for
+- The kind of thing that ends up as a dependency in other people's serious tools
+
+The ASCII/ANSI aesthetic is a *feature*, not a ceiling. We're not limited by the medium — we're exploring what the medium can do at its absolute limit.
+
+---
 
 ---
 
