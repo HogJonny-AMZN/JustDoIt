@@ -87,7 +87,7 @@ Frame-based terminal animation techniques.
 | A07 | Matrix Rain | Characters falling through the glyph shape | 3 | `idea` |
 | A08 | Flame Simulation | Heat-based upward particle drift inside glyphs | 4 | `idea` |
 | A09 | Liquid Fill | Glyph fills up like liquid pouring in from bottom | 4 | `idea` |
-| A11 | Transporter Materialize | Star Trek transporter effect — particles scatter in bounding column then converge/coalesce into glyph shape; half-block subpixel resolution (▀▄█) for particle precision; brightness cascade per cell as it locks in; bidirectional (materialize + dematerialize); TOS/TNG color variants | 5 | `idea` |
+| A11 | Transporter Materialize | Star Trek transporter effect — particles scatter in bounding column then converge/coalesce into glyph shape; half-block subpixel resolution (▀▄█) for particle precision; brightness cascade per cell as it locks in; bidirectional (materialize + dematerialize); TOS/TNG/ENT/Kelvin era variants; fps configurable (24–60, effect decides) | 5 | `idea` |
 | A10 | Plasma Wave | Animated plasma color field (classic demoscene) | 4 | `idea` |
 
 ### F. Output Targets
