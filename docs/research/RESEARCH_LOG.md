@@ -27,7 +27,8 @@ Reordered after each session. Top = next bite.
 
 | Priority | Technique | ID | Novelty | Status |
 |----------|-----------|-----|---------|--------|
-| 1 | SDF Font Generator | G04 | 5 | `idea` |
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
 | 2 | Turing Pattern | N09 | 5 | `idea` |
 | 3 | Wave Interference Fill | F09 | 4 | `idea` |
 | 4 | Voronoi Fill | F07 | 4 | `idea` |
