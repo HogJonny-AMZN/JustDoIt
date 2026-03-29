@@ -11,6 +11,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Architecture decisions (why things are the way they are):** [`docs/decisions/`](docs/decisions/)
 - **Effects danger zone (fill contract, module map):** [`justdoit/effects/CLAUDE.md`](justdoit/effects/CLAUDE.md)
 
+## ⚠️ Patent Flag Protocol
+
+If you implement or discover something with **no known prior art**, stop before pushing to GitHub.
+
+Message Jonny (HogJonny) immediately:
+> "⚠️ PATENT FLAG: [name] — [why it's novel]. No prior art found in [sources]. Recommend review before publishing."
+
+Public disclosure destroys patent rights. When in doubt, flag it.
+
+---
+
 ## Skills (Reusable Workflows)
 
 Use these when asked to perform common tasks — load the SKILL.md, follow it exactly:

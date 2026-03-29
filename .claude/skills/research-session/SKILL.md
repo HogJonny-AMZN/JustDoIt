@@ -177,6 +177,32 @@ git push
 
 ---
 
+## ⚠️ Patent Flag Protocol
+
+During research and implementation, actively evaluate whether anything discovered
+or invented meets a high novelty bar. Flag to Jonny immediately if:
+
+- A technique has **no known prior art** in any language or tool (not just Python)
+- A combination of approaches produces an effect that appears genuinely **unprecedented**
+- An algorithm is invented from scratch rather than adapted from existing literature
+- Something makes you think "I've never seen this done before" — trust that instinct
+
+**How to flag:**
+Stop. Do not commit. Message Jonny directly:
+
+> "⚠️ PATENT FLAG: [technique name] — [1-2 sentence description of what makes it novel]. No prior art found in [sources checked]. Recommend review before publishing."
+
+**Do not push novel inventions to a public repo before Jonny has reviewed them.**
+Patent rights are destroyed by public disclosure before filing. Once it's on GitHub, it's public domain.
+
+The priority queue already has several novelty-5 techniques. Some of these —
+particularly P02 (ASCII video pipeline), P05 (full 3D scene renderer), N11
+(3D font → normal-mapped fill), G04 (SDF font generator in pure Python) —
+could intersect with patentable territory if the implementation is sufficiently
+novel. Flag early, flag often.
+
+---
+
 ## Research Quality Standards
 
 **Cite sources.** Every technique in RESEARCH_LOG.md should have a real
