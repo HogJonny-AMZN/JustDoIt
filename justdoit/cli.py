@@ -170,6 +170,14 @@ examples:
         help="Shear direction (default: right)",
     )
     parser.add_argument(
+        "--recursion", action="store_true",
+        help="Typographic recursion (N01): fill cells with cycling source text chars",
+    )
+    parser.add_argument(
+        "--recursion-sep", default=" ", metavar="SEP",
+        help="Separator between word cycles in recursion mode (default: space)",
+    )
+    parser.add_argument(
         "--list-fonts", action="store_true",
         help="List available fonts and exit",
     )
@@ -226,7 +234,15 @@ examples:
         _fns["truchet"] = lambda mask: _tf(mask, style=_chosen_style)
 
     try:
-        output = render(args.text, font=font_name, color=args.color, gap=args.gap, fill=args.fill)
+        output = render(
+            args.text,
+            font=font_name,
+            color=args.color,
+            gap=args.gap,
+            fill=args.fill,
+            recursion=args.recursion,
+            recursion_separator=args.recursion_sep,
+        )
 
         # Apply isometric extrusion before color effects (color applies on top)
         if args.iso is not None:

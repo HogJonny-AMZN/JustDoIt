@@ -22,6 +22,9 @@ Techniques that determine what characters fill a glyph mask.
 | F08 | Stipple Fill | Error-diffusion dithering (Floyd-Steinberg) inside mask | 3 | `idea` |
 | F09 | Wave Interference | Two sine waves interfering inside mask | 4 | `idea` |
 | F10 | Truchet Tiles | Tiling patterns inside glyph using arc/diagonal chars | 5 | `done` |
+| F11 | Shape-Vector Fill | 4-neighbor connectivity: `\|/-` at edges, density chars at interior — contour-following, pure Python | 4 | `done` |
+
+> **Note:** F11 is labelled "F07" in the gallery/demo (numbering predates this registry entry). F07 Voronoi Fill remains unimplemented.
 
 ### B. Font Generation
 Techniques for generating or importing new glyph sets.
@@ -36,6 +39,7 @@ Techniques for generating or importing new glyph sets.
 | G06 | Braille Font | Unicode Braille patterns for ultra-high-res ASCII | 3 | `idea` |
 | G07 | Half-block Font | Unicode half-block chars (▀▄) for 2x vertical resolution | 2 | `idea` |
 | G08 | Quadrant Block Font | Unicode quadrant chars (▖▗▘▝) for 2x2 subpixel grid | 3 | `idea` |
+| G09 | GenAI Logo-to-Image → ASCII | AI image gen (DALL-E / SD) → hi-res image → 6D zone char matching via `_get_char_db()` | 5 | `idea` |
 
 ### C. Spatial Effects
 Geometric transformations applied to the full rasterized grid.
@@ -97,18 +101,32 @@ Rendering to non-terminal targets.
 | O05 | ANSI File | `.ans` format for ANSI art viewers | 2 | `idea` |
 | O06 | Markdown Export | Fenced code block output for docs/README embeds | 1 | `idea` |
 
+### H. Pipeline & Composition
+Architectural ideas — not a single technique but a way of combining them at a higher level.
+
+| ID | Name | Description | Novelty | Status |
+|----|------|-------------|---------|--------|
+| P01 | Multi-layer Compositor | Stack renders with blend modes (multiply/screen/overlay) — Photoshop layers for ASCII | 5 | `idea` |
+| P02 | ASCII Video Pipeline | Any video file → per-frame zone-matched ASCII → ANSI sequence / GIF / re-encoded video. ffmpeg for ASCII. | 5 | `idea` |
+| P03 | Live Input → ASCII | Real-time webcam / capture card → streaming zone-matched ASCII. ASCII photobooth or music visualizer. | 5 | `idea` |
+| P04 | AI Creative Director | Brand brief or mood prompt → LLM art direction → image AI → zone-matched ASCII → color effects → gallery. End-to-end AI-driven ASCII creation. | 5 | `idea` |
+| P05 | Full 3D Scene Renderer | Arbitrary 3D scene (camera, lights, mesh, texture) → raytraced / rasterized → F11 normal-mapped char selection. ASCII as a first-class 3D output format. Extends N07 + N11. | 5 | `idea` |
+
+---
+
 ### G. Novel / Experimental
 Things that don't fit elsewhere. The truly weird stuff.
 
 | ID | Name | Description | Novelty | Status |
 |----|------|-------------|---------|--------|
-| N01 | Typographic Recursion | Glyphs made of smaller instances of the same text | 5 | `idea` |
+| N01 | Typographic Recursion | Glyphs made of smaller instances of the same text | 5 | `done` |
 | N02 | Semantic Fill | Fill chars chosen for thematic meaning (e.g. "FIRE" filled with fire chars) | 5 | `idea` |
 | N03 | Terrain Generation | Glyph fills driven by procedural heightmap (looks like topographic map) | 5 | `idea` |
 | N04 | Fluid Simulation | Shallow water equations inside glyph mask | 5 | `idea` |
 | N05 | Music-Reactive | ASCII art driven by audio FFT data | 5 | `idea` |
 | N06 | L-System Growth | Lindenmayer system branching inside glyph | 5 | `done` |
-| N07 | ASCII Raytracer | Simple raytracer rendering 3D scene in ASCII | 5 | `idea` |
+| N07 | ASCII Raytracer | Full raytracer: camera, lights, mesh, BVH, shadows, reflections → char selected by surface normal (F11) + density by luminance. Terminal Quake. | 5 | `idea` |
 | N08 | Strange Attractor | Lorenz/Rössler attractor projected into glyph mask | 5 | `done` |
 | N09 | Turing Pattern | Reaction-diffusion yielding biological spot/stripe patterns | 5 | `idea` |
 | N10 | Slime Mold Simulation | Physarum polycephalum agent sim inside glyph | 5 | `done` |
+| N11 | 3D Font Renderer → Normal-Mapped Fill | Extrude glyph outline to 3D mesh, software-rasterize, use surface normals to drive F11 char selection | 5 | `idea` |
