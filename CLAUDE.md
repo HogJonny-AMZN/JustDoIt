@@ -6,6 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **System overview, architecture, patterns:** [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
 - **Python coding standards, module structure, conventions:** [`.github/python-instructions.md`](.github/python-instructions.md)
+- **Vision and roadmap:** [`docs/VISION.md`](docs/VISION.md)
+- **Technique registry (all fills, fonts, effects — status + novelty):** [`docs/research/TECHNIQUES.md`](docs/research/TECHNIQUES.md)
+- **Architecture decisions (why things are the way they are):** [`docs/decisions/`](docs/decisions/)
+- **Effects danger zone (fill contract, module map):** [`justdoit/effects/CLAUDE.md`](justdoit/effects/CLAUDE.md)
+
+## Skills (Reusable Workflows)
+
+Use these when asked to perform common tasks — load the SKILL.md, follow it exactly:
+
+| Task | Skill |
+|------|-------|
+| Add a new fill effect | [`.claude/skills/add-fill-effect/SKILL.md`](.claude/skills/add-fill-effect/SKILL.md) |
+| Add a new font | [`.claude/skills/add-font/SKILL.md`](.claude/skills/add-font/SKILL.md) |
+| Regenerate gallery SVGs | [`.claude/skills/regenerate-gallery/SKILL.md`](.claude/skills/regenerate-gallery/SKILL.md) |
 
 ---
 
