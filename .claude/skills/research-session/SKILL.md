@@ -203,6 +203,19 @@ novel. Flag early, flag often.
 
 ---
 
+## Dependency Policy
+
+**Permitted without approval:** `numpy`, `scipy`, `sounddevice`, `Pillow`
+— these are optional deps; always gate with graceful `ImportError` fallback.
+
+**Adding numpy for the first time?** Flag a refactor review per ADR-001.
+Don't refactor existing code in the same session — just log the opportunity
+in a `docs/decisions/ADR-005-numpy-refactor.md`.
+
+**Adding anything else?** Flag to Jonny first. See ADR-001 for full policy.
+
+---
+
 ## Research Quality Standards
 
 **Cite sources.** Every technique in RESEARCH_LOG.md should have a real

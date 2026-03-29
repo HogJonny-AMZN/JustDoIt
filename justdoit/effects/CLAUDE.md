@@ -64,7 +64,21 @@ The `log1p` compression step is intentional — raw linear maps look flat. Do no
 ## Known Constraints
 
 - **No Pillow in core fills** — PIL is optional, gated behind `pytest.importorskip` in tests
-- **No numpy** — pure Python only; keep it zero-dependency
+- **Numpy and scipy are permitted** — gate with graceful `ImportError` fallback to pure Python path (see ADR-001)
+- **If adding numpy for the first time** — flag a refactor review of existing fills (see ADR-001 refactor list)
 - **Line length:** 120 chars max
 - **All functions need type hints + ReST docstrings**
-- Pillow-dependent fills should check availability at call time and raise `ImportError` with a helpful message
+- Optional-dep fills should check availability at call time and degrade gracefully:
+
+```python
+try:
+    import numpy as np
+    _NUMPY_AVAILABLE = True
+except ImportError:
+    _NUMPY_AVAILABLE = False
+
+def my_fill(mask, ...):
+    if _NUMPY_AVAILABLE:
+        return _my_fill_numpy(mask, ...)
+    return _my_fill_pure(mask, ...)
+```
