@@ -9,6 +9,7 @@ Run `python scripts/demo.py --gallery` to regenerate.
 - [Fill Effects (7)](#fill-effects)
 - [Color Effects (8)](#color-effects)
 - [Spatial & 3D (8)](#spatial--3d)
+- [Daily Techniques (1)](#daily-techniques)
 
 ## Fonts
 
@@ -93,4 +94,14 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 </table>
 
-*Last updated: 2026-03-28 — 27 techniques*
+## Daily Techniques
+
+*New technique added each day by the daily agent — newest first.*
+
+<table>
+<tr>
+<td align="center"><img src="2026-03-29-N01.svg" width="480"><br><sub><b>2026-03-29 · N01</b></sub></td>
+</tr>
+</table>
+
+*Last updated: 2026-03-29 — 28 techniques*

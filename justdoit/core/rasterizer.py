@@ -15,6 +15,7 @@ from justdoit.core.glyph import glyph_to_mask
 from justdoit.effects.fill import density_fill, sdf_fill
 from justdoit.effects.generative import noise_fill, cells_fill, truchet_fill, reaction_diffusion_fill, slime_mold_fill, strange_attractor_fill, lsystem_fill
 from justdoit.effects.shape_fill import shape_fill
+from justdoit.effects.recursive import typographic_recursion
 
 # -------------------------------------------------------------------------
 # module global scope
@@ -46,6 +47,8 @@ def render(
     color: Optional[str] = None,
     gap: int = 1,
     fill: Optional[str] = None,
+    recursion: bool = False,
+    recursion_separator: str = " ",
 ) -> str:
     """Render text as multi-line ASCII art with optional color and fill effects.
 
@@ -54,6 +57,11 @@ def render(
     :param color: ANSI color name or 'rainbow' (default: no color).
     :param gap: Column gap between characters in spaces (default: 1).
     :param fill: Fill style — None (default block chars), 'density', or 'sdf'.
+    :param recursion: If True, apply typographic recursion (N01): fill cells with
+        source text chars cycling. Each "pixel" of the large letter is a char
+        from the word itself.
+    :param recursion_separator: Separator between word cycles in recursion mode
+        (default: single space).
     :returns: Multi-line string — rows joined by newlines.
     :raises ValueError: If font or fill name is unknown, or gap is negative.
     """
@@ -67,13 +75,17 @@ def render(
     if fill is not None and fill not in _FILL_FNS:
         raise ValueError(f"Unknown fill '{fill}'. Available: {', '.join(_FILL_FNS.keys())}")
 
-    text = text.upper()
+    text_upper = text.upper()
     height = len(next(iter(font_data.values())))
     rows = [""] * height
     spacer = " " * gap
     fill_fn = _FILL_FNS.get(fill)
 
-    for i, char in enumerate(text):
+    # When recursion is active, defer colorization until after recursion so that
+    # ANSI escape codes don't interfere with the character-replacement pass.
+    defer_color = recursion and bool(color)
+
+    for i, char in enumerate(text_upper):
         glyph = font_data.get(char, font_data.get(" "))
 
         if fill_fn is not None:
@@ -83,8 +95,16 @@ def render(
             glyph = fill_fn(mask)
 
         for row_idx, row in enumerate(glyph):
-            if color:
+            if color and not defer_color:
                 row = colorize(row, color, rainbow_index=i)
             rows[row_idx] += row + spacer
+
+    # Apply typographic recursion post-process (N01) on clean (uncolored) rows
+    if recursion:
+        rows = typographic_recursion(rows, text, separator=recursion_separator)
+
+    # Apply deferred colorization after recursion (per-row, column-based index)
+    if defer_color:
+        rows = [colorize(row, color, rainbow_index=idx) for idx, row in enumerate(rows)]
 
     return "\n".join(rows)
