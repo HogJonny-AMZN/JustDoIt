@@ -1,4 +1,4 @@
-# VISION.md — JustDoIt: The Best Terminal Font Rendering Codebase on Earth
+# VISION.md — JustDoIt: The Best Font Rendering Codebase on Earth
 
 > *"How do you eat a whale? One bite at a time."*
 
@@ -6,16 +6,36 @@
 
 Not "a cool ASCII art tool." Not "a fun terminal toy."
 
-**The best terminal font rendering codebase on earth.**
+**The best font rendering codebase on earth.**
+
+Not the best *terminal* font renderer. The best font renderer. Full stop. One that happens to start in the terminal — because the terminal is the hardest, most constrained medium. If you can make text *alive* in 80 columns of ASCII, you can make it alive anywhere.
 
 That means:
 - Every effect is configurable, composable, and production-quality
 - Framerates are not assumed — 24fps is a default, 60fps is worth trying, the effect decides
-- The rendering pipeline is a serious piece of software that happens to output to a terminal
-- When someone needs to render text in a terminal with maximum expressiveness, this is what they reach for
+- The rendering pipeline is substrate-agnostic: terminal today, WebGL tomorrow, GPU shader next week
+- When someone needs to render text with maximum expressiveness — in *any* medium — this is what they reach for
 - The kind of thing that ends up as a dependency in other people's serious tools
 
-The ASCII/ANSI aesthetic is a *feature*, not a ceiling. We're not limited by the medium — we're exploring what the medium can do at its absolute limit.
+The ASCII/ANSI aesthetic is the *foundation*, not the ceiling. The terminal is where we prove every idea. Then we port the proof.
+
+---
+
+## The Hierarchy
+
+```
+Terminal         ← prove it here first. hardest constraints. most honest feedback.
+    ↓
+Browser / HTML   ← same pipeline, richer color, DOM output
+    ↓
+SVG / PNG        ← vector and raster export, shareable artifacts
+    ↓
+WebGL / GPU      ← particle volume fills, 3D extrusion, real-time at scale
+    ↓
+Anywhere         ← the pipeline is the product. the substrate is a parameter.
+```
+
+Terminal-first is a *discipline*, not a limitation. Every effect that works in 256 colors and monospace characters works everywhere. The reverse is not true. Start constrained, expand outward.
 
 ---
 
@@ -184,10 +204,13 @@ justdoit/
 
 ## North Star
 
-> A Python package where you hand it a string and a configuration, and it can produce output ranging from "functional terminal banner" to "generative art piece" — all in ASCII/ANSI, all in pure Python, all from one tool.
+> A Python package where you hand it a string and a configuration, and it produces output ranging from "functional terminal banner" to "generative art piece" to "3D particle volume fill rendered in WebGL" — from one tool, one pipeline, one mental model.
 
-The kind of thing that ends up on Hacker News, gets starred 10k times, and ships as a dependency in other people's creative tools.
+Terminal-first. Substrate-agnostic. The best font rendering codebase on earth.
+
+The kind of thing that ends up on Hacker News, gets starred 10k times, and ships as a dependency in other people's creative tools — and occasionally makes someone say "wait, that was *Python*?"
 
 ---
 
-*Vision drafted 2026-03-23 in conversation between Jonny Galloway and NumberOne.*
+*Vision drafted 2026-03-23 in conversation between Jonny Galloway and NumberOne.*  
+*Expanded 2026-03-30 — terminal is the proving ground, not the ceiling.*
