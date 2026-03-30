@@ -318,6 +318,120 @@ def _apply_neon_color(text: str, color_name: str, state: str, rng: random.Random
     return f"{code}{text}{_RESET}"
 
 
+def neon_tube_glitch(
+    text: str,
+    color: str = "cyan",
+    n_frames: int = 36,
+    flicker_prob: float = 0.20,
+    dead_prob: float = 0.06,
+    fringe_prob: float = 0.10,
+    seed: Optional[int] = None,
+) -> Iterator[str]:
+    """Per-letter neon tube flicker — each letter is one bent tube (A03t).
+
+    Each letter behaves as a single independent neon tube. The whole letter
+    goes dim, dead, or fringe together — not horizontal row slices.
+    Spaces between letters are always blank (no tube there).
+
+    This is the authentic neon sign failure mode: a tube bent into a letter
+    shape either works, flickers, or dies as a unit.
+
+    :param text: Multi-line rendered string from render() — plain, no ANSI color.
+    :param color: Neon tube color — key in _NEON_COLORS (default: 'cyan').
+    :param n_frames: Total frames to produce (default: 36).
+    :param flicker_prob: Probability of dim flicker per letter per frame (default: 0.20).
+    :param dead_prob: Probability of tube death per letter per frame (default: 0.06).
+    :param fringe_prob: Probability of color fringe per letter per frame (default: 0.10).
+    :param seed: Optional random seed for reproducibility.
+    :returns: Iterator of frame strings.
+    :raises ValueError: If color is not a known neon color.
+    """
+    if color not in _NEON_COLORS:
+        raise ValueError(f"Unknown neon color '{color}'. Available: {', '.join(_NEON_COLORS)}")
+
+    if not text:
+        yield text
+        return
+
+    from justdoit.fonts import FONTS
+
+    # We need to know the column span of each source character so we can
+    # apply per-letter state to the right columns in the rendered output.
+    # Render each source char individually to get its column width.
+    font_data = FONTS.get("block", {})
+    gap = 1  # default gap used by render()
+
+    # Strip ANSI from input — we re-color ourselves
+    plain_lines = [_ANSI_RE.sub("", line) for line in text.split("\n")]
+    n_rows = len(plain_lines)
+
+    # Build letter column spans: for each source char, what column range does it occupy?
+    # render() appends: glyph_cols + gap spacer, for each char in text.upper()
+    source_chars = [c for c in text.upper()]
+    col_spans: list[tuple[int, int]] = []  # (start_col, end_col) exclusive, per source char
+    col = 0
+    for ch in source_chars:
+        glyph = font_data.get(ch, font_data.get(" "))
+        if glyph is None:
+            col_spans.append((col, col))
+            continue
+        glyph_width = len(glyph[0]) if glyph else 0
+        span_end = col + glyph_width  # gap cols are blank, not part of the letter tube
+        col_spans.append((col, span_end))
+        col += glyph_width + gap  # advance past glyph + gap spacer
+
+    rng = random.Random(seed)
+    neon = _NEON_COLORS[color]
+
+    for _ in range(n_frames):
+        # Roll tube state per source character
+        letter_states: list[str] = []
+        for ch in source_chars:
+            if ch == " ":
+                letter_states.append("space")
+                continue
+            roll = rng.random()
+            if roll < dead_prob:
+                letter_states.append("off")
+            elif roll < dead_prob + flicker_prob:
+                letter_states.append("dim")
+            elif roll < dead_prob + flicker_prob + fringe_prob:
+                letter_states.append("fringe")
+            else:
+                letter_states.append("full")
+
+        # Build frame row by row — colorize each letter's column span independently
+        frame_lines = []
+        for row_idx in range(n_rows):
+            line = plain_lines[row_idx] if row_idx < len(plain_lines) else ""
+            if not line.strip():
+                frame_lines.append(line)
+                continue
+
+            # Rebuild line char by char, wrapping each letter span in its tube color
+            result = []
+            line_list = list(line)
+            for letter_idx, (start, end) in enumerate(col_spans):
+                state = letter_states[letter_idx]
+                # Extract this letter's columns from the line
+                seg = "".join(line_list[start:end]) if end <= len(line_list) else ""
+                if not seg.strip() or state == "space":
+                    result.append(seg)
+                    continue
+                if state == "fringe":
+                    code = rng.choice(neon["fringe"])
+                else:
+                    code = neon[state]
+                result.append(f"{code}{seg}{_RESET}")
+            # Append anything after the last span (trailing gap/space)
+            last_end = col_spans[-1][1] if col_spans else 0
+            if last_end < len(line_list):
+                result.append("".join(line_list[last_end:]))
+            frame_lines.append("".join(result))
+
+        yield "\n".join(frame_lines)
+
+
 def neon_glitch(
     text: str,
     color: str = "cyan",
