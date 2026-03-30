@@ -318,6 +318,147 @@ def _apply_neon_color(text: str, color_name: str, state: str, rng: random.Random
     return f"{code}{text}{_RESET}"
 
 
+def neon_sign_startup(
+    text: str,
+    color: str = "cyan",
+    faulty_word_idx: int = 1,
+    n_flickers: int = 3,
+    hold_frames: int = 12,
+    seed: Optional[int] = None,
+) -> Iterator[str]:
+    """Scripted neon sign power-on loop (A03s).
+
+    Narrative sequence:
+      1. Power-on: words light up staggered left-to-right, each settling full
+      2. Faulty word: flickers on/off n_flickers times before holding
+      3. Hold: full sign steady for hold_frames
+      4. Flicker-off: quick flash then all dark, ready to loop
+
+    Designed to loop cleanly — last frame is all-dark, matches start.
+
+    :param text: Space-separated words to display (e.g. 'JUST DO IT').
+    :param color: Neon tube color — key in _NEON_COLORS (default: 'cyan').
+    :param faulty_word_idx: Index (0-based) of the word with the bad tube (default: 1 → 'DO').
+    :param n_flickers: How many on/off cycles the faulty word does before settling (default: 3).
+    :param hold_frames: Frames to hold the full steady sign (default: 12 → 1s @ 12fps).
+    :param seed: Optional random seed.
+    :returns: Iterator of frame strings.
+    :raises ValueError: If color is not a known neon color.
+    """
+    if color not in _NEON_COLORS:
+        raise ValueError(f"Unknown neon color '{color}'. Available: {', '.join(_NEON_COLORS)}")
+
+    if not text:
+        yield text
+        return
+
+    from justdoit.core.rasterizer import render as _render
+
+    # Accept raw word string (e.g. 'JUST DO IT') — split and render each word
+    source_words = _ANSI_RE.sub("", text).strip().split()
+    if not source_words:
+        yield text
+        return
+
+    faulty_word_idx = faulty_word_idx % len(source_words)
+    neon = _NEON_COLORS[color]
+
+    # Render each word individually — gives us per-word row lists
+    words = source_words
+    word_renders: list[list[str]] = []
+    for w in words:
+        rendered = _render(w.upper(), font="block")
+        word_renders.append(rendered.split("\n"))
+
+    n_rows = max(len(wr) for wr in word_renders)
+    # Pad all words to same row count
+    for wr in word_renders:
+        while len(wr) < n_rows:
+            wr.append("")
+
+    word_gap = "  "  # 2-space gap between words
+
+    def _colorize_word(row_lines: list[str], state: str, rng_: random.Random) -> list[str]:
+        """Apply neon state to all rows of a word."""
+        out = []
+        for line in row_lines:
+            plain = _ANSI_RE.sub("", line)
+            if not plain.strip():
+                out.append(plain)
+                continue
+            if state == "off":
+                out.append(" " * len(plain))
+            elif state == "fringe":
+                code = rng_.choice(neon["fringe"])
+                out.append(f"{code}{plain}{_RESET}")
+            else:
+                out.append(f"{neon[state]}{plain}{_RESET}")
+        return out
+
+    def _composite(word_states: list[str], rng_: random.Random) -> str:
+        """Build one frame from per-word states."""
+        row_parts: list[list[str]] = [[] for _ in range(n_rows)]
+        for widx, (wr, state) in enumerate(zip(word_renders, word_states)):
+            colored = _colorize_word(wr, state, rng_)
+            for ridx in range(n_rows):
+                if ridx < len(colored):
+                    row_parts[ridx].append(colored[ridx])
+                else:
+                    row_parts[ridx].append("")
+        return "\n".join(word_gap.join(row) for row in row_parts)
+
+    rng = random.Random(seed)
+
+    # --- Phase 1: Power-on — words light up staggered, one word per 2 frames ---
+    # Non-faulty words: off → dim (1f) → full
+    # Faulty word: stays off during this phase
+    states: list[str] = ["off"] * len(words)
+    yield _composite(states, rng)  # initial dark frame
+
+    for widx in range(len(words)):
+        if widx == faulty_word_idx:
+            continue  # faulty word lights up separately
+        # Dim flash first
+        states[widx] = "dim"
+        yield _composite(states, rng)
+        # Settle to full
+        states[widx] = "full"
+        yield _composite(states, rng)
+
+    # --- Phase 2: Faulty word struggles ---
+    # Pattern: dim→on→off, repeated n_flickers times, final settle to full
+    for flick in range(n_flickers):
+        # dim glimmer
+        states[faulty_word_idx] = "dim"
+        yield _composite(states, rng)
+        # on
+        states[faulty_word_idx] = "full"
+        yield _composite(states, rng)
+        if flick < n_flickers - 1:
+            # off — not the final flicker
+            states[faulty_word_idx] = "off"
+            yield _composite(states, rng)
+            # brief fringe before going dark again
+            states[faulty_word_idx] = "fringe"
+            yield _composite(states, rng)
+
+    # Final settle — faulty word holds at full
+    states[faulty_word_idx] = "full"
+
+    # --- Phase 3: Hold — full sign steady ---
+    for _ in range(hold_frames):
+        yield _composite(states, rng)
+
+    # --- Phase 4: Flicker-off — quick flash then dark ---
+    # One dim flash, then off
+    all_dim = ["dim"] * len(words)
+    yield _composite(all_dim, rng)
+    all_off = ["off"] * len(words)
+    yield _composite(all_off, rng)
+    # One more dark frame as clean loop point
+    yield _composite(all_off, rng)
+
+
 def neon_tube_glitch(
     text: str,
     color: str = "cyan",
