@@ -6,7 +6,7 @@ Run `python scripts/demo.py --gallery` to regenerate.
 ## Contents
 
 - [Fonts (4)](#fonts)
-- [Fill Effects (7)](#fill-effects)
+- [Fill Effects (11)](#fill-effects)
 - [Color Effects (8)](#color-effects)
 - [Spatial & 3D (8)](#spatial--3d)
 - [Daily Techniques (1)](#daily-techniques)
@@ -41,10 +41,18 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 <tr>
 <td align="center"><img src="S-F03-cells-fill.svg" width="480"><br><sub><b>F03 — Cells Fill</b></sub></td>
+<td align="center"><img src="S-F05-fractal-default.svg" width="480"><br><sub><b>F05 — Fractal Default</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-F05-fractal-julia.svg" width="480"><br><sub><b>F05 — Fractal Julia</b></sub></td>
 <td align="center"><img src="S-F06-sdf-fill.svg" width="480"><br><sub><b>F06 — Sdf Fill</b></sub></td>
 </tr>
 <tr>
 <td align="center"><img src="S-F07-shape-fill.svg" width="480"><br><sub><b>F07 — Shape Fill</b></sub></td>
+<td align="center"><img src="S-F09-wave-default.svg" width="480"><br><sub><b>F09 — Wave Default</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-F09-wave-moire.svg" width="480"><br><sub><b>F09 — Wave Moire</b></sub></td>
 </tr>
 </table>
 
@@ -104,4 +112,4 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 </table>
 
-*Last updated: 2026-03-30 — 31 techniques*
+*Last updated: 2026-03-30 — 35 techniques*
