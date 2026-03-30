@@ -158,6 +158,40 @@ result = render("JUST DO IT", fill="mykey")
 save_svg(result, "docs/gallery/YYYY-MM-DD-<id>.svg")
 ```
 
+### Step 6b — Animation gallery (run when animation pipeline work is done or available)
+
+The animation gallery lives at `docs/anim_gallery/` and is separate from the
+static gallery. It requires `justdoit/output/cast.py` and `justdoit/output/apng.py`
+to exist before `scripts/generate_anim_gallery.py` can run.
+
+**Animation pipeline implementation order** (if not yet done — check first):
+
+1. `justdoit/output/cast.py` — pure stdlib, asciinema v2 format. Implement this first.
+   - No deps. Ships in core. See `docs/animation_gallery.md` for the spec.
+2. `justdoit/output/apng.py` — Pillow-gated APNG writer.
+   - Gate with `try: from PIL import Image` / graceful ImportError.
+3. `scripts/generate_anim_gallery.py` — declarative SHOWCASE list, generates both formats.
+4. `.claude/skills/regenerate-anim-gallery/SKILL.md` — parallel to this skill for anim gallery.
+
+**Check what exists:**
+```bash
+ls justdoit/output/cast.py justdoit/output/apng.py scripts/generate_anim_gallery.py 2>/dev/null
+ls docs/anim_gallery/ 2>/dev/null
+```
+
+**If cast.py exists**, regenerate `.cast` files for any animations that have changed:
+```bash
+uv run python scripts/generate_anim_gallery.py
+```
+
+**If cast.py does not exist**, implement it in this session before moving to Step 7.
+It is pure stdlib, low complexity, and unblocks the entire animation gallery pipeline.
+The spec is in `docs/animation_gallery.md` — the format is trivial JSON lines.
+
+**Priority:** implement `cast.py` before any new fill effect if the animation pipeline
+is still unbuilt. `.cast` files unblock gallery artifacts for all existing animations
+(typewriter, glitch, pulse, dissolve) immediately — no new effects needed.
+
 ### Step 7 — Update records
 
 - TECHNIQUES.md: status `in-progress` → `done`
@@ -256,14 +290,17 @@ Read `docs/research/RESEARCH_LOG.md` for the current queue — it's maintained
 there and updated after each session. Do not rely on this file for queue state;
 it may be stale.
 
-At time of writing (2026-03-29):
+At time of writing (2026-03-30):
 
-| Priority | Technique | ID | Novelty |
-|----------|-----------|-----|---------|
-| 1 | SDF Font Generator | G04 | 5 |
-| 2 | Turing Pattern | N09 | 5 |
-| 3 | Wave Interference Fill | F09 | 4 |
-| 4 | Voronoi Fill | F07 | 4 |
-| 5 | Plasma Wave Animation | A10 | 4 |
+| Priority | Task | ID | Notes |
+|----------|------|----|-------|
+| 0 | `cast.py` — asciinema writer | SO01 infra | Pure stdlib, unblocks entire animation gallery. Do this before any new fill. |
+| 1 | `apng.py` — APNG writer | SO01 infra | Pillow-gated. Do after cast.py. |
+| 2 | `generate_anim_gallery.py` | infra | Wires cast+apng into gallery pipeline. |
+| 3 | SDF Font Generator | G04 | Novelty 5 |
+| 4 | Wave Interference Fill | F09 | Novelty 4 |
+| 5 | Voronoi Fill | F07 | Novelty 4 |
+| 6 | Plasma Wave Animation | A10 | Novelty 4 |
+| 7 | Transporter Materialize | A11 | Novelty 5 — Trek flagship, needs cast.py first |
 
-But always check RESEARCH_LOG.md for the live queue — this may be outdated.
+But always check RESEARCH_LOG.md for the live queue — it's updated after each session and supersedes this table.
