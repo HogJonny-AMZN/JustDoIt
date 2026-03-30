@@ -491,6 +491,10 @@ def neon_sign_startup(
     n_flickers: int = 3,
     hold_frames: int = 12,
     pulse: bool = True,
+    flicker_hold: bool = False,
+    flicker_prob: float = 0.25,
+    dead_prob: float = 0.08,
+    fringe_prob: float = 0.10,
     seed: Optional[int] = None,
 ) -> Iterator[str]:
     """Scripted neon sign power-on loop (A03s).
@@ -498,7 +502,7 @@ def neon_sign_startup(
     Narrative sequence:
       1. Power-on: words light up staggered left-to-right, each settling full
       2. Faulty word: flickers on/off n_flickers times before holding
-      3. Hold: full sign steady for hold_frames, with tube buzz + optional pulse
+      3. Hold: steady (pulse+buzz) OR live flicker (per-word random tube state)
       4. Flicker-off: quick flash then all dark, ready to loop
 
     Designed to loop cleanly — last frame is all-dark, matches start.
@@ -507,8 +511,13 @@ def neon_sign_startup(
     :param color: Neon tube color — key in _NEON_COLORS (default: 'cyan').
     :param faulty_word_idx: Index (0-based) of the word with the bad tube (default: 1 → 'DO').
     :param n_flickers: How many on/off cycles the faulty word does before settling (default: 3).
-    :param hold_frames: Frames to hold the full steady sign (default: 12 → 1s @ 12fps).
+    :param hold_frames: Frames for the hold/flicker phase (default: 12 → 1s @ 12fps).
     :param pulse: If True, apply slow brightness pulse to 'full' state tubes (default: True).
+    :param flicker_hold: If True, hold phase uses per-word random tube flicker instead of
+        steady pulse+buzz — sign stays alive and unstable after power-on (default: False).
+    :param flicker_prob: Per-word dim probability during flicker hold (default: 0.25).
+    :param dead_prob: Per-word dead probability during flicker hold (default: 0.08).
+    :param fringe_prob: Per-word fringe probability during flicker hold (default: 0.10).
     :param seed: Optional random seed.
     :returns: Iterator of frame strings.
     :raises ValueError: If color is not a known neon color.
@@ -630,9 +639,26 @@ def neon_sign_startup(
     # Final settle
     states[faulty_word_idx] = "full"
 
-    # --- Phase 3: Hold — full sign steady with buzz + pulse ---
-    for _ in range(hold_frames):
-        yield _yield(states)
+    # --- Phase 3: Hold ---
+    if flicker_hold:
+        # Live flicker — per-word random tube state each frame
+        for _ in range(hold_frames):
+            live_states = []
+            for widx in range(len(words)):
+                roll = rng.random()
+                if roll < dead_prob:
+                    live_states.append("off")
+                elif roll < dead_prob + flicker_prob:
+                    live_states.append("dim")
+                elif roll < dead_prob + flicker_prob + fringe_prob:
+                    live_states.append("fringe")
+                else:
+                    live_states.append("full")
+            yield _yield(live_states)
+    else:
+        # Steady hold — pulse + buzz
+        for _ in range(hold_frames):
+            yield _yield(states)
 
     # --- Phase 4: Flicker-off ---
     all_dim = ["dim"] * len(words)
