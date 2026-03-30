@@ -1,0 +1,30 @@
+Read docs/ANIMATION_GALLERY_PLAN.md and docs/animation_gallery.md. Then read justdoit/animate/presets.py, justdoit/output/svg.py, and justdoit/output/ansi_parser.py to understand the existing patterns.
+
+Then implement all four phases:
+
+PHASE 1: justdoit/output/cast.py — pure stdlib asciinema v2 writer
+- to_cast(frames, fps, title, cols, rows) -> str
+- save_cast(frames, path, fps, title, cols, rows) -> None
+- Auto-detect cols/rows from frame content (use ansi_parser to strip ANSI, measure)
+- Format: JSON header + [timestamp, "o", "\033[2J\033[H<frame>"] per frame
+- tests/test_output_cast.py: header valid JSON, timestamps monotonic, content preserved, auto-dims
+
+PHASE 2: justdoit/output/apng.py — Pillow-gated APNG writer
+- frame_to_image(frame, font_size=14, bg_color="#111111", line_height=1.2) -> PIL.Image
+- to_apng(frames, fps=24.0, bg_color="#111111", loop=0) -> bytes
+- save_apng(frames, path, fps=24.0, bg_color="#111111", loop=0) -> None
+- Gate with try/except ImportError on PIL
+- tests/test_output_apng.py: gated with pytest.importorskip("PIL"), PNG magic bytes, frame count, dims
+
+PHASE 3: scripts/generate_anim_gallery.py — SHOWCASE generator
+Animations (all exist in justdoit/animate/presets.py):
+- A01 typewriter fps=12 loop=False
+- A02 scanline fps=12 loop=False
+- A03 glitch fps=24 loop=True
+- A04 pulse fps=24 loop=True
+- A05 dissolve fps=24 loop=False
+Saves .cast + .apng to docs/anim_gallery/. Auto-generates docs/anim_gallery/README.md.
+
+PHASE 4: .claude/skills/regenerate-anim-gallery/SKILL.md
+
+After all phases: uv run pytest tests/ -q (must pass), then git add -A && git commit -m "feat: animation gallery pipeline — cast.py, apng.py, generate_anim_gallery.py, 5 effects" && git push

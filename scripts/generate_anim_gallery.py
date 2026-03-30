@@ -32,6 +32,22 @@ _TEXT = "JUST DO IT"
 
 
 # -------------------------------------------------------------------------
+def _dissolve_in_out(text: str) -> list[str]:
+    """Build a looping dissolve-in + hold + dissolve-out frame sequence.
+
+    :param text: Fully rendered multi-line string.
+    :returns: Combined frame list suitable for looping APNG.
+    """
+    from justdoit.animate.presets import dissolve
+
+    dissolve_out = list(dissolve(text, seed=42))   # full → blank
+    dissolve_in = list(reversed(dissolve_out))[1:] # blank → full (drop dup)
+    hold = [dissolve_out[0]] * 6                   # hold full frame ~0.5s @ 12fps
+    # in → hold → out; skip duplicate boundary frames
+    return dissolve_in + hold + dissolve_out[1:]
+
+
+# -------------------------------------------------------------------------
 def _build_showcase() -> list[dict]:
     """Build the declarative SHOWCASE list.
 
@@ -58,7 +74,7 @@ def _build_showcase() -> list[dict]:
             "name": "scanline",
             "label": "scanline",
             "frames": lambda: list(scanline(text)),
-            "fps": 12.0,
+            "fps": 4.0,
             "loop": False,
         },
         {
@@ -81,9 +97,9 @@ def _build_showcase() -> list[dict]:
             "id": "A05",
             "name": "dissolve",
             "label": "dissolve",
-            "frames": lambda: list(dissolve(text)),
-            "fps": 24.0,
-            "loop": False,
+            "frames": lambda: _dissolve_in_out(text),
+            "fps": 12.0,
+            "loop": True,
         },
     ]
 
