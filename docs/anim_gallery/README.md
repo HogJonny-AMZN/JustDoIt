@@ -48,6 +48,22 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 |---------|---------|----------|
 | neon-sign-magenta | ![neon-sign-magenta](A03s2-neon-sign-magenta.apng) | [▶ terminal](A03s2-neon-sign-magenta.cast) |
 
+## A03sf — Neon-Sign
+
+**38 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| neon-sign-flicker-cyan | ![neon-sign-flicker-cyan](A03sf-neon-sign-flicker-cyan.apng) | [▶ terminal](A03sf-neon-sign-flicker-cyan.cast) |
+
+## A03sf2 — Neon-Sign
+
+**42 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| neon-sign-flicker-magenta | ![neon-sign-flicker-magenta](A03sf2-neon-sign-flicker-magenta.apng) | [▶ terminal](A03sf2-neon-sign-flicker-magenta.cast) |
+
 ## A03t — Neon-Tube
 
 **36 frames** · **12.0fps** · looping
