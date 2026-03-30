@@ -103,3 +103,19 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 | Variant | Preview | Terminal |
 |---------|---------|----------|
 | dissolve | ![dissolve](A05-dissolve.apng) | [▶ terminal](A05-dissolve.cast) |
+
+## A05d — Density-Dissolve
+
+**80 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| density-dissolve | ![density-dissolve](A05d-density-dissolve.apng) | [▶ terminal](A05d-density-dissolve.cast) |
+
+## A05e — Density-Dissolve
+
+**80 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| density-dissolve-cyan | ![density-dissolve-cyan](A05e-density-dissolve-cyan.apng) | [▶ terminal](A05e-density-dissolve-cyan.cast) |

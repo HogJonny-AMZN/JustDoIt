@@ -131,7 +131,7 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_tube_glitch, neon_sign_startup
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
@@ -230,6 +230,22 @@ def _build_showcase() -> list[dict]:
             "name": "dissolve",
             "label": "dissolve",
             "frames": lambda: _dissolve_in_out(text),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A05d",
+            "name": "density-dissolve",
+            "label": "density-dissolve",
+            "frames": lambda: list(density_dissolve(text, n_frames=36, direction="loop", seed=42)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A05e",
+            "name": "density-dissolve",
+            "label": "density-dissolve-cyan",
+            "frames": lambda: list(density_dissolve(text, n_frames=36, direction="loop", color="cyan", seed=7)),
             "fps": 12.0,
             "loop": True,
         },
