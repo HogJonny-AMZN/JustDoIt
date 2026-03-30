@@ -395,11 +395,19 @@ def neon_sign_startup(
                 out.append(f"{neon[state]}{plain}{_RESET}")
         return out
 
-    def _composite(word_states: list[str], rng_: random.Random) -> str:
-        """Build one frame from per-word states."""
+    def _composite(word_states: list[str], rng_: random.Random, buzz_prob: float = 0.12) -> str:
+        """Build one frame from per-word states.
+
+        When state is 'full', buzz_prob chance of rendering dim instead —
+        simulates the natural instability of a live neon tube.
+        """
         row_parts: list[list[str]] = [[] for _ in range(n_rows)]
         for widx, (wr, state) in enumerate(zip(word_renders, word_states)):
-            colored = _colorize_word(wr, state, rng_)
+            # Natural tube buzz — full state occasionally dims
+            effective_state = state
+            if state == "full" and rng_.random() < buzz_prob:
+                effective_state = "dim"
+            colored = _colorize_word(wr, effective_state, rng_)
             for ridx in range(n_rows):
                 if ridx < len(colored):
                     row_parts[ridx].append(colored[ridx])
