@@ -131,7 +131,7 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
@@ -174,6 +174,30 @@ def _build_showcase() -> list[dict]:
             "name": "neon-sign",
             "label": "neon-sign-magenta",
             "frames": lambda: list(neon_sign_startup(_TEXT, color="magenta", faulty_word_idx=2, n_flickers=4, hold_frames=12, seed=13)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A03w",
+            "name": "neon-word",
+            "label": "neon-word-cyan",
+            "frames": lambda: list(neon_word_glitch(_TEXT, color="cyan", n_frames=36, seed=1)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A03w2",
+            "name": "neon-word",
+            "label": "neon-word-magenta",
+            "frames": lambda: list(neon_word_glitch(_TEXT, color="magenta", n_frames=36, seed=2)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A03w3",
+            "name": "neon-word",
+            "label": "neon-word-multi",
+            "frames": lambda: list(neon_word_glitch(_TEXT, colors=["cyan", "magenta", "yellow"], n_frames=36, seed=3)),
             "fps": 12.0,
             "loop": True,
         },

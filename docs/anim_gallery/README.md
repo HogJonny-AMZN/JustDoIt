@@ -48,6 +48,30 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 |---------|---------|----------|
 | neon-sign-magenta | ![neon-sign-magenta](A03s2-neon-sign-magenta.apng) | [▶ terminal](A03s2-neon-sign-magenta.cast) |
 
+## A03w — Neon-Word
+
+**36 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| neon-word-cyan | ![neon-word-cyan](A03w-neon-word-cyan.apng) | [▶ terminal](A03w-neon-word-cyan.cast) |
+
+## A03w2 — Neon-Word
+
+**36 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| neon-word-magenta | ![neon-word-magenta](A03w2-neon-word-magenta.apng) | [▶ terminal](A03w2-neon-word-magenta.cast) |
+
+## A03w3 — Neon-Word
+
+**36 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| neon-word-multi | ![neon-word-multi](A03w3-neon-word-multi.apng) | [▶ terminal](A03w3-neon-word-multi.cast) |
+
 ## A03sf — Neon-Sign
 
 **38 frames** · **12.0fps** · looping
