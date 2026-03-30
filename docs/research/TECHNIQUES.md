@@ -137,6 +137,6 @@ Things that don't fit elsewhere. The truly weird stuff.
 | N06 | L-System Growth | Lindenmayer system branching inside glyph | 5 | `done` |
 | N07 | ASCII Raytracer | Full raytracer: camera, lights, mesh, BVH, shadows, reflections → char selected by surface normal (F11) + density by luminance. Terminal Quake. | 5 | `idea` |
 | N08 | Strange Attractor | Lorenz/Rössler attractor projected into glyph mask | 5 | `done` |
-| N09 | Turing Pattern | Reaction-diffusion yielding biological spot/stripe patterns | 5 | `idea` |
+| N09 | Turing Pattern | Reaction-diffusion yielding biological spot/stripe patterns | 5 | `done` |
 | N10 | Slime Mold Simulation | Physarum polycephalum agent sim inside glyph | 5 | `done` |
 | N11 | 3D Font Renderer → Normal-Mapped Fill | Extrude glyph outline to 3D mesh, software-rasterize, use surface normals to drive F11 char selection | 5 | `idea` |

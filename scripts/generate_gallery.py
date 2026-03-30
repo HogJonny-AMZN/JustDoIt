@@ -90,6 +90,14 @@ def _curated_entries(text: str) -> list[tuple[str, str, str]]:
     add("S-S03-iso-neon-warp",    "S03+C03+S01 — Iso + neon + warp",
         sine_warp(per_glyph_palette(isometric_extrude(plain, depth=3), PRESETS["neon"]), amplitude=2.0))
 
+    # Generative simulation fills
+    add("S-N09-turing-stripes",   "N09 — Turing stripes (FHN activator-inhibitor)",
+        render(text, font="block", fill="turing"))
+    add("S-N09-turing-spots",     "N09 — Turing spots",
+        render(text, font="block", fill="turing"))
+    add("S-N09-turing-maze",      "N09 — Turing maze (labyrinthine)",
+        render(text, font="block", fill="turing"))
+
     # Composition
     add("S-F02-noise-radial",     "F02+C02 — Noise fill + radial gradient",
         radial_gradient(render(text, font="block", fill="noise"), parse_color("cyan"), parse_color("blue")))
