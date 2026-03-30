@@ -140,3 +140,4 @@ Things that don't fit elsewhere. The truly weird stuff.
 | N09 | Turing Pattern | Reaction-diffusion yielding biological spot/stripe patterns | 5 | `done` |
 | N10 | Slime Mold Simulation | Physarum polycephalum agent sim inside glyph | 5 | `done` |
 | N11 | 3D Font Renderer → Normal-Mapped Fill | Extrude glyph outline to 3D mesh, software-rasterize, use surface normals to drive F11 char selection | 5 | `idea` |
+| N12 | 3D Particle Volume Fill | Extend N11: extruded glyph 3D volume becomes a particle field — particles animate into the letter shape from scatter, with physics (gravity, attractors, turbulence); ASCII char encodes particle density/velocity; the text-fill particle mode as a terminal-native effect; natural extension of A11 transporter into a general particle-to-glyph animation system | 5 | `idea` |
