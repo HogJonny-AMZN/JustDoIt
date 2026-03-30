@@ -668,6 +668,101 @@ def neon_sign_startup(
     yield _yield(all_off, buzz_=0.0)  # clean loop point
 
 
+def neon_word_glitch(
+    text: str,
+    color: str = "cyan",
+    colors: Optional[list] = None,
+    n_frames: int = 36,
+    flicker_prob: float = 0.25,
+    dead_prob: float = 0.08,
+    fringe_prob: float = 0.12,
+    seed: Optional[int] = None,
+) -> Iterator[str]:
+    """Per-word neon tube glitch — each word is one independent tube (A03w).
+
+    Each word rolls its own state every frame: full, dim, off, or fringe.
+    Simpler than neon_sign_startup — no narrative, just live chaotic flicker.
+
+    :param text: Space-separated words (e.g. 'JUST DO IT').
+    :param color: Single neon color for all words (default: 'cyan').
+                  Ignored if colors is provided.
+    :param colors: Optional list of color names per word. Cycles if shorter
+                   than word count (e.g. ['cyan', 'magenta', 'yellow']).
+    :param n_frames: Total frames to produce (default: 36).
+    :param flicker_prob: Per-word dim probability per frame (default: 0.25).
+    :param dead_prob: Per-word dead probability per frame (default: 0.08).
+    :param fringe_prob: Per-word fringe probability per frame (default: 0.12).
+    :param seed: Optional random seed.
+    :returns: Iterator of frame strings.
+    """
+    if not text:
+        yield text
+        return
+
+    from justdoit.core.rasterizer import render as _render
+
+    source_words = _ANSI_RE.sub("", text).strip().split()
+    if not source_words:
+        yield text
+        return
+
+    # Resolve per-word color list
+    if colors:
+        for c in colors:
+            if c not in _NEON_COLORS:
+                raise ValueError(f"Unknown neon color '{c}'. Available: {', '.join(_NEON_COLORS)}")
+        word_colors = [colors[i % len(colors)] for i in range(len(source_words))]
+    else:
+        if color not in _NEON_COLORS:
+            raise ValueError(f"Unknown neon color '{color}'. Available: {', '.join(_NEON_COLORS)}")
+        word_colors = [color] * len(source_words)
+
+    word_renders = [_render(w.upper(), font="block").split("\n") for w in source_words]
+    n_rows = max(len(wr) for wr in word_renders)
+    for wr in word_renders:
+        while len(wr) < n_rows:
+            wr.append("")
+
+    word_gap = "  "
+    rng = random.Random(seed)
+
+    def _colorize(line: str, color_name: str, state: str) -> str:
+        plain = _ANSI_RE.sub("", line)
+        if not plain.strip():
+            return plain
+        neon = _NEON_COLORS[color_name]
+        if state == "off":
+            return " " * len(plain)
+        elif state == "fringe":
+            code = rng.choice(neon["fringe"])
+        else:
+            code = neon[state]
+        return f"{code}{plain}{_RESET}"
+
+    for _ in range(n_frames):
+        # Roll independent state per word
+        word_states = []
+        for widx in range(len(source_words)):
+            roll = rng.random()
+            if roll < dead_prob:
+                word_states.append("off")
+            elif roll < dead_prob + flicker_prob:
+                word_states.append("dim")
+            elif roll < dead_prob + flicker_prob + fringe_prob:
+                word_states.append("fringe")
+            else:
+                word_states.append("full")
+
+        frame_lines = []
+        for row_idx in range(n_rows):
+            row_segs = []
+            for widx, wr in enumerate(word_renders):
+                line = wr[row_idx] if row_idx < len(wr) else ""
+                row_segs.append(_colorize(line, word_colors[widx], word_states[widx]))
+            frame_lines.append(word_gap.join(row_segs))
+        yield "\n".join(frame_lines)
+
+
 def neon_tube_glitch(
     text: str,
     color: str = "cyan",
