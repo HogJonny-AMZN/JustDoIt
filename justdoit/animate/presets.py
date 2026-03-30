@@ -6,11 +6,12 @@ Each function is a generator that yields frames (strings) for playback
 via animate.player.play(). Presets operate on a fully-rendered string.
 
 Implemented techniques:
-  A01 — typewriter:  characters appear sequentially, left-to-right, row-by-row
-  A02 — scanline:    text builds from top row to bottom, one row at a time
-  A03 — glitch:      random character corruption that snaps back to the original
-  A04 — pulse:       brightness/color oscillation via cycling ANSI color codes
-  A05 — dissolve:    characters scatter and fade out on exit (reverse of typewriter)
+  A01 — typewriter:   characters appear sequentially, left-to-right, row-by-row
+  A02 — scanline:     text builds from top row to bottom, one row at a time
+  A03 — glitch:       random character corruption that snaps back to the original
+  A03n — neon_glitch: neon sign flicker — color tubes dim/die, fringe to adjacent hues
+  A04 — pulse:        brightness/color oscillation via cycling ANSI color codes
+  A05 — dissolve:     characters scatter and fade out on exit (reverse of typewriter)
 
 All generators:
   - Accept a rendered multi-line string
@@ -283,3 +284,92 @@ def dissolve(text: str, chars_per_frame: int = 3, seed: Optional[int] = None) ->
 
     # Final blank frame
     yield _grid_to_str(display)
+
+
+# -------------------------------------------------------------------------
+# Neon color definitions — ANSI codes + dim variants + fringe neighbors
+_NEON_COLORS: dict = {
+    "cyan":    {"full": "\033[96m", "dim": "\033[2;96m", "off": "\033[2;34m",  "fringe": ["\033[94m", "\033[92m"]},
+    "magenta": {"full": "\033[95m", "dim": "\033[2;95m", "off": "\033[2;35m",  "fringe": ["\033[91m", "\033[94m"]},
+    "red":     {"full": "\033[91m", "dim": "\033[2;91m", "off": "\033[2;31m",  "fringe": ["\033[95m", "\033[93m"]},
+    "yellow":  {"full": "\033[93m", "dim": "\033[2;93m", "off": "\033[2;33m",  "fringe": ["\033[92m", "\033[91m"]},
+    "green":   {"full": "\033[92m", "dim": "\033[2;92m", "off": "\033[2;32m",  "fringe": ["\033[96m", "\033[93m"]},
+    "blue":    {"full": "\033[94m", "dim": "\033[2;94m", "off": "\033[2;34m",  "fringe": ["\033[96m", "\033[95m"]},
+}
+_RESET = "\033[0m"
+
+
+def _apply_neon_color(text: str, color_name: str, state: str, rng: random.Random) -> str:
+    """Wrap a plain text string in neon ANSI codes based on tube state.
+
+    States: 'full' (bright), 'dim' (flickering), 'off' (dead), 'fringe' (color bleed).
+
+    :param text: Plain (ANSI-stripped) text to colorize.
+    :param color_name: Key in _NEON_COLORS.
+    :param state: One of 'full', 'dim', 'off', 'fringe'.
+    :param rng: Random instance for fringe color selection.
+    :returns: ANSI-wrapped string.
+    """
+    neon = _NEON_COLORS[color_name]
+    if state == "fringe":
+        code = rng.choice(neon["fringe"])
+    else:
+        code = neon[state]
+    return f"{code}{text}{_RESET}"
+
+
+def neon_glitch(
+    text: str,
+    color: str = "cyan",
+    n_frames: int = 30,
+    flicker_prob: float = 0.25,
+    dead_prob: float = 0.08,
+    fringe_prob: float = 0.12,
+    seed: Optional[int] = None,
+) -> Iterator[str]:
+    """Neon sign flicker effect — tubes dim, die, and bleed color (A03n).
+
+    Operates on the whole text as a neon tube of a single color.
+    Each frame independently rolls per-row tube state:
+      - 'full'   — tube is on (most frames)
+      - 'dim'    — tube flickers to half-brightness
+      - 'off'    — tube is dead (dark)
+      - 'fringe' — color bleeds to adjacent hue (electrical fringe)
+
+    :param text: Multi-line rendered string from render().
+    :param color: Neon tube color — key in _NEON_COLORS (default: 'cyan').
+    :param n_frames: Total frames to produce (default: 30).
+    :param flicker_prob: Probability of a dim flicker per row per frame (default: 0.25).
+    :param dead_prob: Probability of a tube going dark per row per frame (default: 0.08).
+    :param fringe_prob: Probability of color fringe per row per frame (default: 0.12).
+    :param seed: Optional random seed for reproducibility.
+    :returns: Iterator of frame strings.
+    :raises ValueError: If color is not a known neon color.
+    """
+    if color not in _NEON_COLORS:
+        raise ValueError(f"Unknown neon color '{color}'. Available: {', '.join(_NEON_COLORS)}")
+
+    if not text:
+        yield text
+        return
+
+    rng = random.Random(seed)
+    plain_lines = [_ANSI_RE.sub("", line) for line in text.split("\n")]
+
+    for _ in range(n_frames):
+        frame_lines = []
+        for line in plain_lines:
+            if not line.strip():
+                frame_lines.append(line)
+                continue
+            roll = rng.random()
+            if roll < dead_prob:
+                state = "off"
+            elif roll < dead_prob + flicker_prob:
+                state = "dim"
+            elif roll < dead_prob + flicker_prob + fringe_prob:
+                state = "fringe"
+            else:
+                state = "full"
+            frame_lines.append(_apply_neon_color(line, color, state, rng))
+        yield "\n".join(frame_lines)
