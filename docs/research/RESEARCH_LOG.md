@@ -29,12 +29,12 @@ Reordered after each session. Top = next bite.
 |----------|-----------|-----|---------|--------|
 | 1 | Transporter Materialize | A11 | 5 | `idea` |
 | 2 | SDF Font Generator | G04 | 5 | `idea` |
-| 3 | Wave Interference Fill | F09 | 4 | `idea` |
-| 4 | Voronoi Fill | F07 | 4 | `idea` |
-| 5 | Plasma Wave Animation | A10 | 4 | `idea` |
-| 6 | Flame Simulation | A08 | 4 | `idea` |
-| 7 | Fractal Fill (Mandelbrot) | F05 | 4 | `idea` |
-| 8 | Chromatic Aberration | C08 | 5 | `idea` |
+| 3 | Voronoi Fill | F07 | 4 | `idea` |
+| 4 | Plasma Wave Animation | A10 | 4 | `idea` |
+| 5 | Flame Simulation | A08 | 4 | `idea` |
+| 6 | Chromatic Aberration | C08 | 5 | `idea` |
+| — | Wave Interference Fill | F09 | 4 | `done` |
+| — | Fractal Fill (Mandelbrot) | F05 | 4 | `done` |
 | — | Typographic Recursion | N01 | 5 | `done` |
 | — | L-System Growth | N06 | 5 | `done` |
 | — | Strange Attractor | N08 | 5 | `done` |
@@ -259,3 +259,11 @@ This reframes JustDoIt from a text-art CLI into a **universal visual-to-ASCII re
 **Sources:** Turing A.M. (1952) "The Chemical Basis of Morphogenesis" Philos. Trans. R. Soc. Lond. B 237:37–72; FitzHugh R. (1961) "Impulses and physiological states in theoretical models of nerve membrane" Biophys. J. 1(6):445–466; Nagumo J., Arimoto S., Yoshizawa S. (1962) "An active pulse transmission line simulating nerve axon" Proc. IRE 50:2061–2070; prior knowledge of the Turing instability condition and activator-inhibitor parameter space.
 **Key insight:** The FHN activator-inhibitor model is the correct Turing implementation, categorically distinct from Gray-Scott (F04) in three ways: (1) different kinetics — FHN uses bistable cubic `u - u³` rather than GS autocatalytic `U·V²`; (2) different parameter space — FHN uses alpha/epsilon/beta rather than feed/kill rates; (3) different initialization — FHN requires tiny Gaussian noise to seed the instability, while GS needs discrete seed patches. The key numerical hazard: explicit Euler for diffusion requires `dt ≤ 1/(4·Db)` for 2D stability. With Db=5.0 and dt=0.1, the stability number is 2.0 >> 1.0 — NaN in ~20 steps. Fix: reduce Db to 2.0 (Da=0.10, ratio 20×, still well within Turing instability regime) giving stability number 0.8 < 1.0. Hard clamping of U/V at ±10 added as a secondary safety net. 4 presets (spots/stripes/maze/labyrinth) distinguish pattern morphology by epsilon: low → spots, high → labyrinths.
 **Priority queue update:** N09 complete. Next priority queue: A11 (Transporter Materialize — novelty 5, multi-session) at #1, G04 (SDF Font Generator — novelty 5, achievable) at #2, F09 (Wave Interference Fill — novelty 4) at #3. G04 is likely the best single-session pick; A11 is a multi-session feature. Recommend G04 next.
+
+## Session 2026-03-30 (evening)
+
+**Research focus:** Wave interference fill (F09), Fractal/Mandelbrot fill (F05), interference pattern algorithms, smooth fractal coloring techniques.
+**New techniques found:** 0 new (web search unavailable; both F09 and F05 were already registered; session implemented them from prior knowledge)
+**Sources:** Prior knowledge of interference patterns (superposition of plane waves); Mandelbrot B. (1980) original fractal set; smooth iteration count coloring from Linas Vepstas (2004) "Smooth Iteration Count for the Mandelbrot and Julia Sets"; Julia G. (1918) "Mémoire sur l'itération des fonctions rationnelles".
+**Key insight:** The wave interference fill is architecturally the simplest generative fill in the codebase — purely analytical (no simulation, no grid state, no iteration), yet produces visually complex patterns. The two plane waves interfere constructively/destructively purely as a function of (x,y) normalized position, producing moiré bands, bowtie patterns, and fine cross-hatching depending on frequency and angle ratios. The fractal fill is the opposite case: computationally intensive per-cell (64 iterations of complex arithmetic), but smooth coloring (Vepstas 2004) was essential — without `n + 1 - log2(log2(|z|²))` normalization, the escape-time steps produce harsh integer banding at ASCII resolution. The 2× aspect-ratio correction on the y-axis (char cells are taller than wide) was critical for Mandelbrot's canonical shape to appear correctly. Julia sets degrade more gracefully at ASCII resolution than Mandelbrot because their boundary is bounded (no deep infinite zoom structure), making them arguably the better default for ASCII letterform fills.
+**Priority queue update:** F09 and F05 complete. Next priority queue: A11 (Transporter Materialize — novelty 5, multi-session) at #1, G04 (SDF Font Generator — novelty 5) at #2, F07 (Voronoi Fill — novelty 4) at #3.

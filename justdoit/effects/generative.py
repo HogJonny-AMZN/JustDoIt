@@ -900,6 +900,364 @@ def slime_mold_fill(
 
 
 # -------------------------------------------------------------------------
+# Wave Interference fill — F09
+#
+# Two plane waves at different angles and frequencies interfere inside the
+# glyph mask. The superposition I(x,y) is normalized to [0,1] and mapped
+# to density chars.
+#
+
+_WAVE_PRESETS: dict = {
+    "default": {"freq1": 3.0,  "angle1":   0.0, "freq2": 5.0, "angle2":  45.0},
+    "moire":   {"freq1": 8.0,  "angle1":   0.0, "freq2": 8.0, "angle2":   5.0},
+    "radial":  {"freq1": 4.0,  "angle1":  30.0, "freq2": 4.0, "angle2": -30.0},
+    "fine":    {"freq1": 10.0, "angle1":  22.5, "freq2": 7.0, "angle2":  67.5},
+}
+
+
+# -------------------------------------------------------------------------
+def wave_fill(
+    mask: list,
+    freq1: float = 3.0,
+    angle1: float = 0.0,
+    freq2: float = 5.0,
+    angle2: float = 45.0,
+    phase1: float = 0.0,
+    phase2: float = 0.0,
+    preset: str = "default",
+    density_chars: Optional[str] = None,
+) -> list:
+    """Fill glyph mask with two-wave interference pattern (F09).
+
+    Two plane waves at different angles and frequencies interfere inside the
+    glyph ink cells. The interference intensity:
+
+      I(x,y) = cos(2π*(fx1*x + fy1*y) + phase1) + cos(2π*(fx2*x + fy2*y) + phase2)
+
+    where fx = freq*cos(angle_rad), fy = freq*sin(angle_rad), and x,y are
+    normalised to [0, 1] within the bounding box of ink cells.  I ranges
+    from -2 to +2; it is normalised to [0, 1] before char mapping.
+
+    Named presets (override individual params when specified):
+      "default" — freq1=3,  angle1=0,    freq2=5,  angle2=45   (gentle diagonal cross)
+      "moire"   — freq1=8,  angle1=0,    freq2=8,  angle2=5    (near-parallel moiré bands)
+      "radial"  — freq1=4,  angle1=30,   freq2=4,  angle2=-30  (symmetric bowtie)
+      "fine"    — freq1=10, angle1=22.5, freq2=7,  angle2=67.5 (fine diagonal interference)
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param freq1: Spatial frequency of wave 1 (cycles across the glyph, default: 3.0).
+    :param angle1: Propagation angle of wave 1 in degrees (default: 0.0).
+    :param freq2: Spatial frequency of wave 2 (default: 5.0).
+    :param angle2: Propagation angle of wave 2 in degrees (default: 45.0).
+    :param phase1: Phase offset of wave 1 in radians (default: 0.0).
+    :param phase2: Phase offset of wave 2 in radians (default: 0.0).
+    :param preset: Named parameter preset; overrides all wave params when set (default: 'default').
+    :param density_chars: Darkest-to-lightest character sequence (default: _DENSE).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _WAVE_PRESETS:
+        raise ValueError(
+            f"Unknown wave preset '{preset}'. "
+            f"Available: {', '.join(_WAVE_PRESETS.keys())}"
+        )
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    # Apply preset — overrides individual params
+    p = _WAVE_PRESETS[preset]
+    freq1  = p["freq1"]
+    angle1 = p["angle1"]
+    freq2  = p["freq2"]
+    angle2 = p["angle2"]
+
+    chars = density_chars if density_chars is not None else _DENSE
+    n_chars = len(chars)
+
+    # -------------------------------------------------------------------------
+    # Identify ink cells and build bounding box for normalised coordinates
+    ink_cells = [
+        (r, c)
+        for r in range(rows)
+        for c in range(len(mask[r]))
+        if mask[r][c] >= 0.5
+    ]
+    if not ink_cells:
+        return [" " * cols for _ in range(rows)]
+
+    min_r = min(r for r, _ in ink_cells)
+    max_r = max(r for r, _ in ink_cells)
+    min_c = min(c for _, c in ink_cells)
+    max_c = max(c for _, c in ink_cells)
+
+    row_span = max(max_r - min_r, 1)
+    col_span = max(max_c - min_c, 1)
+
+    # -------------------------------------------------------------------------
+    # Pre-compute wave direction components
+    TWO_PI = 2.0 * math.pi
+    a1_rad = math.radians(angle1)
+    a2_rad = math.radians(angle2)
+    fx1 = freq1 * math.cos(a1_rad)
+    fy1 = freq1 * math.sin(a1_rad)
+    fx2 = freq2 * math.cos(a2_rad)
+    fy2 = freq2 * math.sin(a2_rad)
+
+    # -------------------------------------------------------------------------
+    # Evaluate interference value for every ink cell, track min/max for normalisation
+    wave_grid = [[0.0] * cols for _ in range(rows)]
+    ink_mask  = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    ink_vals: list = []
+    for r, c in ink_cells:
+        x = (c - min_c) / col_span   # 0.0–1.0
+        y = (r - min_r) / row_span   # 0.0–1.0
+        val = (
+            math.cos(TWO_PI * (fx1 * x + fy1 * y) + phase1)
+            + math.cos(TWO_PI * (fx2 * x + fy2 * y) + phase2)
+        )
+        wave_grid[r][c] = val
+        ink_vals.append(val)
+
+    # -------------------------------------------------------------------------
+    # Normalise from [-2, +2] → [0, 1] and map to chars
+    w_min = min(ink_vals)
+    w_max = max(ink_vals)
+    w_span = w_max - w_min
+    if w_span < 1e-9:
+        w_span = 1.0
+
+    result = []
+    for r in range(rows):
+        line = ""
+        for c in range(cols):
+            if not ink_mask[r][c]:
+                line += " "
+                continue
+            norm = (wave_grid[r][c] - w_min) / w_span   # 0.0–1.0
+            norm = max(0.0, min(1.0, norm))
+            idx = int(norm * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += chars[n_chars - 1 - idx]   # high intensity → chars[0] (dense)
+        result.append(line)
+
+    return result
+
+
+# -------------------------------------------------------------------------
+# Fractal Fill — F05
+#
+# Mandelbrot or Julia set escape-time algorithm.  Each ink cell is mapped to
+# a complex coordinate; the escape iteration count (with smooth colouring)
+# drives character density.
+#
+
+_FRACTAL_PRESETS: dict = {
+    "default":      {"mode": "mandelbrot", "cx": -0.5,   "cy": 0.0,  "zoom": 1.5,
+                     "julia_cx": -0.7,   "julia_cy": 0.27},
+    "seahorse":     {"mode": "mandelbrot", "cx": -0.75,  "cy": 0.1,  "zoom": 0.1,
+                     "julia_cx": -0.7,   "julia_cy": 0.27},
+    "lightning":    {"mode": "mandelbrot", "cx": 0.0,    "cy": 0.65, "zoom": 0.3,
+                     "julia_cx": -0.7,   "julia_cy": 0.27},
+    "julia_swirl":  {"mode": "julia",      "cx": -0.5,   "cy": 0.0,  "zoom": 1.5,
+                     "julia_cx": -0.4,   "julia_cy": 0.6},
+    "julia_rabbit": {"mode": "julia",      "cx": -0.5,   "cy": 0.0,  "zoom": 1.5,
+                     "julia_cx": -0.123, "julia_cy": 0.745},
+}
+
+
+# -------------------------------------------------------------------------
+def fractal_fill(
+    mask: list,
+    cx: float = -0.5,
+    cy: float = 0.0,
+    zoom: float = 1.5,
+    max_iter: int = 64,
+    mode: str = "mandelbrot",
+    julia_cx: float = -0.7,
+    julia_cy: float = 0.27,
+    preset: str = "default",
+    density_chars: Optional[str] = None,
+) -> list:
+    """Fill glyph mask with Mandelbrot or Julia set escape time (F05).
+
+    Each ink cell is mapped to a complex coordinate based on its normalised
+    position in the glyph bounding box.  An aspect-ratio correction of 2.0 is
+    applied to the y-axis (character cells are taller than wide).
+
+    Escape-time algorithm:
+
+      Mandelbrot: z₀=0+0j, c=mapped_coord; iterate z = z² + c
+      Julia:      z₀=mapped_coord, c=julia_cx+julia_cy·j; iterate z = z² + c
+
+    Smooth colouring (removes integer banding):
+      When |z|²>4: smooth_val = n + 1 - log2(log2(|z|²))
+
+    Interior cells (never escape) → 0.0 → densest character.
+    Exterior cells → smooth_val normalised to [0, 1] → lighter characters.
+
+    Named presets:
+      "default"      — full Mandelbrot, cx=-0.5, cy=0, zoom=1.5
+      "seahorse"     — seahorse valley, cx=-0.75, cy=0.1, zoom=0.1
+      "lightning"    — lightning bolt region, cx=0, cy=0.65, zoom=0.3
+      "julia_swirl"  — Julia set, c=-0.4+0.6j, swirling spirals
+      "julia_rabbit" — Julia set, c=-0.123+0.745j, Douady rabbit
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param cx: Real-axis centre of the view window (default: -0.5).
+    :param cy: Imaginary-axis centre of the view window (default: 0.0).
+    :param zoom: View half-width in the complex plane (default: 1.5).
+    :param max_iter: Maximum iteration count before declaring interior (default: 64).
+    :param mode: 'mandelbrot' or 'julia' (default: 'mandelbrot').
+    :param julia_cx: Real part of the Julia constant c (default: -0.7).
+    :param julia_cy: Imaginary part of the Julia constant c (default: 0.27).
+    :param preset: Named parameter preset; overrides all params when set (default: 'default').
+    :param density_chars: Darkest-to-lightest character sequence (default: _DENSE).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset or mode name is unknown.
+    """
+    if preset not in _FRACTAL_PRESETS:
+        raise ValueError(
+            f"Unknown fractal preset '{preset}'. "
+            f"Available: {', '.join(_FRACTAL_PRESETS.keys())}"
+        )
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    # Apply preset — overrides individual params
+    p = _FRACTAL_PRESETS[preset]
+    mode     = p["mode"]
+    cx       = p["cx"]
+    cy       = p["cy"]
+    zoom     = p["zoom"]
+    julia_cx = p["julia_cx"]
+    julia_cy = p["julia_cy"]
+
+    if mode not in ("mandelbrot", "julia"):
+        raise ValueError(f"Unknown fractal mode '{mode}'. Use 'mandelbrot' or 'julia'.")
+
+    chars   = density_chars if density_chars is not None else _DENSE
+    n_chars = len(chars)
+
+    # -------------------------------------------------------------------------
+    # Identify ink cells and build bounding box for normalised coordinates
+    ink_cells = [
+        (r, c)
+        for r in range(rows)
+        for c in range(len(mask[r]))
+        if mask[r][c] >= 0.5
+    ]
+    if not ink_cells:
+        return [" " * cols for _ in range(rows)]
+
+    min_r = min(r for r, _ in ink_cells)
+    max_r = max(r for r, _ in ink_cells)
+    min_c = min(c for _, c in ink_cells)
+    max_c = max(c for _, c in ink_cells)
+
+    row_span = max(max_r - min_r, 1)
+    col_span = max(max_c - min_c, 1)
+
+    # Aspect-ratio correction: character cells are ~2× taller than wide, so
+    # the y extent in the complex plane must be stretched accordingly.
+    aspect_ratio = 2.0
+
+    # Julia constant (only used in julia mode)
+    julia_c = complex(julia_cx, julia_cy)
+
+    ink_mask = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    # -------------------------------------------------------------------------
+    # Compute escape values for all ink cells
+    escape_grid: list = [[0.0] * cols for _ in range(rows)]
+    exterior_vals: list = []   # smooth escape values for exterior cells
+
+    for r, c in ink_cells:
+        # Normalise to [-1, +1] within bounding box
+        nx = (c - min_c) / col_span * 2.0 - 1.0   # -1.0 to +1.0
+        ny = (r - min_r) / row_span * 2.0 - 1.0   # -1.0 to +1.0
+
+        # Map to complex plane centred at (cx, cy) with half-width zoom
+        re = cx + nx * zoom
+        im = cy + ny * zoom * aspect_ratio
+
+        if mode == "mandelbrot":
+            z = complex(0.0, 0.0)
+            c_val = complex(re, im)
+        else:
+            z = complex(re, im)
+            c_val = julia_c
+
+        escaped = False
+        smooth_val = 0.0
+        for n in range(max_iter):
+            z = z * z + c_val
+            absq = z.real * z.real + z.imag * z.imag
+            if absq > 4.0:
+                # Smooth colouring: fractional iteration count
+                smooth_val = n + 1.0 - math.log2(math.log2(absq))
+                escaped = True
+                break
+
+        if escaped:
+            escape_grid[r][c] = smooth_val
+            exterior_vals.append(smooth_val)
+        else:
+            escape_grid[r][c] = -1.0   # sentinel for interior
+
+    # -------------------------------------------------------------------------
+    # Normalise exterior smooth values to [0, 1]
+    if exterior_vals:
+        e_min = min(exterior_vals)
+        e_max = max(exterior_vals)
+        e_span = e_max - e_min
+        if e_span < 1e-9:
+            e_span = 1.0
+    else:
+        e_min, e_span = 0.0, 1.0
+
+    # -------------------------------------------------------------------------
+    # Build output rows
+    result = []
+    for r in range(rows):
+        line = ""
+        for c in range(cols):
+            if not ink_mask[r][c]:
+                line += " "
+                continue
+            val = escape_grid[r][c]
+            if val < 0.0:
+                # Interior — never escaped → densest character
+                line += chars[0]
+            else:
+                norm = (val - e_min) / e_span
+                norm = max(0.0, min(1.0, norm))
+                idx = int(norm * (n_chars - 1) + 0.5)
+                idx = max(0, min(n_chars - 1, idx))
+                # Low norm (barely escaped) → dense; high norm → light
+                line += chars[n_chars - 1 - idx]
+        result.append(line)
+
+    return result
+
+
+# -------------------------------------------------------------------------
 # Strange Attractor fill — N08
 #
 # Chaotic attractor trajectory projected into a 2D density histogram,

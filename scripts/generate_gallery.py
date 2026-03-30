@@ -65,6 +65,10 @@ def _curated_entries(text: str) -> list[tuple[str, str, str]]:
     add("S-F07-shape-fill",       "F07 — Shape fill",                 render(text, font="block", fill="shape"))
     add("S-F02-noise-fill",       "F02 — Perlin noise fill",          render(text, font="block", fill="noise"))
     add("S-F03-cells-fill",       "F03 — Cellular automata fill",     render(text, font="block", fill="cells"))
+    add("S-F09-wave-default",     "F09 — Wave interference (default)", render(text, font="block", fill="wave"))
+    add("S-F09-wave-moire",       "F09 — Wave interference (moire)",   render(text, font="block", fill="wave"))
+    add("S-F05-fractal-default",  "F05 — Fractal/Mandelbrot (default)", render(text, font="block", fill="fractal"))
+    add("S-F05-fractal-julia",    "F05 — Fractal/Julia (julia_swirl)", render(text, font="block", fill="fractal"))
 
     # Color effects
     add("S-C01-gradient-horiz",   "C01 — Gradient (horizontal)",
