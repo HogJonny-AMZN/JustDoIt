@@ -287,14 +287,40 @@ def dissolve(text: str, chars_per_frame: int = 3, seed: Optional[int] = None) ->
 
 
 # -------------------------------------------------------------------------
-# Neon color definitions — ANSI codes + dim variants + fringe neighbors
+# Neon color definitions — ANSI codes + dim variants + fringe neighbors + pulse cycle
+# pulse: slow brightness oscillation simulating gas tube instability
+#   bright → full → full → dim → full → full → bright → ...  (6-step cycle)
 _NEON_COLORS: dict = {
-    "cyan":    {"full": "\033[96m", "dim": "\033[2;96m", "off": "\033[2;34m",  "fringe": ["\033[94m", "\033[92m"]},
-    "magenta": {"full": "\033[95m", "dim": "\033[2;95m", "off": "\033[2;35m",  "fringe": ["\033[91m", "\033[94m"]},
-    "red":     {"full": "\033[91m", "dim": "\033[2;91m", "off": "\033[2;31m",  "fringe": ["\033[95m", "\033[93m"]},
-    "yellow":  {"full": "\033[93m", "dim": "\033[2;93m", "off": "\033[2;33m",  "fringe": ["\033[92m", "\033[91m"]},
-    "green":   {"full": "\033[92m", "dim": "\033[2;92m", "off": "\033[2;32m",  "fringe": ["\033[96m", "\033[93m"]},
-    "blue":    {"full": "\033[94m", "dim": "\033[2;94m", "off": "\033[2;34m",  "fringe": ["\033[96m", "\033[95m"]},
+    "cyan":    {
+        "full":  "\033[96m",  "dim": "\033[2;96m", "off": "\033[2;34m",
+        "fringe": ["\033[94m", "\033[92m"],
+        "pulse": ["\033[1;96m", "\033[96m", "\033[96m", "\033[2;96m", "\033[96m", "\033[96m"],
+    },
+    "magenta": {
+        "full":  "\033[95m",  "dim": "\033[2;95m", "off": "\033[2;35m",
+        "fringe": ["\033[91m", "\033[94m"],
+        "pulse": ["\033[1;95m", "\033[95m", "\033[95m", "\033[2;95m", "\033[95m", "\033[95m"],
+    },
+    "red":     {
+        "full":  "\033[91m",  "dim": "\033[2;91m", "off": "\033[2;31m",
+        "fringe": ["\033[95m", "\033[93m"],
+        "pulse": ["\033[1;91m", "\033[91m", "\033[91m", "\033[2;91m", "\033[91m", "\033[91m"],
+    },
+    "yellow":  {
+        "full":  "\033[93m",  "dim": "\033[2;93m", "off": "\033[2;33m",
+        "fringe": ["\033[92m", "\033[91m"],
+        "pulse": ["\033[1;93m", "\033[93m", "\033[93m", "\033[2;93m", "\033[93m", "\033[93m"],
+    },
+    "green":   {
+        "full":  "\033[92m",  "dim": "\033[2;92m", "off": "\033[2;32m",
+        "fringe": ["\033[96m", "\033[93m"],
+        "pulse": ["\033[1;92m", "\033[92m", "\033[92m", "\033[2;92m", "\033[92m", "\033[92m"],
+    },
+    "blue":    {
+        "full":  "\033[94m",  "dim": "\033[2;94m", "off": "\033[2;34m",
+        "fringe": ["\033[96m", "\033[95m"],
+        "pulse": ["\033[1;94m", "\033[94m", "\033[94m", "\033[2;94m", "\033[94m", "\033[94m"],
+    },
 }
 _RESET = "\033[0m"
 
@@ -324,6 +350,7 @@ def neon_sign_startup(
     faulty_word_idx: int = 1,
     n_flickers: int = 3,
     hold_frames: int = 12,
+    pulse: bool = True,
     seed: Optional[int] = None,
 ) -> Iterator[str]:
     """Scripted neon sign power-on loop (A03s).
@@ -331,7 +358,7 @@ def neon_sign_startup(
     Narrative sequence:
       1. Power-on: words light up staggered left-to-right, each settling full
       2. Faulty word: flickers on/off n_flickers times before holding
-      3. Hold: full sign steady for hold_frames
+      3. Hold: full sign steady for hold_frames, with tube buzz + optional pulse
       4. Flicker-off: quick flash then all dark, ready to loop
 
     Designed to loop cleanly — last frame is all-dark, matches start.
@@ -341,6 +368,7 @@ def neon_sign_startup(
     :param faulty_word_idx: Index (0-based) of the word with the bad tube (default: 1 → 'DO').
     :param n_flickers: How many on/off cycles the faulty word does before settling (default: 3).
     :param hold_frames: Frames to hold the full steady sign (default: 12 → 1s @ 12fps).
+    :param pulse: If True, apply slow brightness pulse to 'full' state tubes (default: True).
     :param seed: Optional random seed.
     :returns: Iterator of frame strings.
     :raises ValueError: If color is not a known neon color.
@@ -377,9 +405,16 @@ def neon_sign_startup(
             wr.append("")
 
     word_gap = "  "  # 2-space gap between words
+    pulse_cycle = neon["pulse"]
+    pulse_len = len(pulse_cycle)
 
-    def _colorize_word(row_lines: list[str], state: str, rng_: random.Random) -> list[str]:
-        """Apply neon state to all rows of a word."""
+    def _colorize_word(row_lines: list[str], state: str, rng_: random.Random,
+                       frame_idx: int = 0) -> list[str]:
+        """Apply neon state to all rows of a word.
+
+        When state is 'full' and pulse is enabled, cycles through pulse_cycle
+        for natural gas-tube brightness oscillation.
+        """
         out = []
         for line in row_lines:
             plain = _ANSI_RE.sub("", line)
@@ -391,23 +426,27 @@ def neon_sign_startup(
             elif state == "fringe":
                 code = rng_.choice(neon["fringe"])
                 out.append(f"{code}{plain}{_RESET}")
+            elif state == "full" and pulse:
+                code = pulse_cycle[frame_idx % pulse_len]
+                out.append(f"{code}{plain}{_RESET}")
             else:
                 out.append(f"{neon[state]}{plain}{_RESET}")
         return out
 
-    def _composite(word_states: list[str], rng_: random.Random, buzz_prob: float = 0.12) -> str:
+    def _composite(word_states: list[str], rng_: random.Random,
+                   buzz_prob: float = 0.12, frame_idx: int = 0) -> str:
         """Build one frame from per-word states.
 
-        When state is 'full', buzz_prob chance of rendering dim instead —
-        simulates the natural instability of a live neon tube.
+        When state is 'full': pulse cycles brightness (if enabled) and
+        buzz_prob adds occasional dim flicker on top — independent per word.
         """
         row_parts: list[list[str]] = [[] for _ in range(n_rows)]
         for widx, (wr, state) in enumerate(zip(word_renders, word_states)):
-            # Natural tube buzz — full state occasionally dims
             effective_state = state
+            # Buzz: occasional dim regardless of pulse
             if state == "full" and rng_.random() < buzz_prob:
                 effective_state = "dim"
-            colored = _colorize_word(wr, effective_state, rng_)
+            colored = _colorize_word(wr, effective_state, rng_, frame_idx=frame_idx)
             for ridx in range(n_rows):
                 if ridx < len(colored):
                     row_parts[ridx].append(colored[ridx])
@@ -416,55 +455,51 @@ def neon_sign_startup(
         return "\n".join(word_gap.join(row) for row in row_parts)
 
     rng = random.Random(seed)
+    frame_counter = 0
+
+    def _yield(states_: list[str], buzz_: float = 0.12) -> str:
+        nonlocal frame_counter
+        frame = _composite(states_, rng, buzz_prob=buzz_, frame_idx=frame_counter)
+        frame_counter += 1
+        return frame
 
     # --- Phase 1: Power-on — words light up staggered, one word per 2 frames ---
-    # Non-faulty words: off → dim (1f) → full
-    # Faulty word: stays off during this phase
     states: list[str] = ["off"] * len(words)
-    yield _composite(states, rng)  # initial dark frame
+    yield _yield(states, buzz_=0.0)  # initial dark frame — no buzz on off tubes
 
     for widx in range(len(words)):
         if widx == faulty_word_idx:
-            continue  # faulty word lights up separately
-        # Dim flash first
+            continue
         states[widx] = "dim"
-        yield _composite(states, rng)
-        # Settle to full
+        yield _yield(states, buzz_=0.0)
         states[widx] = "full"
-        yield _composite(states, rng)
+        yield _yield(states)
 
     # --- Phase 2: Faulty word struggles ---
-    # Pattern: dim→on→off, repeated n_flickers times, final settle to full
     for flick in range(n_flickers):
-        # dim glimmer
         states[faulty_word_idx] = "dim"
-        yield _composite(states, rng)
-        # on
+        yield _yield(states, buzz_=0.0)
         states[faulty_word_idx] = "full"
-        yield _composite(states, rng)
+        yield _yield(states)
         if flick < n_flickers - 1:
-            # off — not the final flicker
             states[faulty_word_idx] = "off"
-            yield _composite(states, rng)
-            # brief fringe before going dark again
+            yield _yield(states, buzz_=0.0)
             states[faulty_word_idx] = "fringe"
-            yield _composite(states, rng)
+            yield _yield(states, buzz_=0.0)
 
-    # Final settle — faulty word holds at full
+    # Final settle
     states[faulty_word_idx] = "full"
 
-    # --- Phase 3: Hold — full sign steady ---
+    # --- Phase 3: Hold — full sign steady with buzz + pulse ---
     for _ in range(hold_frames):
-        yield _composite(states, rng)
+        yield _yield(states)
 
-    # --- Phase 4: Flicker-off — quick flash then dark ---
-    # One dim flash, then off
+    # --- Phase 4: Flicker-off ---
     all_dim = ["dim"] * len(words)
-    yield _composite(all_dim, rng)
+    yield _yield(all_dim, buzz_=0.0)
     all_off = ["off"] * len(words)
-    yield _composite(all_off, rng)
-    # One more dark frame as clean loop point
-    yield _composite(all_off, rng)
+    yield _yield(all_off, buzz_=0.0)
+    yield _yield(all_off, buzz_=0.0)  # clean loop point
 
 
 def neon_tube_glitch(
