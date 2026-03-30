@@ -29,7 +29,6 @@ Reordered after each session. Top = next bite.
 |----------|-----------|-----|---------|--------|
 | 1 | Transporter Materialize | A11 | 5 | `idea` |
 | 2 | SDF Font Generator | G04 | 5 | `idea` |
-| 2 | Turing Pattern | N09 | 5 | `idea` |
 | 3 | Wave Interference Fill | F09 | 4 | `idea` |
 | 4 | Voronoi Fill | F07 | 4 | `idea` |
 | 5 | Plasma Wave Animation | A10 | 4 | `idea` |
@@ -40,6 +39,7 @@ Reordered after each session. Top = next bite.
 | — | L-System Growth | N06 | 5 | `done` |
 | — | Strange Attractor | N08 | 5 | `done` |
 | — | Slime Mold Simulation | N10 | 5 | `done` |
+| — | Turing Pattern | N09 | 5 | `done` |
 
 ---
 
@@ -251,3 +251,11 @@ This reframes JustDoIt from a text-art CLI into a **universal visual-to-ASCII re
 **Sources:** Prior knowledge of typographic recursion in generative art; computational typography literature; the fundamental concept that any symbol-replacement pass on a bitmapped text render yields self-similar letterforms.
 **Key insight:** The implementation is deceptively simple: render the text to a grid of rows (each char is either space or an ink char), then walk every non-space cell in reading order and replace it with the next character from the source text cycling. The word "HELLO" rendered in block font has ~340 ink cells; cycling H→E→L→L→O→H→E→... replaces all 340 with meaningful characters. The effect: letterforms that "spell themselves out" at cell scale. One subtle engineering issue: the inline `colorize()` call in the render loop wraps each glyph row in ANSI escape codes — if recursion runs after colorization, it walks into the escape sequences. Fix: defer colorization until after the recursion pass completes (controlled by `defer_color` flag). This keeps the character-replacement pass on clean ASCII, then ANSI wraps the finished rows.
 **Priority queue update:** N01 complete. Next: G04 (SDF Font Generator — signed distance field letterforms rasterized to any resolution, novelty 5) is now #1. Turing Pattern (N09) is #2.
+
+## Session 2026-03-30
+
+**Research focus:** Turing activator-inhibitor reaction-diffusion (N09); FitzHugh-Nagumo activator-inhibitor PDE model; distinguishing characteristics vs Gray-Scott (F04); numerical stability analysis for explicit Euler on diffusion-dominated PDEs.
+**New techniques found:** 0 new (web search unavailable; implemented N09 from prior knowledge of Turing 1952, FitzHugh 1961, Nagumo 1962, and activator-inhibitor literature).
+**Sources:** Turing A.M. (1952) "The Chemical Basis of Morphogenesis" Philos. Trans. R. Soc. Lond. B 237:37–72; FitzHugh R. (1961) "Impulses and physiological states in theoretical models of nerve membrane" Biophys. J. 1(6):445–466; Nagumo J., Arimoto S., Yoshizawa S. (1962) "An active pulse transmission line simulating nerve axon" Proc. IRE 50:2061–2070; prior knowledge of the Turing instability condition and activator-inhibitor parameter space.
+**Key insight:** The FHN activator-inhibitor model is the correct Turing implementation, categorically distinct from Gray-Scott (F04) in three ways: (1) different kinetics — FHN uses bistable cubic `u - u³` rather than GS autocatalytic `U·V²`; (2) different parameter space — FHN uses alpha/epsilon/beta rather than feed/kill rates; (3) different initialization — FHN requires tiny Gaussian noise to seed the instability, while GS needs discrete seed patches. The key numerical hazard: explicit Euler for diffusion requires `dt ≤ 1/(4·Db)` for 2D stability. With Db=5.0 and dt=0.1, the stability number is 2.0 >> 1.0 — NaN in ~20 steps. Fix: reduce Db to 2.0 (Da=0.10, ratio 20×, still well within Turing instability regime) giving stability number 0.8 < 1.0. Hard clamping of U/V at ±10 added as a secondary safety net. 4 presets (spots/stripes/maze/labyrinth) distinguish pattern morphology by epsilon: low → spots, high → labyrinths.
+**Priority queue update:** N09 complete. Next priority queue: A11 (Transporter Materialize — novelty 5, multi-session) at #1, G04 (SDF Font Generator — novelty 5, achievable) at #2, F09 (Wave Interference Fill — novelty 4) at #3. G04 is likely the best single-session pick; A11 is a multi-session feature. Recommend G04 next.

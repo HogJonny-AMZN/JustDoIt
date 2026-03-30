@@ -39,6 +39,14 @@ Implemented techniques:
                        chars, sparse regions → light chars. The result is a
                        calligraphically beautiful fill that encodes chaotic geometry
                        inside each letterform.
+  N09 — turing_fill:   Turing activator-inhibitor reaction-diffusion model (1952).
+                       Uses a FitzHugh-Nagumo-style activator/inhibitor system
+                       distinct from Gray-Scott — short-range activation, long-range
+                       inhibition. A single `epsilon` parameter transitions patterns
+                       from isolated spots (biological leopard spots) through zebra
+                       stripes to labyrinthine mazes. Named presets: spots, stripes,
+                       maze, labyrinth. Based on Turing (1952) "The Chemical Basis
+                       of Morphogenesis", Philos. Trans. R. Soc. Lond. B 237:37–72.
   N10 — slime_mold_fill: Physarum polycephalum (slime mold) agent-based simulation.
                        Agents move by chemotaxis — they deposit trail and sense
                        chemical concentration in front, rotating toward the strongest
@@ -1651,6 +1659,272 @@ def lsystem_fill(
             idx = int(d * (n_chars - 1) + 0.5)
             idx = max(0, min(n_chars - 1, idx))
             line += ink_chars[n_chars - 1 - idx]   # high density → ink_chars[0] (dense)
+        result.append(line)
+
+    return result
+
+
+# =============================================================================
+# Turing Pattern fill (N09)
+# =============================================================================
+#
+# Based on Alan Turing's "The Chemical Basis of Morphogenesis" (1952),
+# Philos. Trans. R. Soc. Lond. B 237:37–72.
+#
+# This implementation uses a FitzHugh-Nagumo-style activator-inhibitor system,
+# which is categorically distinct from the Gray-Scott model (F04):
+#
+#   Gray-Scott (F04):
+#     dU/dt = Du·∇²U - U·V² + f·(1-U)
+#     dV/dt = Dv·∇²V + U·V² - (f+k)·V
+#     → autocatalytic cubic kinetics; requires careful (f,k) tuning
+#
+#   Turing / FitzHugh-Nagumo (N09):
+#     dU/dt = Du·∇²U + alpha·U - U³ - V + beta
+#     dV/dt = Dv·∇²V + epsilon·(U - gamma·V)
+#     → bistable cubic activator, linear inhibitor; epsilon controls scale
+#
+# The `epsilon` parameter governs spatial frequency of patterns:
+#   - low epsilon  → large isolated spots (leopard / cheetah spots)
+#   - mid epsilon  → elongated stripes (zebra / tiger stripes)
+#   - high epsilon → labyrinthine maze (brain coral / fingerprint)
+#
+# Named presets encode canonical values from the literature / empirical tuning:
+#   "spots"     — isolated circular domains, epsilon=0.01
+#   "stripes"   — alternating stripe bands,  epsilon=0.025
+#   "maze"      — labyrinthine maze,         epsilon=0.05
+#   "labyrinth" — dense fingerprint pattern, epsilon=0.08
+
+_TURING_DENSE = "@#S%?*+;:,. "
+
+_TURING_PRESETS: dict = {
+    # (alpha, beta, gamma, Da, Db, epsilon, steps)
+    # alpha: activator self-activation rate
+    # beta:  activator bias (spatial asymmetry control)
+    # gamma: inhibitor decay ratio (normally 1.0)
+    # Da, Db: diffusion rates (Db >> Da for Turing instability)
+    #   Stability constraint for explicit Euler: dt ≤ 1 / (4 · Db)
+    #   With dt=0.1: Db_max = 2.5.  We use Da=0.1, Db=2.0 for a safe 20× ratio.
+    # epsilon: activator-inhibitor coupling — controls pattern spatial scale
+    # steps: simulation iterations at scale-upsampled resolution
+    "spots":     {"alpha": 0.9, "beta": -0.05, "gamma": 1.0, "Da": 0.10, "Db": 2.0, "epsilon": 0.010, "steps": 3000},  # noqa: E501
+    "stripes":   {"alpha": 0.9, "beta": -0.05, "gamma": 1.0, "Da": 0.10, "Db": 2.0, "epsilon": 0.025, "steps": 3000},  # noqa: E501
+    "maze":      {"alpha": 0.9, "beta": -0.05, "gamma": 1.0, "Da": 0.10, "Db": 2.0, "epsilon": 0.050, "steps": 3000},  # noqa: E501
+    "labyrinth": {"alpha": 0.9, "beta": -0.05, "gamma": 1.0, "Da": 0.10, "Db": 2.0, "epsilon": 0.080, "steps": 3500},  # noqa: E501
+}
+
+_TURING_dt: float = 0.1   # dt=0.1 stable for Db=2.0 (4·Db·dt = 0.8 < 1)
+_TURING_CLAMP: float = 10.0   # hard clamp for U/V to catch any residual instability
+
+
+# -------------------------------------------------------------------------
+def _turing_laplacian(grid: list, r: int, c: int, rows: int, cols: int, ink: list) -> float:
+    """5-point Laplacian with Neumann boundary condition at mask boundary.
+
+    Cells outside the ink mask are treated as equal to the queried cell
+    (zero-flux Neumann BC), so diffusion cannot escape the glyph.
+
+    :param grid: 2D float list (rows × cols).
+    :param r: Row index.
+    :param c: Column index.
+    :param rows: Total grid rows.
+    :param cols: Total grid columns.
+    :param ink: 2D bool list — True where simulation is active.
+    :returns: Discrete Laplacian value at (r, c).
+    """
+    def _get(rr: int, cc: int) -> float:
+        """Return grid value or replicate edge for Neumann BC."""
+        if 0 <= rr < rows and 0 <= cc < cols and ink[rr][cc]:
+            return grid[rr][cc]
+        return grid[r][c]   # Neumann: replicate self at boundary
+
+    val = grid[r][c]
+    return _get(r - 1, c) + _get(r + 1, c) + _get(r, c - 1) + _get(r, c + 1) - 4.0 * val
+
+
+# -------------------------------------------------------------------------
+def turing_fill(
+    mask: list,
+    preset: str = "stripes",
+    steps: Optional[int] = None,
+    seed: Optional[int] = None,
+    density_chars: Optional[str] = None,
+    scale: int = 4,
+) -> list:
+    """Fill glyph mask with Turing activator-inhibitor reaction-diffusion (N09).
+
+    Implements the FitzHugh-Nagumo activator-inhibitor model, categorically
+    distinct from Gray-Scott (F04). The equations are:
+
+      dU/dt = Da·∇²U + alpha·U - U³ - V + beta
+      dV/dt = Db·∇²V + epsilon·(U - gamma·V)
+
+    where U is the activator and V is the inhibitor. The Turing instability
+    condition requires Db >> Da (inhibitor diffuses much faster than activator),
+    which generates spatially periodic patterns whose wavelength is controlled
+    by the `epsilon` coupling parameter.
+
+    Pattern morphologies (via `preset`):
+      "spots"     — isolated circular spots (leopard / cheetah pattern)
+      "stripes"   — alternating stripe bands (zebra / tiger pattern)
+      "maze"      — labyrinthine maze (brain coral / fingerprint)
+      "labyrinth" — dense fingerprint pattern (high spatial frequency)
+
+    The glyph mask is upscaled by `scale` (default 4×) before simulation
+    so that at least one full pattern wavelength fits inside even small glyphs,
+    then downsampled back. The activator U concentration drives char density:
+    high U → dense chars; low/negative U → light chars.
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param preset: Named parameter preset (default: 'stripes').
+    :param steps: Simulation steps override (default: preset-dependent, 3000–3500).
+    :param seed: Integer seed for reproducible initialisation (default: None = random).
+    :param density_chars: Darkest-to-lightest character sequence (default: _TURING_DENSE).
+    :param scale: Upscale factor for simulation resolution (default: 4).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _TURING_PRESETS:
+        raise ValueError(
+            f"Unknown Turing preset '{preset}'. "
+            f"Available: {', '.join(_TURING_PRESETS.keys())}"
+        )
+
+    orig_rows = len(mask)
+    if orig_rows == 0:
+        return []
+    orig_cols = max(len(row) for row in mask)
+    if orig_cols == 0:
+        return []
+
+    p = _TURING_PRESETS[preset]
+    alpha = p["alpha"]
+    beta = p["beta"]
+    gamma = p["gamma"]
+    Da = p["Da"]
+    Db = p["Db"]
+    epsilon = p["epsilon"]
+    n_steps = steps if steps is not None else p["steps"]
+    chars = (density_chars or _TURING_DENSE).rstrip(" ") or "."
+    n_chars = len(chars)
+
+    # -------------------------------------------------------------------------
+    # Build original ink mask
+    orig_ink = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(orig_cols)]
+        for r in range(orig_rows)
+    ]
+
+    # -------------------------------------------------------------------------
+    # Upscale by nearest-neighbour
+    sim_rows = orig_rows * scale
+    sim_cols = orig_cols * scale
+    ink = [
+        [orig_ink[r // scale][c // scale] for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+
+    # -------------------------------------------------------------------------
+    # Initialise U and V with small random perturbation around (0, 0).
+    # The FHN system is symmetric about (U=0, V=0); small noise breaks symmetry
+    # and seeds the Turing instability. Exterior cells stay at 0.0.
+    rng = random.Random(seed)
+    noise_amplitude = 0.02
+    U = [
+        [rng.gauss(0.0, noise_amplitude) if ink[r][c] else 0.0 for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+    V = [
+        [rng.gauss(0.0, noise_amplitude) if ink[r][c] else 0.0 for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+
+    # Pre-flatten ink for iteration speed
+    active_cells = [(r, c) for r in range(sim_rows) for c in range(sim_cols) if ink[r][c]]
+
+    # -------------------------------------------------------------------------
+    # Run Euler integration of the FHN activator-inhibitor system
+    dt = _TURING_dt
+    for _step in range(n_steps):
+        dU = [[0.0] * sim_cols for _ in range(sim_rows)]
+        dV = [[0.0] * sim_cols for _ in range(sim_rows)]
+
+        for r, c in active_cells:
+            u = U[r][c]
+            v = V[r][c]
+            lap_u = _turing_laplacian(U, r, c, sim_rows, sim_cols, ink)
+            lap_v = _turing_laplacian(V, r, c, sim_rows, sim_cols, ink)
+            # FitzHugh-Nagumo kinetics:
+            #   activator: Da·∇²U + alpha·U - U³ - V + beta
+            #   inhibitor: Db·∇²V + epsilon·(U - gamma·V)
+            dU[r][c] = Da * lap_u + alpha * u - u * u * u - v + beta
+            dV[r][c] = Db * lap_v + epsilon * (u - gamma * v)
+
+        for r, c in active_cells:
+            U[r][c] += dt * dU[r][c]
+            V[r][c] += dt * dV[r][c]
+            # Hard clamp — prevents NaN propagation if any residual instability
+            if U[r][c] > _TURING_CLAMP:
+                U[r][c] = _TURING_CLAMP
+            elif U[r][c] < -_TURING_CLAMP:
+                U[r][c] = -_TURING_CLAMP
+            if V[r][c] > _TURING_CLAMP:
+                V[r][c] = _TURING_CLAMP
+            elif V[r][c] < -_TURING_CLAMP:
+                V[r][c] = -_TURING_CLAMP
+
+    # -------------------------------------------------------------------------
+    # Downsample U to original resolution by averaging the scale×scale blocks
+    U_down = []
+    for r in range(orig_rows):
+        row_vals = []
+        for c in range(orig_cols):
+            total = 0.0
+            count = 0
+            for dr in range(scale):
+                for dc in range(scale):
+                    sr = r * scale + dr
+                    sc = c * scale + dc
+                    if sr < sim_rows and sc < sim_cols and ink[sr][sc]:
+                        total += U[sr][sc]
+                        count += 1
+            row_vals.append(total / count if count > 0 else 0.0)
+        U_down.append(row_vals)
+
+    # -------------------------------------------------------------------------
+    # Normalise U_down to [0, 1] across ink cells for char mapping.
+    # U lives in roughly [-1, +1] for FHN steady states; we want +1 → dense chars.
+    ink_vals = [
+        U_down[r][c]
+        for r in range(orig_rows)
+        for c in range(orig_cols)
+        if orig_ink[r][c]
+    ]
+    if not ink_vals:
+        return [" " * orig_cols for _ in range(orig_rows)]
+
+    u_min = min(ink_vals)
+    u_max = max(ink_vals)
+    u_range = u_max - u_min
+    if u_range < 1e-9:
+        u_range = 1.0
+
+    # -------------------------------------------------------------------------
+    # Map normalised U to density chars and assemble output rows
+    result = []
+    for r in range(orig_rows):
+        line = ""
+        for c in range(orig_cols):
+            if c >= len(mask[r]) or mask[r][c] < 0.5:
+                line += " "
+                continue
+            raw = U_down[r][c]
+            if raw != raw:   # NaN guard (should not occur with clamping, but be safe)
+                raw = 0.0
+            u_norm = (raw - u_min) / u_range   # 0.0–1.0, high = activator peak
+            idx = int(u_norm * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += chars[n_chars - 1 - idx]   # high activator → chars[0] (dense)
         result.append(line)
 
     return result

@@ -104,4 +104,4 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 </table>
 
-*Last updated: 2026-03-29 — 28 techniques*
+*Last updated: 2026-03-30 — 31 techniques*
