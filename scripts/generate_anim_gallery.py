@@ -28,6 +28,82 @@ _LOGGER = _logging.getLogger(_MODULE_NAME)
 
 GALLERY_DIR = Path(__file__).parent.parent / "docs" / "anim_gallery"
 
+
+# -------------------------------------------------------------------------
+def _neon_multi_frames(text_plain: str) -> list[str]:
+    """Build a multi-color neon glitch where each word gets its own tube color.
+
+    Renders each word separately with its assigned color, then composites
+    the rows side-by-side and applies per-row flicker independently.
+
+    :param text_plain: Raw text (e.g. 'JUST DO IT').
+    :returns: List of frame strings.
+    """
+    import re
+    import random
+    from justdoit.core.rasterizer import render
+    from justdoit.animate.presets import neon_glitch, _NEON_COLORS, _ANSI_RE, _RESET
+
+    words = text_plain.upper().split()
+    colors = ["cyan", "magenta", "yellow"]
+    word_colors = [colors[i % len(colors)] for i in range(len(words))]
+
+    # Render each word separately
+    word_renders = [render(w, font="block") for w in words]
+    n_rows = max(len(r.split("\n")) for r in word_renders)
+
+    # Pad all renders to same row count
+    padded = []
+    for r in word_renders:
+        lines = r.split("\n")
+        while len(lines) < n_rows:
+            lines.append("")
+        padded.append(lines)
+
+    # Build composite plain lines (words joined with gap)
+    gap = "  "
+    composite_lines = []
+    for row_idx in range(n_rows):
+        composite_lines.append(gap.join(p[row_idx] for p in padded))
+
+    # Per-word column ranges for selective colorization
+    rng = random.Random(7)
+    n_frames = 36
+
+    neon_map = _NEON_COLORS
+
+    frames = []
+    for _ in range(n_frames):
+        frame_lines = []
+        for row_idx, line in enumerate(composite_lines):
+            if not line.strip():
+                frame_lines.append(line)
+                continue
+            # Re-colorize each word segment independently
+            plain = _ANSI_RE.sub("", line)
+            # Split back by gap to colorize per-segment
+            segments = plain.split(gap)
+            colored_segs = []
+            for seg_idx, seg in enumerate(segments):
+                color_name = word_colors[seg_idx % len(word_colors)]
+                neon = neon_map[color_name]
+                roll = rng.random()
+                if roll < 0.08:
+                    state = "off"
+                elif roll < 0.30:
+                    state = "dim"
+                elif roll < 0.42:
+                    state = "fringe"
+                    neon_code = rng.choice(neon["fringe"])
+                    colored_segs.append(f"{neon_code}{seg}{_RESET}")
+                    continue
+                else:
+                    state = "full"
+                colored_segs.append(f"{neon[state]}{seg}{_RESET}")
+            frame_lines.append(gap.join(colored_segs))
+        frames.append("\n".join(frame_lines))
+    return frames
+
 _TEXT = "JUST DO IT"
 
 
@@ -55,7 +131,7 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
@@ -83,6 +159,30 @@ def _build_showcase() -> list[dict]:
             "label": "glitch",
             "frames": lambda: list(glitch(text)),
             "fps": 24.0,
+            "loop": True,
+        },
+        {
+            "id": "A03a",
+            "name": "neon-glitch",
+            "label": "neon-cyan",
+            "frames": lambda: list(neon_glitch(text, color="cyan", n_frames=36, seed=1)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A03b",
+            "name": "neon-glitch",
+            "label": "neon-magenta",
+            "frames": lambda: list(neon_glitch(text, color="magenta", n_frames=36, seed=2)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A03c",
+            "name": "neon-glitch",
+            "label": "neon-multi",
+            "frames": lambda: _neon_multi_frames(_TEXT),
+            "fps": 12.0,
             "loop": True,
         },
         {
