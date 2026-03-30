@@ -131,7 +131,7 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_tube_glitch
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
@@ -159,6 +159,22 @@ def _build_showcase() -> list[dict]:
             "label": "glitch",
             "frames": lambda: list(glitch(text)),
             "fps": 24.0,
+            "loop": True,
+        },
+        {
+            "id": "A03t",
+            "name": "neon-tube",
+            "label": "neon-tube-cyan",
+            "frames": lambda: list(neon_tube_glitch(text, color="cyan", n_frames=36, seed=1)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A03u",
+            "name": "neon-tube",
+            "label": "neon-tube-magenta",
+            "frames": lambda: list(neon_tube_glitch(text, color="magenta", n_frames=36, seed=2)),
+            "fps": 12.0,
             "loop": True,
         },
         {

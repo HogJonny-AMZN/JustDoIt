@@ -32,6 +32,22 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 |---------|---------|----------|
 | glitch | ![glitch](A03-glitch.apng) | [▶ terminal](A03-glitch.cast) |
 
+## A03t — Neon-Tube
+
+**36 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| neon-tube-cyan | ![neon-tube-cyan](A03t-neon-tube-cyan.apng) | [▶ terminal](A03t-neon-tube-cyan.cast) |
+
+## A03u — Neon-Tube
+
+**36 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| neon-tube-magenta | ![neon-tube-magenta](A03u-neon-tube-magenta.apng) | [▶ terminal](A03u-neon-tube-magenta.cast) |
+
 ## A03a — Neon-Glitch
 
 **36 frames** · **12.0fps** · looping
