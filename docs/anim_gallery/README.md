@@ -18,7 +18,7 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 
 ## A02 — Scanline
 
-**8 frames** · **12.0fps** · play-once
+**8 frames** · **4.0fps** · play-once
 
 | Variant | Preview | Terminal |
 |---------|---------|----------|
@@ -42,7 +42,7 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 
 ## A05 — Dissolve
 
-**57 frames** · **24.0fps** · play-once
+**118 frames** · **12.0fps** · looping
 
 | Variant | Preview | Terminal |
 |---------|---------|----------|
