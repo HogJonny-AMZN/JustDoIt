@@ -1,0 +1,208 @@
+"""
+Package: scripts.generate_anim_gallery
+Generate animation gallery from preset animations.
+
+Run with:
+    uv run python scripts/generate_anim_gallery.py
+
+Saves .cast and .apng files to docs/anim_gallery/ and regenerates
+docs/anim_gallery/README.md. Each APNG embeds inline on GitHub.
+"""
+
+import logging as _logging
+import os
+import sys
+from datetime import datetime
+from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# -------------------------------------------------------------------------
+# module global scope
+_MODULE_NAME = "scripts.generate_anim_gallery"
+__updated__ = "2026-03-30 00:00:00"
+__version__ = "0.1.0"
+__author__ = ["jGalloway"]
+
+_LOGGER = _logging.getLogger(_MODULE_NAME)
+
+GALLERY_DIR = Path(__file__).parent.parent / "docs" / "anim_gallery"
+
+_TEXT = "JUST DO IT"
+
+
+# -------------------------------------------------------------------------
+def _build_showcase() -> list[dict]:
+    """Build the declarative SHOWCASE list.
+
+    Each entry defines: id, name, label, fps, loop, and a frames factory.
+
+    :returns: List of showcase entry dicts.
+    """
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve
+    from justdoit.core.rasterizer import render
+
+    text = render(_TEXT, font="block")
+
+    return [
+        {
+            "id": "A01",
+            "name": "typewriter",
+            "label": "typewriter",
+            "frames": lambda: list(typewriter(text)),
+            "fps": 12.0,
+            "loop": False,
+        },
+        {
+            "id": "A02",
+            "name": "scanline",
+            "label": "scanline",
+            "frames": lambda: list(scanline(text)),
+            "fps": 12.0,
+            "loop": False,
+        },
+        {
+            "id": "A03",
+            "name": "glitch",
+            "label": "glitch",
+            "frames": lambda: list(glitch(text)),
+            "fps": 24.0,
+            "loop": True,
+        },
+        {
+            "id": "A04",
+            "name": "pulse",
+            "label": "pulse",
+            "frames": lambda: list(pulse(text)),
+            "fps": 24.0,
+            "loop": True,
+        },
+        {
+            "id": "A05",
+            "name": "dissolve",
+            "label": "dissolve",
+            "frames": lambda: list(dissolve(text)),
+            "fps": 24.0,
+            "loop": False,
+        },
+    ]
+
+
+# -------------------------------------------------------------------------
+def _stem(entry: dict) -> str:
+    """Build the filename stem for an entry.
+
+    :param entry: Showcase entry dict.
+    :returns: Filename stem like 'A01-typewriter'.
+    """
+    return f"{entry['id']}-{entry['label']}"
+
+
+# -------------------------------------------------------------------------
+def generate_gallery(verbose: bool = True) -> None:
+    """Generate .cast and .apng files for all showcase entries.
+
+    :param verbose: Print progress to stdout if True.
+    """
+    from justdoit.output.cast import save_cast
+
+    try:
+        from justdoit.output.apng import save_apng
+        _has_pil = True
+    except ImportError:
+        _has_pil = False
+        if verbose:
+            print("  [warn] Pillow not available — skipping .apng generation")
+
+    GALLERY_DIR.mkdir(parents=True, exist_ok=True)
+
+    showcase = _build_showcase()
+    results = []
+
+    for entry in showcase:
+        stem = _stem(entry)
+        frames = entry["frames"]()
+        fps = entry["fps"]
+        loop_int = 0 if entry["loop"] else 1
+        title = f"JustDoIt — {entry['name']}"
+
+        # .cast — always
+        cast_path = GALLERY_DIR / f"{stem}.cast"
+        save_cast(frames, cast_path, fps=fps, title=title)
+        if verbose:
+            print(f"  saved  {cast_path.name}  ({len(frames)} frames @ {fps}fps)")
+
+        # .apng — Pillow required
+        apng_path = None
+        if _has_pil:
+            apng_path = GALLERY_DIR / f"{stem}.apng"
+            save_apng(frames, apng_path, fps=fps, loop=loop_int)
+            if verbose:
+                print(f"  saved  {apng_path.name}")
+
+        results.append({
+            "entry": entry,
+            "stem": stem,
+            "cast_path": cast_path,
+            "apng_path": apng_path,
+            "n_frames": len(frames),
+        })
+
+    _write_readme(results, verbose=verbose)
+
+
+# -------------------------------------------------------------------------
+def _write_readme(results: list[dict], verbose: bool = True) -> None:
+    """Auto-generate docs/anim_gallery/README.md.
+
+    :param results: List of result dicts from generate_gallery().
+    :param verbose: Print progress to stdout if True.
+    """
+    lines = [
+        "# Animation Gallery",
+        "",
+        f"Auto-generated {datetime.now().strftime('%Y-%m-%d')} — do not edit manually.",
+        "Run `uv run python scripts/generate_anim_gallery.py` to regenerate.",
+        "",
+        "Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`",
+        "(plays back as a real terminal via `asciinema play`).",
+        "",
+        "---",
+        "",
+    ]
+
+    for r in results:
+        entry = r["entry"]
+        stem = r["stem"]
+        n_frames = r["n_frames"]
+        fps = entry["fps"]
+        loop_label = "looping" if entry["loop"] else "play-once"
+
+        lines.append(f"## {entry['id']} — {entry['name'].title()}")
+        lines.append("")
+        lines.append(f"**{n_frames} frames** · **{fps}fps** · {loop_label}")
+        lines.append("")
+
+        # Table header
+        lines.append("| Variant | Preview | Terminal |")
+        lines.append("|---------|---------|----------|")
+
+        apng_cell = f"![{entry['label']}]({stem}.apng)" if r["apng_path"] else "*(Pillow not installed)*"
+        cast_cell = f"[▶ terminal]({stem}.cast)"
+        lines.append(f"| {entry['label']} | {apng_cell} | {cast_cell} |")
+
+        lines.append("")
+
+    readme_path = GALLERY_DIR / "README.md"
+    readme_path.write_text("\n".join(lines), encoding="utf-8")
+    if verbose:
+        print(f"  wrote  {readme_path}")
+
+
+# -------------------------------------------------------------------------
+if __name__ == "__main__":
+    logging = _logging
+    logging.basicConfig(level=logging.WARNING)
+    print(f"Generating animation gallery → {GALLERY_DIR}")
+    generate_gallery(verbose=True)
+    print("Done.")
