@@ -287,6 +287,146 @@ def dissolve(text: str, chars_per_frame: int = 3, seed: Optional[int] = None) ->
 
 
 # -------------------------------------------------------------------------
+# Density-weighted dissolve character scale — light scatter to full block
+# Each step represents increasing "mass" / fill density
+_DENSITY_SCALE: list[str] = [" ", ".", ":", "+", "*", "%", "#", "▓", "█"]
+_DENSITY_LEN: int = len(_DENSITY_SCALE)  # 9 steps
+
+
+def density_dissolve(
+    text: str,
+    n_frames: int = 40,
+    stagger: float = 0.6,
+    direction: str = "in",
+    color: Optional[str] = None,
+    seed: Optional[int] = None,
+) -> Iterator[str]:
+    """Density-weighted dissolve — cells materialize through character weight (A05d).
+
+    Each ink cell transitions independently through a density scale:
+      ' ' → '.' → ':' → '+' → '*' → '%' → '#' → '▓' → '█'
+
+    Cells start at random offsets in the animation so they don't all
+    move together — matter assembles from scattered noise into solid form.
+
+    direction='in':  space → full block (materialize)
+    direction='out': full block → space (dematerialize)
+    direction='loop': in then out, suitable for looping APNG
+
+    :param text: Multi-line rendered string from render().
+    :param n_frames: Total frames for one in or out pass (default: 40).
+    :param stagger: Fraction of n_frames used as random start offset range (default: 0.6).
+                   Higher = more scattered/chaotic arrival. 0 = all cells move together.
+    :param direction: 'in', 'out', or 'loop' (default: 'in').
+    :param color: Optional ANSI color name to apply to ink cells (default: None).
+    :param seed: Optional random seed for reproducibility.
+    :returns: Iterator of frame strings.
+    """
+    if not text:
+        yield text
+        return
+
+    rng = random.Random(seed)
+    grid = _blank_grid(text)
+    n_rows = len(grid)
+    n_cols = max(len(row) for row in grid) if grid else 0
+
+    # All ink cell positions
+    ink_cells = [
+        (r, c)
+        for r in range(n_rows)
+        for c in range(len(grid[r]))
+        if grid[r][c] != " "
+    ]
+
+    if not ink_cells:
+        yield text
+        return
+
+    # Assign random start offset per cell — controls when each cell begins transitioning
+    max_stagger = int(n_frames * stagger)
+    cell_offsets: dict[tuple, int] = {
+        cell: rng.randint(0, max(0, max_stagger)) for cell in ink_cells
+    }
+
+    def _build_frame(frame_idx: int, reverse: bool = False) -> str:
+        """Build one frame of the density transition.
+
+        :param frame_idx: Current frame index (0-based).
+        :param reverse: If True, transition runs block→space instead of space→block.
+        :returns: Multi-line frame string.
+        """
+        display = [[" "] * max(len(row), 1) for row in grid]
+        # Pad display rows
+        for r in range(n_rows):
+            display[r] = list(grid[r]) if not reverse else [" "] * len(grid[r])
+
+        for (r, c) in ink_cells:
+            offset = cell_offsets[(r, c)]
+            # How far into this cell's transition are we?
+            local_frame = frame_idx - offset
+            if local_frame < 0:
+                step = 0 if not reverse else _DENSITY_LEN - 1
+            else:
+                # Map local_frame → density step
+                progress = min(1.0, local_frame / max(1, n_frames - max_stagger))
+                if reverse:
+                    step = int((1.0 - progress) * (_DENSITY_LEN - 1))
+                else:
+                    step = int(progress * (_DENSITY_LEN - 1))
+            ch = _DENSITY_SCALE[step]
+            if c < len(display[r]):
+                display[r][c] = ch
+
+        rows_out = []
+        for row in display:
+            line = "".join(row).rstrip()
+            if color:
+                # Apply color only to non-space chars
+                colored = ""
+                from justdoit.effects.color import colorize, COLORS
+                for ch in line:
+                    if ch != " ":
+                        colored += colorize(ch, color)
+                    else:
+                        colored += ch
+                rows_out.append(colored)
+            else:
+                rows_out.append(line)
+        return "\n".join(rows_out)
+
+    if direction == "in":
+        for i in range(n_frames):
+            yield _build_frame(i, reverse=False)
+        yield _build_frame(n_frames, reverse=False)  # hold final full frame
+
+    elif direction == "out":
+        yield _build_frame(0, reverse=False)  # start from full
+        for i in range(n_frames):
+            yield _build_frame(i, reverse=True)
+
+    elif direction == "loop":
+        hold = max(4, n_frames // 8)
+        # In pass
+        for i in range(n_frames):
+            yield _build_frame(i, reverse=False)
+        # Hold full
+        full_frame = _build_frame(n_frames, reverse=False)
+        for _ in range(hold):
+            yield full_frame
+        # Out pass
+        for i in range(n_frames):
+            yield _build_frame(i, reverse=True)
+        # Hold blank
+        blank = "\n".join(" " * n_cols for _ in range(n_rows))
+        for _ in range(hold):
+            yield blank
+
+    else:
+        raise ValueError(f"direction must be 'in', 'out', or 'loop', got '{direction}'")
+
+
+# -------------------------------------------------------------------------
 # Neon color definitions — ANSI codes + dim variants + fringe neighbors + pulse cycle
 # pulse: slow brightness oscillation simulating gas tube instability
 #   bright → full → full → dim → full → full → bright → ...  (6-step cycle)
