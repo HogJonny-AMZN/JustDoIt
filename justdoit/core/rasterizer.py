@@ -13,7 +13,7 @@ from justdoit.fonts import FONTS
 from justdoit.effects.color import colorize
 from justdoit.core.glyph import glyph_to_mask
 from justdoit.effects.fill import density_fill, sdf_fill
-from justdoit.effects.generative import noise_fill, cells_fill, truchet_fill, reaction_diffusion_fill, slime_mold_fill, strange_attractor_fill, lsystem_fill, turing_fill, wave_fill, fractal_fill
+from justdoit.effects.generative import noise_fill, cells_fill, truchet_fill, reaction_diffusion_fill, slime_mold_fill, strange_attractor_fill, lsystem_fill, turing_fill, wave_fill, fractal_fill, voronoi_fill
 from justdoit.effects.shape_fill import shape_fill
 from justdoit.effects.recursive import typographic_recursion
 
@@ -38,8 +38,13 @@ _FILL_FNS: dict = {
     "lsystem":   lsystem_fill,
     "shape":     shape_fill,
     "turing":    turing_fill,
-    "wave":      wave_fill,
-    "fractal":   fractal_fill,
+    "wave":           wave_fill,
+    "fractal":        fractal_fill,
+    "voronoi":        voronoi_fill,
+    "voronoi_cracked": lambda m: voronoi_fill(m, preset="cracked"),
+    "voronoi_fine":    lambda m: voronoi_fill(m, preset="fine"),
+    "voronoi_coarse":  lambda m: voronoi_fill(m, preset="coarse"),
+    "voronoi_cells":   lambda m: voronoi_fill(m, preset="cells"),
 }
 
 

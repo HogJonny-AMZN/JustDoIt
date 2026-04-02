@@ -300,3 +300,126 @@ Any feature using PUA characters requires the *user* to install a patched font a
 - Private Use Areas: https://en.wikipedia.org/wiki/Private_Use_Areas
 - WezTerm custom block glyphs: https://wezterm.org/config/lua/config/custom_block_glyphs.html
 - Microsoft PUA notes: https://learn.microsoft.com/en-us/globalization/encoding/pua
+
+---
+
+## Session 2026-04-02 — Web Research: Voronoi, Transporter, Plasma, SDF
+
+**Research focus:** Four targeted web searches:
+1. Voronoi diagram in ASCII art / terminal rendering
+2. Transporter materialize animation prior art in terminal/ASCII
+3. Demoscene plasma animation — 2025 state of the art in Python terminal
+4. Signed distance field font rendering in ASCII / terminal contexts
+
+**New techniques found:** 0 new (all four topics confirm existing registry entries; no prior art that supersedes them; details below reinforce novelty scores)
+
+**Sources:**
+- Roguelike Developer blog (2007) — Voronoi for wilderness map generation in ASCII roguelikes: https://roguelikedeveloper.blogspot.com/2007/07/wilderness-generation-using-voronoi.html
+- TerminalTextEffects (TTE) docs & GitHub — 37 built-in terminal animation effects: https://chrisbuilds.github.io/terminaltexteffects/ | https://github.com/ChrisBuilds/terminaltexteffects
+- Rosetta Code — Plasma effect implementations across languages: https://rosettacode.org/wiki/Plasma_effect
+- Programmador.com (2025) — Plasma in Rust, pixel-based: https://programmador.com/posts/2025/plasma/
+- Asciimatics docs — Plasma, Fire, Kaleidoscope renderers: https://asciimatics.readthedocs.io/en/stable/asciimatics.renderers.html
+- Redblobgames — SDF font rendering basics: https://www.redblobgames.com/x/2403-distance-field-fonts/
+- vgel.me — "Signed distance functions in 46 lines of Python" (ASCII raymarching): https://vgel.me/posts/donut/
+- Valve/Green (2007) SIGGRAPH SDF paper: https://steamcdn-a.akamaihd.net/apps/valve/2007/SIGGRAPH2007_AlphaTestedMagnification.pdf
+- msdfgen (Viktor Chlumský): https://github.com/Chlumsky/msdfgen
+- GitHub Copilot CLI animated banner engineering post: https://github.blog/engineering/from-pixels-to-characters-the-engineering-behind-github-copilot-clis-animated-ascii-banner/
+
+---
+
+### Finding 1: Voronoi in ASCII Art — F07 (novelty score confirmed: 4)
+
+**What was found:**
+Voronoi diagrams are used extensively in roguelike games for procedural map generation (wilderness regions, dungeon partitioning) but all implementations treat Voronoi as a *spatial partitioning backend* — the map cells are then filled with terrain chars independently. No implementation was found that uses Voronoi cell geometry to drive character selection inside a glyph mask (i.e., seeding cells inside a letter shape, then choosing chars based on cell ID or proximity-to-boundary).
+
+Python Voronoi implementations (scipy.spatial.Voronoi, xiaoxiae/Voronoi) all produce graphical output (matplotlib, SVG) — none output to terminal with character-cell rendering. Fortune's algorithm is the standard O(n log n) approach; for the pure-Python no-dependency version in JustDoIt, a BFS/Manhattan-distance approach (seed N random points, assign each mask cell to its nearest seed by Euclidean distance) is the correct implementation path — no Fortune's algorithm needed at glyph-mask scale.
+
+**Is this prior art to F07?** No. Voronoi-as-character-fill inside a glyph mask has no prior art in any tool found. The roguelike usage is terrain assignment, not character selection. **F07 novelty score 4 is confirmed** — Voronoi exists in other tools/languages, but not in a Python ASCII art fill context.
+
+**Implementation notes for F07:**
+- BFS or distance comparison at each mask cell (O(N*S) where N=mask cells, S=seeds) is sufficient at 7-row glyph scale
+- Cell ID → char: border cells (nearest to another cell) → `.` or `+`; interior cells → cycle through a per-cell char set keyed by cell index
+- Cell borders can be detected by checking if any 4-neighbor belongs to a different cell
+- Suggested: 5–15 seeds, seeded from random positions inside the mask
+
+---
+
+### Finding 2: Transporter Materialize — A11 (novelty score confirmed: 5)
+
+**What was found:**
+TTE (TerminalTextEffects) is the most complete terminal animation library in Python with 37 effects. The closest effect to a transporter materialize is "Scattered" — characters start at random canvas positions and move into their final positions using Bezier easing. "OrbittingVolley" fires characters inward from rotating edge positions.
+
+Neither of these matches the A11 concept:
+- **Scattered** spreads across the full canvas (not column-confined), uses whole-canvas random scatter, not localized bounding-box particle columns
+- **OrbittingVolley** fires from edges toward center — orbital geometry, not columnar shimmer
+- Neither has a "brightness cascade" per cell as it locks in — the TNG transporter shimmer visual
+- Neither has era variants (TOS shimmer vs TNG sparkle vs Kelvin burst)
+- Neither uses half-block sub-pixel resolution (▀▄█) to increase particle precision within character cells
+
+The GitHub Copilot CLI animated banner uses pre-authored frame-by-frame animation — not algorithmic. No library found generates particles that scatter within a glyph's bounding column and then converge to glyph-mask positions with per-cell brightness lock-in.
+
+**Is this prior art to A11?** No. The specific combination of: (1) columnar bounding box particle scatter, (2) convergence to glyph-mask target positions, (3) per-cell brightness cascade as lock-in, (4) half-block sub-pixel resolution, (5) era variants — has no prior art. **A11 novelty score 5 is confirmed.** This remains the highest-priority unimplemented animation.
+
+---
+
+### Finding 3: Demoscene Plasma in Terminal — A10 (novelty score confirmed: 4)
+
+**What was found:**
+The classic plasma effect (sinusoidal color field, sum of multiple sin/cos at different frequencies) is extremely well-documented and widely implemented. Key findings:
+
+- **Rosetta Code** has implementations in 20+ languages. The standard formula is `value = sin(x/16) + sin(y/8) + sin((x+y)/16) + sin(sqrt(x²+y²)/8)`, normalized to [0,1] and mapped to HSV color.
+- **Asciimatics** (Python) has a `Plasma` renderer that outputs animated plasma to the terminal. It uses sinusoidal functions driven by an `(x, y, t)` field and a colour palette. **This is the most significant prior art finding for A10.**
+- The asciimatics Plasma renderer outputs *color variation only* — it fills the terminal with fixed characters (spaces or block chars) and varies the background color. It does not drive character selection from the plasma value, and it does not confine the effect inside a glyph mask.
+- The 2025 Rust plasma article and pygame plasma projects all operate in pixel space, not character space.
+- No Python library found applies plasma sin-field values to *character density selection* inside a *glyph mask*.
+
+**Is asciimatics Plasma prior art to A10?** Partially. The sinusoidal color animation is prior art. But A10's distinguishing novelty is: (1) the plasma value drives *character selection* (density chars `@#%+-.` etc.) not just color, and (2) the effect is masked to the glyph shape — only ink cells show the animated plasma, creating letterforms that "pulse" with organic color+density variation. The combination is novel.
+
+**Refinement to A10 description:** Should clarify that the novelty is the char-selection + glyph-masking combination, not the sin-field formula itself. Novelty score 4 stands — technique exists in other tools (color-only), not in Python ASCII fill form.
+
+---
+
+### Finding 4: SDF Font Rendering in ASCII — G04 (novelty score confirmed: 5)
+
+**What was found:**
+SDF font rendering has rich prior art in the GPU/game space:
+- Valve/Green SIGGRAPH 2007: the foundational paper. SDF stored as a texture, shader thresholds the distance value for crisp rendering at any scale.
+- msdfgen (Chlumský 2018): multi-channel SDF, solves the rounded-corner problem of single-channel SDF.
+- SDFont, GLyphy: production SDF font generators.
+- **vgel.me ASCII raymarcher:** Uses SDFs for 3D scene representation and ray marching in pure Python ASCII output. The SDF determines *whether* a ray hits a surface; the surface normal (derived from the SDF) drives character selection. However, this is 3D scene raymarching, not glyph-mask generation.
+
+No tool or paper found implements the G04 concept: using a 2D SDF of a letterform to drive character selection *inside the glyph mask* at character-cell resolution, where distance from the glyph edge determines which character to render (e.g. near edge → outline chars `|/-\`, mid-distance → medium chars `+x`, deep interior → dense chars `@#`). This is the complement of F06 (SDF Edge Fill, already done), but applied as a standalone font generation path rather than a fill effect.
+
+The existing F06 (SDF Edge Fill) already uses BFS distance from the glyph edge to select characters. G04 is the more ambitious version: generating the entire letterform *from* an SDF rather than applying SDF to an existing bitmapped mask. The SDF would be computed from Bezier outlines (G05 is the prerequisite or sister technique), and character cells would be filled based on their SDF value — producing a scalable ASCII representation of any letter at any resolution.
+
+**Is this prior art to G04?** No. Pure-Python SDF-driven glyph generation for ASCII character-cell output has no known prior art. GPU SDF rendering (Valve 2007, msdfgen) is a completely different domain — those output pixel textures for GPU shaders, not character grids for terminals. **G04 novelty score 5 is confirmed.**
+
+---
+
+### Priority Queue Update
+
+No changes to the registry — all four topics confirm existing entries. Priority queue remains:
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | Voronoi Fill | F07 | 4 | `idea` |
+| 4 | Plasma Wave Animation | A10 | 4 | `idea` |
+| 5 | Flame Simulation | A08 | 4 | `idea` |
+| 6 | Chromatic Aberration | C08 | 5 | `idea` |
+
+**Key insight:** The most actionable single-session pick from this research is **F07 (Voronoi Fill)**. The BFS-distance implementation requires no new dependencies (pure Python), can be scaffolded in ~100 lines using the same density-histogram approach as N08/N06, and has a clear visual: letterforms subdivided into organic Voronoi cells with distinct border and interior characters. A11 remains the flagship but is multi-session scope. G04 requires G05 (Bezier outlines) as a foundation, making it also multi-session.
+
+**A10 (Plasma Wave) upgrade note:** The asciimatics prior art finding means A10's description should be updated to clarify that the novelty is character-density selection from the plasma field + glyph masking, not the sin-field formula. This distinguishes it cleanly from asciimatics Plasma.
+
+## Session 2026-04-02
+
+**Research focus:** Voronoi fill implementation; prior art for ASCII Voronoi; TTE transporter materialize prior art; SDF ASCII font rendering prior art.
+**New techniques found:** 0 new (no novel techniques; research confirmed existing queue priorities remain valid; see research import 2026-04-02 for G10 candidate logged previously).
+**Sources:**
+- Voronoi in Python: scipy.spatial.Voronoi (https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.Voronoi.html) — prior art for computing Voronoi diagrams, but not for ASCII art fills inside glyph masks with radial density gradients and border characters. No Python library found that implements Voronoi as an ASCII fill effect.
+- TTE (TerminalTextEffects): https://github.com/ChrisBuilds/terminaltexteffects — has scatter/spray/rain/swarm effects but NO transporter materialize (particles gather from columns into letterform with brightness cascade). A11 novelty confirmed.
+- SDF font rendering: msdfgen (https://github.com/Chlumsky/msdfgen), SDFont (https://github.com/ShoYamanishi/SDFont) — all GPU/shader-based implementations. No pure-Python SDF-to-ASCII terminal font generator found. G04 novelty confirmed.
+**Key insight:** F07 Voronoi Fill is architecturally the simplest geometric fill in the codebase — pure O(R·C·N) nearest-neighbor Voronoi partitioning, no simulation, no iteration, no external state. The key design decision was registering preset variants ("voronoi_cracked", "voronoi_fine", etc.) directly in _FILL_FNS so the gallery can render visually distinct outputs per preset, unlike wave/fractal/turing where all preset gallery entries call the same default. The `invert` flag on the density gradient is the aesthetic differentiator: "default" gives dark seed-centers fading to light (spotlight look), while "cracked" gives light centers with dark edges (cracked-earth / stained-glass look). Seed auto-scaling via sqrt(interior) * n_factor ensures sensible cell density independent of glyph resolution.
+**Priority queue update:** F07 complete. Next priority queue: A11 (Transporter Materialize — novelty 5, multi-session) at #1, G04 (SDF Font Generator — novelty 5, achievable single-session) at #2, A10 (Plasma Wave Animation — novelty 4) at #3. Recommend G04 next if doing a single-session pick — it generates letterforms from SDF computation on existing font bitmaps, no new font geometry needed. A10 is the right pick for an animation-focused session.

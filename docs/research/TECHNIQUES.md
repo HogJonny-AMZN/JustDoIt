@@ -18,7 +18,7 @@ Techniques that determine what characters fill a glyph mask.
 | F04 | Reaction-Diffusion | Gray-Scott inside glyph boundary | 5 | `done` |
 | F05 | Fractal Fill | Mandelbrot/Julia escape time → char density | 4 | `done` |
 | F06 | SDF Edge Fill | Distance from glyph edge → char selection (outline/glow) | 4 | `done` |
-| F07 | Voronoi Fill | Voronoi cells inside glyph, cell borders as chars | 4 | `idea` |
+| F07 | Voronoi Fill | Voronoi cells inside glyph, cell borders as chars | 4 | `done` |
 | F08 | Stipple Fill | Error-diffusion dithering (Floyd-Steinberg) inside mask | 3 | `idea` |
 | F09 | Wave Interference | Two sine waves interfering inside mask | 4 | `done` |
 | F10 | Truchet Tiles | Tiling patterns inside glyph using arc/diagonal chars | 5 | `done` |
@@ -89,7 +89,7 @@ Frame-based terminal animation techniques.
 | A08 | Flame Simulation | Heat-based upward particle drift inside glyphs | 4 | `idea` |
 | A09 | Liquid Fill | Glyph fills up like liquid pouring in from bottom | 4 | `idea` |
 | A11 | Transporter Materialize | Star Trek transporter effect — particles scatter in bounding column then converge/coalesce into glyph shape; half-block subpixel resolution (▀▄█) for particle precision; brightness cascade per cell as it locks in; bidirectional (materialize + dematerialize); TOS/TNG/ENT/Kelvin era variants; fps configurable (24–60, effect decides) | 5 | `idea` |
-| A10 | Plasma Wave | Animated plasma color field (classic demoscene) | 4 | `idea` |
+| A10 | Plasma Wave | Animated plasma sin-field drives *character density selection* (not just color) inside glyph mask — classic demoscene formula applied to char choice; asciimatics has color-only plasma (no char selection, no glyph masking) — that is prior art to color component, not to this | 4 | `idea` |
 
 ### F. Output Targets
 Rendering to non-terminal targets.

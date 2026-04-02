@@ -2286,3 +2286,192 @@ def turing_fill(
         result.append(line)
 
     return result
+
+
+# -------------------------------------------------------------------------
+# F07 — Voronoi Fill
+# -------------------------------------------------------------------------
+
+_VORONOI_PRESETS: dict = {
+    # name: n_factor (multiplier on sqrt(interior) for seed count),
+    #        border_char (char for cell borders),
+    #        invert (True = dark edges/borders, light centers; False = dark centers, light edges)
+    "default": {"n_factor": 1.2, "border_char": "#", "invert": False},
+    "cracked": {"n_factor": 0.7, "border_char": "@", "invert": True},
+    "fine":    {"n_factor": 2.5, "border_char": "+", "invert": False},
+    "coarse":  {"n_factor": 0.4, "border_char": "#", "invert": True},
+    "cells":   {"n_factor": 1.8, "border_char": "*", "invert": False},
+}
+
+# Interior density chars for Voronoi — omits `@` so seed centres stand out in "default"
+_VORONOI_DENSE: str = "#S%?*+;:,."
+
+
+# -------------------------------------------------------------------------
+def _voronoi_dist2(r1: int, c1: int, r2: int, c2: int) -> float:
+    """Return squared Euclidean distance between two grid cells.
+
+    :param r1: Row of first cell.
+    :param c1: Column of first cell.
+    :param r2: Row of second cell.
+    :param c2: Column of second cell.
+    :returns: Squared Euclidean distance (float).
+    """
+    dr = r1 - r2
+    dc = c1 - c2
+    return float(dr * dr + dc * dc)
+
+
+# -------------------------------------------------------------------------
+def voronoi_fill(
+    mask: list,
+    preset: str = "default",
+    n_seeds: Optional[int] = None,
+    seed: Optional[int] = None,
+    density_chars: Optional[str] = None,
+) -> list:
+    """Fill glyph mask with Voronoi cell pattern (F07).
+
+    Generates N random seed points inside the glyph ink region, partitions
+    every interior cell into the Voronoi region of its nearest seed (by
+    Euclidean distance), and renders the result as ASCII art:
+
+    - **Cell borders** — cells adjacent to a different Voronoi region get a
+      border character, creating visible cell walls.
+    - **Cell interiors** — each cell shows a radial density gradient from its
+      seed centre outward (dark centre, fading toward the border), or inverted
+      (light centre, dark edges) depending on the preset.
+
+    Named presets:
+      "default" — ~sqrt(area)×1.2 seeds, ``#`` borders, dark-centre shading
+      "cracked" — few seeds, ``@`` borders, light centres with dark edges
+                  (cracked-earth / stained-glass look)
+      "fine"    — many seeds (dense cells), ``+`` borders, dark-centre shading
+      "coarse"  — few seeds (large cells), ``#`` borders, inverted shading
+      "cells"   — medium seeds, ``*`` borders, dark-centre shading
+                  (biological cell / bubble look)
+
+    The number of seeds auto-scales with the interior area: ``n_seeds =
+    max(4, int(sqrt(len(interior)) * n_factor))``, unless ``n_seeds`` is
+    explicitly provided.
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param preset: Named preset controlling seed density and visual style
+        (default: 'default').
+    :param n_seeds: Override number of Voronoi seed points (default: auto-scaled
+        from interior area via the preset's n_factor).
+    :param seed: Integer RNG seed for reproducible placement (default: None = 42).
+    :param density_chars: Darkest-to-lightest interior char sequence
+        (default: _VORONOI_DENSE = ``"#S%?*+;:,."``)
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _VORONOI_PRESETS:
+        raise ValueError(
+            f"Unknown Voronoi preset '{preset}'. "
+            f"Available: {', '.join(_VORONOI_PRESETS.keys())}"
+        )
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    p = _VORONOI_PRESETS[preset]
+    border_char: str = p["border_char"]
+    invert: bool = p["invert"]
+    chars: str = density_chars if density_chars is not None else _VORONOI_DENSE
+    n_chars = len(chars)
+
+    # -------------------------------------------------------------------------
+    # Identify interior (ink) cells
+    interior = [
+        (r, c)
+        for r in range(rows)
+        for c in range(len(mask[r]))
+        if mask[r][c] >= 0.5
+    ]
+    if not interior:
+        return [" " * cols for _ in range(rows)]
+
+    # -------------------------------------------------------------------------
+    # Determine seed count
+    if n_seeds is None:
+        n_factor: float = p["n_factor"]
+        n_seeds = max(4, int(math.sqrt(len(interior)) * n_factor))
+    n_seeds = min(n_seeds, len(interior))
+
+    # -------------------------------------------------------------------------
+    # Place seeds — random sample of interior cells
+    rng = random.Random(seed if seed is not None else 42)
+    seeds = rng.sample(interior, n_seeds)
+
+    # -------------------------------------------------------------------------
+    # Assign each interior cell to the nearest seed (Voronoi partitioning).
+    # Also record d1 (nearest distance) for the radial gradient.
+    region: dict = {}    # (r, c) -> seed index
+    d1_map: dict = {}    # (r, c) -> distance to nearest seed (float, squared)
+
+    for r, c in interior:
+        best_idx = 0
+        best_d2 = _voronoi_dist2(r, c, seeds[0][0], seeds[0][1])
+        for i in range(1, n_seeds):
+            d2 = _voronoi_dist2(r, c, seeds[i][0], seeds[i][1])
+            if d2 < best_d2:
+                best_d2 = d2
+                best_idx = i
+        region[(r, c)] = best_idx
+        d1_map[(r, c)] = best_d2  # stored as squared (monotone, saves sqrt)
+
+    # -------------------------------------------------------------------------
+    # Detect border cells: any ink cell whose 4-connected neighbour is ink
+    # AND belongs to a different region.
+    border_cells: set = set()
+    _neighbours = ((-1, 0), (1, 0), (0, -1), (0, 1))
+    for r, c in interior:
+        my_reg = region[(r, c)]
+        for dr, dc in _neighbours:
+            nr, nc = r + dr, c + dc
+            if (nr, nc) in region and region[(nr, nc)] != my_reg:
+                border_cells.add((r, c))
+                break
+
+    # -------------------------------------------------------------------------
+    # Per-region max distance (squared) — used to normalise the radial gradient.
+    # We use squared distances (no sqrt needed), so the gradient is slightly
+    # non-linear but still monotone and visually smooth.
+    max_d2: dict = {}
+    for cell, reg in region.items():
+        d = d1_map[cell]
+        if reg not in max_d2 or d > max_d2[reg]:
+            max_d2[reg] = d
+
+    # -------------------------------------------------------------------------
+    # Build output rows
+    result = []
+    for r in range(rows):
+        row_len = len(mask[r]) if r < rows else 0
+        line = ""
+        for c in range(cols):
+            if c >= row_len or mask[r][c] < 0.5:
+                line += " "
+                continue
+            if (r, c) in border_cells:
+                line += border_char
+                continue
+            # Interior cell — radial gradient
+            reg = region[(r, c)]
+            d = d1_map[(r, c)]
+            md = max_d2.get(reg, 1.0) or 1.0
+            norm = d / md          # 0.0 = at seed centre, 1.0 = at region edge
+            if invert:
+                norm = 1.0 - norm  # flip: dark at centre, light at edge → inverted
+            # Map norm → char index: 0.0 → darkest (index 0), 1.0 → lightest (index n-1)
+            idx = int(norm * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += chars[idx]
+        result.append(line)
+
+    return result

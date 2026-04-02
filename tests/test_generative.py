@@ -11,7 +11,7 @@ import logging as _logging
 
 import pytest
 
-from justdoit.effects.generative import noise_fill, cells_fill, _build_perm, _perlin2d, wave_fill, fractal_fill
+from justdoit.effects.generative import noise_fill, cells_fill, _build_perm, _perlin2d, wave_fill, fractal_fill, voronoi_fill
 from justdoit.core.glyph import glyph_to_mask
 from justdoit.core.rasterizer import render, _FILL_FNS
 from justdoit.fonts.builtin.block import BLOCK
@@ -269,6 +269,90 @@ def test_fractal_fill_invalid_preset():
 def test_fractal_fill_via_render():
     """render(fill='fractal') works end-to-end without error."""
     result = render("HI", font="block", fill="fractal")
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+# -------------------------------------------------------------------------
+# Voronoi fill — F07
+
+def test_voronoi_fill_shape():
+    """voronoi_fill preserves row/col shape and exterior cells are spaces."""
+    result = voronoi_fill(_SIMPLE_MASK)
+    assert len(result) == 3
+    assert len(result[0]) == 4
+    assert result[0][3] == " "   # exterior
+    assert result[1][2] == " "   # exterior
+    assert result[2][1] == " "   # exterior
+
+
+def test_voronoi_fill_output_type():
+    """voronoi_fill returns a list of strings."""
+    result = voronoi_fill(_MASK_A)
+    assert isinstance(result, list)
+    assert all(isinstance(row, str) for row in result)
+
+
+def test_voronoi_fill_dimensions():
+    """voronoi_fill row count and col width match mask dimensions."""
+    result = voronoi_fill(_MASK_A)
+    assert len(result) == len(_MASK_A)
+    assert all(len(row) == len(_MASK_A[0]) for row in result)
+
+
+def test_voronoi_fill_nonempty_interior():
+    """voronoi_fill produces at least one non-space character for a real glyph."""
+    result = voronoi_fill(_MASK_A)
+    assert any(ch != " " for row in result for ch in row)
+
+
+def test_voronoi_fill_seeded_reproducible():
+    """Same seed produces identical output (deterministic)."""
+    r1 = voronoi_fill(_MASK_A, seed=99)
+    r2 = voronoi_fill(_MASK_A, seed=99)
+    assert r1 == r2
+
+
+def test_voronoi_fill_different_seeds_vary():
+    """Different seeds produce different outputs."""
+    r1 = voronoi_fill(_MASK_A, seed=1)
+    r2 = voronoi_fill(_MASK_A, seed=2)
+    # Not guaranteed to differ for every glyph, but almost always will
+    assert r1 != r2
+
+
+def test_voronoi_fill_presets():
+    """All named presets produce valid output on a real glyph mask."""
+    for preset in ("default", "cracked", "fine", "coarse", "cells"):
+        result = voronoi_fill(_MASK_A, preset=preset, seed=42)
+        assert len(result) == len(_MASK_A), f"preset={preset}: wrong row count"
+        assert all(len(row) == len(_MASK_A[0]) for row in result), f"preset={preset}: col mismatch"
+        assert any(ch != " " for row in result for ch in row), f"preset={preset}: all spaces"
+
+
+def test_voronoi_fill_invalid_preset():
+    """voronoi_fill raises ValueError for unknown preset."""
+    with pytest.raises(ValueError):
+        voronoi_fill(_MASK_A, preset="nonsense")
+
+
+def test_voronoi_fill_empty_mask():
+    """voronoi_fill handles all-zero mask gracefully."""
+    empty = [[0.0, 0.0], [0.0, 0.0]]
+    result = voronoi_fill(empty)
+    assert result == ["  ", "  "]
+
+
+def test_voronoi_fill_n_seeds_override():
+    """n_seeds parameter overrides auto-scaling."""
+    result = voronoi_fill(_MASK_A, n_seeds=4, seed=42)
+    assert len(result) == len(_MASK_A)
+    assert any(ch != " " for row in result for ch in row)
+
+
+def test_voronoi_fill_via_render():
+    """render(fill='voronoi') works end-to-end without error."""
+    result = render("HI", font="block", fill="voronoi")
     assert isinstance(result, str)
     assert len(result) > 0
 
