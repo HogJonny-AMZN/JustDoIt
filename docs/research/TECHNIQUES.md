@@ -40,6 +40,7 @@ Techniques for generating or importing new glyph sets.
 | G07 | Half-block Font | Unicode half-block chars (▀▄) for 2x vertical resolution | 2 | `idea` |
 | G08 | Quadrant Block Font | Unicode quadrant chars (▖▗▘▝) for 2x2 subpixel grid | 3 | `idea` |
 | G09 | GenAI Logo-to-Image → ASCII | AI image gen (DALL-E / SD) → hi-res image → 6D zone char matching via `_get_char_db()` | 5 | `idea` |
+| G10 | Custom PUA Glyph Font | Unicode Private Use Area (U+E000–U+F8FF) + font patching (Terminal Glyph Patcher) to embed custom SVG glyphs — partial-fill blocks, diagonal sub-cell patterns, specialty symbols — usable in terminals running a patched font | 4 | `idea` |
 
 ### C. Spatial Effects
 Geometric transformations applied to the full rasterized grid.
