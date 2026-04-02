@@ -101,6 +101,14 @@ def _curated_entries(text: str) -> list[tuple[str, str, str]]:
         render(text, font="block", fill="turing"))
     add("S-N09-turing-maze",      "N09 — Turing maze (labyrinthine)",
         render(text, font="block", fill="turing"))
+    add("S-F07-voronoi-default",  "F07 — Voronoi fill (default)",
+        render(text, font="block", fill="voronoi"))
+    add("S-F07-voronoi-cracked",  "F07 — Voronoi cracked (stained-glass)",
+        render(text, font="block", fill="voronoi_cracked"))
+    add("S-F07-voronoi-fine",     "F07 — Voronoi fine (dense cells)",
+        render(text, font="block", fill="voronoi_fine"))
+    add("S-F07-voronoi-coarse",   "F07 — Voronoi coarse (large cells)",
+        render(text, font="block", fill="voronoi_coarse"))
 
     # Composition
     add("S-F02-noise-radial",     "F02+C02 — Noise fill + radial gradient",

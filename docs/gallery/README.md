@@ -6,7 +6,7 @@ Run `python scripts/demo.py --gallery` to regenerate.
 ## Contents
 
 - [Fonts (4)](#fonts)
-- [Fill Effects (11)](#fill-effects)
+- [Fill Effects (15)](#fill-effects)
 - [Color Effects (8)](#color-effects)
 - [Spatial & 3D (8)](#spatial--3d)
 - [Daily Techniques (1)](#daily-techniques)
@@ -49,6 +49,14 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 <tr>
 <td align="center"><img src="S-F07-shape-fill.svg" width="480"><br><sub><b>F07 — Shape Fill</b></sub></td>
+<td align="center"><img src="S-F07-voronoi-coarse.svg" width="480"><br><sub><b>F07 — Voronoi Coarse</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-F07-voronoi-cracked.svg" width="480"><br><sub><b>F07 — Voronoi Cracked</b></sub></td>
+<td align="center"><img src="S-F07-voronoi-default.svg" width="480"><br><sub><b>F07 — Voronoi Default</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-F07-voronoi-fine.svg" width="480"><br><sub><b>F07 — Voronoi Fine</b></sub></td>
 <td align="center"><img src="S-F09-wave-default.svg" width="480"><br><sub><b>F09 — Wave Default</b></sub></td>
 </tr>
 <tr>
@@ -112,4 +120,4 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 </table>
 
-*Last updated: 2026-03-30 — 35 techniques*
+*Last updated: 2026-04-02 — 39 techniques*
