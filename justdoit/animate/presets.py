@@ -932,3 +932,65 @@ def neon_glitch(
                 state = "full"
             frame_lines.append(_apply_neon_color(line, color, state, rng))
         yield "\n".join(frame_lines)
+
+
+# -------------------------------------------------------------------------
+# Plasma Wave animation — A10
+#
+# Sweeps the plasma sin-field time parameter t from 0 → 2π, yielding
+# frames where the character density pattern inside each glyph morphs
+# smoothly through one full plasma cycle. Each frame is re-rendered with
+# a fresh plasma fill at the new t value.
+#
+# Novelty vs asciimatics Plasma: (1) drives character *density selection*,
+# not color; (2) confined to the glyph mask, not the full terminal;
+# (3) bidirectional (forward then reverse) for seamless loop.
+#
+
+
+def plasma_wave(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 36,
+    preset: str = "default",
+    color: Optional[str] = None,
+    loop: bool = True,
+) -> Iterator[str]:
+    """Plasma Wave animation — demoscene sin-field drives char density inside glyph mask (A10).
+
+    Re-renders the text at each frame with a time-varying plasma fill, sweeping
+    the phase parameter ``t`` from 0 → 2π (one full plasma cycle). The letterforms
+    pulse and morph organically as the sinusoidal field evolves.
+
+    This preset accepts the *plain text string* (not a pre-rendered frame) because
+    it must re-render with different fill parameters each frame.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Number of frames for one half-cycle (default 36). Full animation
+        is 2×n_frames when loop=True (forward + reverse for seamless loop).
+    :param preset: Plasma preset name — 'default', 'tight', 'slow', 'diagonal'.
+    :param color: Optional ANSI color name applied after fill (e.g. 'cyan', 'magenta').
+    :param loop: If True, yield forward then reverse frames for a seamless loop (default True).
+    :returns: Iterator of frame strings.
+    """
+    import math as _math
+    from justdoit.core.rasterizer import render as _render
+
+    TWO_PI = 2.0 * _math.pi
+
+    # Generate t values for one forward sweep [0, 2π)
+    t_values = [TWO_PI * i / n_frames for i in range(n_frames)]
+    if loop:
+        # Append reverse sweep to create a seamless forward-back loop
+        t_values = t_values + list(reversed(t_values))
+
+    for t_val in t_values:
+        frame = _render(
+            text_plain,
+            font=font,
+            color=color,
+            fill="plasma",
+            fill_kwargs={"t": t_val, "preset": preset},
+        )
+        yield frame

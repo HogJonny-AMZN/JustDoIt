@@ -2475,3 +2475,170 @@ def voronoi_fill(
         result.append(line)
 
     return result
+
+
+# -------------------------------------------------------------------------
+# Plasma Wave fill — A10
+#
+# Classic demoscene plasma effect applied to character density selection
+# inside the glyph mask. Four sinusoidal waves (along x, y, x+y, and
+# radial distance) interfere to produce the characteristic organic plasma
+# field. Novelty over asciimatics Plasma: (1) drives *character selection*
+# instead of color, (2) confined to the glyph mask shape.
+#
+# Algorithm:
+#   For each ink cell at normalised position (x, y) ∈ [0,1]²:
+#     v = sin(2π·f1·x + t)
+#       + sin(2π·f2·y + t·1.3)
+#       + sin(2π·f3·(x+y) + t·0.7)
+#       + sin(2π·f4·√(x²+y²) + t·0.9)
+#   v ∈ [-4, 4] is normalised to [0,1] and mapped to density chars.
+#   The time parameter t ∈ [0, 2π] enables smooth animation.
+#
+# Reference: Classic demoscene plasma — see Rosetta Code "Plasma effect";
+#   Asciimatics Plasma renderer (color-only, no glyph masking — prior art
+#   to the color component only); JustDoIt novelty is char selection + mask.
+#
+
+_PLASMA_PRESETS: dict = {
+    "default":  {"freq1": 1.5, "freq2": 2.0, "freq3": 1.0, "freq4": 1.2},
+    "tight":    {"freq1": 3.0, "freq2": 4.0, "freq3": 2.0, "freq4": 2.5},
+    "slow":     {"freq1": 0.8, "freq2": 1.0, "freq3": 0.5, "freq4": 0.6},
+    "diagonal": {"freq1": 2.0, "freq2": 2.0, "freq3": 3.0, "freq4": 0.5},
+}
+
+
+# -------------------------------------------------------------------------
+def plasma_fill(
+    mask: list,
+    t: float = 0.0,
+    freq1: float = 1.5,
+    freq2: float = 2.0,
+    freq3: float = 1.0,
+    freq4: float = 1.2,
+    preset: str = "default",
+    density_chars: Optional[str] = None,
+) -> list:
+    """Fill glyph mask with a plasma sin-field driving character density selection (A10).
+
+    Classic demoscene plasma formula — four sinusoidal waves along x, y, x+y,
+    and the radial distance from the bounding-box centre interfere to produce
+    organic plasma patterns. The plasma value drives *character selection* inside
+    the glyph mask; the time parameter ``t`` enables smooth frame-by-frame
+    animation by shifting all wave phases simultaneously.
+
+    Named presets (override individual freq params when specified):
+
+      "default"  — freq1=1.5, freq2=2.0, freq3=1.0, freq4=1.2  (balanced blobs)
+      "tight"    — freq1=3.0, freq2=4.0, freq3=2.0, freq4=2.5  (high freq, fine pattern)
+      "slow"     — freq1=0.8, freq2=1.0, freq3=0.5, freq4=0.6  (large slow blobs)
+      "diagonal" — freq1=2.0, freq2=2.0, freq3=3.0, freq4=0.5  (diagonal stripe bias)
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param t: Time phase offset in radians (0.0–2π for one full cycle, default 0.0).
+    :param freq1: Frequency of horizontal wave (default 1.5, overridden by preset).
+    :param freq2: Frequency of vertical wave (default 2.0, overridden by preset).
+    :param freq3: Frequency of diagonal wave (default 1.0, overridden by preset).
+    :param freq4: Frequency of radial wave (default 1.2, overridden by preset).
+    :param preset: Named parameter preset; overrides freq1–4 when specified (default 'default').
+    :param density_chars: Darkest-to-lightest character sequence (default: _DENSE).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _PLASMA_PRESETS:
+        raise ValueError(
+            f"Unknown plasma preset '{preset}'. "
+            f"Available: {', '.join(_PLASMA_PRESETS.keys())}"
+        )
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    # Apply preset — overrides individual freq params
+    p = _PLASMA_PRESETS[preset]
+    freq1 = p["freq1"]
+    freq2 = p["freq2"]
+    freq3 = p["freq3"]
+    freq4 = p["freq4"]
+
+    # Strip trailing space from density chars so that minimum-intensity ink cells
+    # still render as a visible character (not a space, which looks like exterior).
+    chars = (density_chars if density_chars is not None else _DENSE).rstrip(" ") or "."
+    n_chars = len(chars)
+
+    # -------------------------------------------------------------------------
+    # Identify ink cells and build bounding box for normalised coordinates
+    ink_cells = [
+        (r, c)
+        for r in range(rows)
+        for c in range(len(mask[r]))
+        if mask[r][c] >= 0.5
+    ]
+    if not ink_cells:
+        return [" " * cols for _ in range(rows)]
+
+    min_r = min(r for r, _ in ink_cells)
+    max_r = max(r for r, _ in ink_cells)
+    min_c = min(c for _, c in ink_cells)
+    max_c = max(c for _, c in ink_cells)
+
+    row_span = max(max_r - min_r, 1)
+    col_span = max(max_c - min_c, 1)
+
+    # -------------------------------------------------------------------------
+    # Evaluate plasma field for every ink cell
+    TWO_PI = 2.0 * math.pi
+    plasma_grid: list = [[0.0] * cols for _ in range(rows)]
+    ink_mask: list = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    ink_vals: list = []
+    for r, c in ink_cells:
+        # Normalised coordinates: x, y ∈ [0, 1]
+        x = (c - min_c) / col_span
+        # Aspect ratio correction: terminal cells are ~2x taller than wide
+        y = ((r - min_r) / row_span) * (row_span / max(col_span, 1)) * 0.5
+
+        # Radial distance from bounding-box centre (normalised, clamped)
+        cx = 0.5
+        cy = 0.5 * (row_span / max(col_span, 1)) * 0.5
+        radial = math.sqrt(max((x - cx) ** 2 + (y - cy) ** 2, 1e-9))
+
+        val = (
+            math.sin(TWO_PI * freq1 * x + t)
+            + math.sin(TWO_PI * freq2 * y + t * 1.3)
+            + math.sin(TWO_PI * freq3 * (x + y) + t * 0.7)
+            + math.sin(TWO_PI * freq4 * radial + t * 0.9)
+        )
+        plasma_grid[r][c] = val
+        ink_vals.append(val)
+
+    # -------------------------------------------------------------------------
+    # Normalise from [-4, +4] → [0, 1] and map to chars
+    v_min = min(ink_vals)
+    v_max = max(ink_vals)
+    v_span = v_max - v_min
+    if v_span < 1e-9:
+        v_span = 1.0
+
+    result = []
+    for r in range(rows):
+        line = ""
+        for c in range(cols):
+            if not ink_mask[r][c]:
+                line += " "
+                continue
+            norm = (plasma_grid[r][c] - v_min) / v_span   # 0.0–1.0
+            norm = max(0.0, min(1.0, norm))
+            idx = int(norm * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += chars[n_chars - 1 - idx]   # high intensity → chars[0] (dense)
+        result.append(line)
+
+    return result

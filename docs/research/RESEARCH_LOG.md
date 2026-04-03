@@ -423,3 +423,30 @@ No changes to the registry — all four topics confirm existing entries. Priorit
 - SDF font rendering: msdfgen (https://github.com/Chlumsky/msdfgen), SDFont (https://github.com/ShoYamanishi/SDFont) — all GPU/shader-based implementations. No pure-Python SDF-to-ASCII terminal font generator found. G04 novelty confirmed.
 **Key insight:** F07 Voronoi Fill is architecturally the simplest geometric fill in the codebase — pure O(R·C·N) nearest-neighbor Voronoi partitioning, no simulation, no iteration, no external state. The key design decision was registering preset variants ("voronoi_cracked", "voronoi_fine", etc.) directly in _FILL_FNS so the gallery can render visually distinct outputs per preset, unlike wave/fractal/turing where all preset gallery entries call the same default. The `invert` flag on the density gradient is the aesthetic differentiator: "default" gives dark seed-centers fading to light (spotlight look), while "cracked" gives light centers with dark edges (cracked-earth / stained-glass look). Seed auto-scaling via sqrt(interior) * n_factor ensures sensible cell density independent of glyph resolution.
 **Priority queue update:** F07 complete. Next priority queue: A11 (Transporter Materialize — novelty 5, multi-session) at #1, G04 (SDF Font Generator — novelty 5, achievable single-session) at #2, A10 (Plasma Wave Animation — novelty 4) at #3. Recommend G04 next if doing a single-session pick — it generates letterforms from SDF computation on existing font bitmaps, no new font geometry needed. A10 is the right pick for an animation-focused session.
+
+## Session 2026-04-03
+
+**Research focus:** Demoscene plasma effect for ASCII character density selection; web search unavailable, working from prior knowledge of plasma formula literature.
+**New techniques found:** 0 new (web search unavailable; A10 was already registered; session implemented it from prior knowledge of the classic demoscene plasma formula)
+**Sources:** Classic demoscene plasma — sum of multiple sinusoids at different frequencies/phases, documented extensively on Rosetta Code (https://rosettacode.org/wiki/Plasma_effect) and in demoscene tutorials; Asciimatics Plasma renderer (https://asciimatics.readthedocs.io/en/stable/asciimatics.renderers.html) — prior art to color-only plasma, confirmed non-overlapping with A10's char-selection approach. Prior knowledge of the canonical formula: sin(x*f) + sin(y*f) + sin((x+y)*f) + sin(sqrt(x²+y²)*f).
+**Key insight:** The A10 novelty is cleanly separable from asciimatics: (1) the plasma field drives *character density selection* (`@#S%?*+;:,.`) not color, (2) the effect is glyph-mask-confined — only ink cells show the plasma pattern. The time parameter `t` shifts all four wave phases simultaneously, creating smooth animation. The implementation required one important detail: the `_DENSE` constant ends with a space character, so minimum-intensity ink cells were silently rendered as exterior spaces — fixed by `.rstrip(" ")` on the density char string before mapping. The `fill_kwargs` render() parameter was added as a side effect of this implementation, enabling any fill function to accept time-varying parameters from the render API.
+**Priority queue update:** A10 complete. Updated priority queue:
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | Flame Simulation | A08 | 4 | `idea` |
+| 4 | Living Fill (CA animated) | A06 | 5 | `idea` |
+| 5 | Chromatic Aberration | C08 | 5 | `idea` |
+| 6 | Stipple Fill | F08 | 3 | `idea` |
+
+**Implementation notes:**
+- `plasma_fill(mask, t, freq1, freq2, freq3, freq4, preset, density_chars)` in `justdoit/effects/generative.py`
+- 4 presets: default/tight/slow/diagonal (freq1–4 vary)
+- Registered as "plasma", "plasma_tight", "plasma_slow", "plasma_diagonal" in `_FILL_FNS`
+- `plasma_wave(text_plain, font, n_frames, preset, color, loop)` animation preset in `justdoit/animate/presets.py` — takes plain text, re-renders at each frame with different t
+- `fill_kwargs` parameter added to `render()` in `justdoit/core/rasterizer.py` — enables any fill to accept time-varying or extra params
+- 18 new tests (test_generative.py) — all 413 passing
+- 4 new static gallery SVGs (docs/gallery/): S-A10-plasma-default, S-A10-plasma-tight, S-A10-plasma-slow, S-A10-plasma-diagonal
+- 2 new animation files (docs/anim_gallery/): A10-plasma-wave.cast/.apng, A10b-plasma-wave-cyan.cast/.apng (72 frames each @ 12fps, seamless loop)

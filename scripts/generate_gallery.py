@@ -110,6 +110,16 @@ def _curated_entries(text: str) -> list[tuple[str, str, str]]:
     add("S-F07-voronoi-coarse",   "F07 — Voronoi coarse (large cells)",
         render(text, font="block", fill="voronoi_coarse"))
 
+    # A10 — Plasma Wave fill
+    add("S-A10-plasma-default",   "A10 — Plasma Wave (default)",
+        render(text, font="block", fill="plasma"))
+    add("S-A10-plasma-tight",     "A10 — Plasma tight (high freq)",
+        render(text, font="block", fill="plasma_tight"))
+    add("S-A10-plasma-slow",      "A10 — Plasma slow (large blobs)",
+        render(text, font="block", fill="plasma_slow"))
+    add("S-A10-plasma-diagonal",  "A10 — Plasma diagonal (stripe bias)",
+        render(text, font="block", fill="plasma_diagonal"))
+
     # Composition
     add("S-F02-noise-radial",     "F02+C02 — Noise fill + radial gradient",
         radial_gradient(render(text, font="block", fill="noise"), parse_color("cyan"), parse_color("blue")))

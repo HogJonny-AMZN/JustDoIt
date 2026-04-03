@@ -131,10 +131,11 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
+    text_plain = _TEXT  # plain text for presets that re-render each frame (e.g. plasma_wave)
 
     return [
         {
@@ -290,6 +291,22 @@ def _build_showcase() -> list[dict]:
             "name": "density-dissolve",
             "label": "density-dissolve-cyan",
             "frames": lambda: list(density_dissolve(text, n_frames=36, direction="loop", color="cyan", seed=7)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A10",
+            "name": "plasma-wave",
+            "label": "plasma-wave",
+            "frames": lambda: list(plasma_wave(text_plain, n_frames=36, preset="default", loop=True)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A10b",
+            "name": "plasma-wave",
+            "label": "plasma-wave-cyan",
+            "frames": lambda: list(plasma_wave(text_plain, n_frames=36, preset="tight", color="cyan", loop=True)),
             "fps": 12.0,
             "loop": True,
         },
