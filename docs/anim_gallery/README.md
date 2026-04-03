@@ -1,6 +1,6 @@
 # Animation Gallery
 
-Auto-generated 2026-03-30 — do not edit manually.
+Auto-generated 2026-04-03 — do not edit manually.
 Run `uv run python scripts/generate_anim_gallery.py` to regenerate.
 
 Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
@@ -159,3 +159,19 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 | Variant | Preview | Terminal |
 |---------|---------|----------|
 | density-dissolve-cyan | ![density-dissolve-cyan](A05e-density-dissolve-cyan.apng) | [▶ terminal](A05e-density-dissolve-cyan.cast) |
+
+## A10 — Plasma-Wave
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-wave | ![plasma-wave](A10-plasma-wave.apng) | [▶ terminal](A10-plasma-wave.cast) |
+
+## A10b — Plasma-Wave
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-wave-cyan | ![plasma-wave-cyan](A10b-plasma-wave-cyan.apng) | [▶ terminal](A10b-plasma-wave-cyan.cast) |

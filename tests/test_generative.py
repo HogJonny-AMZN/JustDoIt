@@ -364,3 +364,163 @@ def test_fill_registry_contains_noise_and_cells():
     """_FILL_FNS must contain 'noise' and 'cells' keys."""
     assert "noise" in _FILL_FNS
     assert "cells" in _FILL_FNS
+
+
+# =============================================================================
+# A10 — Plasma Wave Fill tests
+# =============================================================================
+
+from justdoit.effects.generative import plasma_fill
+
+
+def test_plasma_fill_basic():
+    """plasma_fill returns correct shape with all-ink mask."""
+    mask = [[1.0, 1.0, 0.0], [1.0, 1.0, 0.0]]
+    result = plasma_fill(mask)
+    assert len(result) == 2
+    assert all(len(r) == 3 for r in result)
+    # Exterior cells (mask < 0.5) must be spaces
+    assert result[0][2] == " "
+    assert result[1][2] == " "
+
+
+def test_plasma_fill_exterior_is_space():
+    """plasma_fill outputs space for all cells where mask < 0.5."""
+    mask = [[0.0, 1.0, 0.0], [1.0, 0.0, 1.0]]
+    result = plasma_fill(mask)
+    assert result[0][0] == " "
+    assert result[0][2] == " "
+    assert result[1][1] == " "
+
+
+def test_plasma_fill_ink_not_space():
+    """plasma_fill outputs non-space chars for ink cells (mask >= 0.5)."""
+    mask = [[1.0] * 5 for _ in range(4)]
+    result = plasma_fill(mask)
+    for row in result:
+        for ch in row:
+            assert ch != " "
+
+
+def test_plasma_fill_time_varies():
+    """Different t values produce different fills (animated plasma)."""
+    mask = [[1.0] * 6 for _ in range(4)]
+    r1 = plasma_fill(mask, t=0.0)
+    r2 = plasma_fill(mask, t=1.5)
+    # t shifts phase — output should differ
+    assert r1 != r2
+
+
+def test_plasma_fill_t_produces_variation():
+    """t at different points in the cycle produces varied output.
+
+    The plasma formula uses different phase multipliers for each wave
+    (t, t*1.3, t*0.7, t*0.9), so the *combined* period is longer than 2π.
+    We verify that across the range [0, 3π] we see at least 3 distinct frames.
+    """
+    import math
+    mask = [[1.0] * 6 for _ in range(4)]
+    t_values = [0.0, math.pi * 0.5, math.pi, math.pi * 1.5, math.pi * 2.0, math.pi * 3.0]
+    frames = [tuple(plasma_fill(mask, t=t)) for t in t_values]
+    unique = set(frames)
+    assert len(unique) >= 3, f"Expected ≥3 distinct frames, got {len(unique)}"
+
+
+def test_plasma_fill_presets():
+    """All named presets render without error."""
+    mask = [[1.0] * 6 for _ in range(4)]
+    for preset in ["default", "tight", "slow", "diagonal"]:
+        result = plasma_fill(mask, preset=preset)
+        assert len(result) == 4
+        assert all(len(r) == 6 for r in result)
+
+
+def test_plasma_fill_unknown_preset():
+    """Unknown preset raises ValueError."""
+    import pytest
+    with pytest.raises(ValueError, match="Unknown plasma preset"):
+        plasma_fill([[1.0]], preset="nonexistent")
+
+
+def test_plasma_fill_empty_mask():
+    """plasma_fill handles all-zero mask gracefully."""
+    empty = [[0.0, 0.0], [0.0, 0.0]]
+    result = plasma_fill(empty)
+    assert result == ["  ", "  "]
+
+
+def test_plasma_fill_single_cell():
+    """plasma_fill handles single-cell ink mask."""
+    result = plasma_fill([[1.0]])
+    assert len(result) == 1
+    assert len(result[0]) == 1
+    assert result[0][0] != " "
+
+
+def test_plasma_via_render():
+    """render(fill='plasma') works end-to-end."""
+    result = render("HI", font="block", fill="plasma")
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+def test_plasma_tight_via_render():
+    """render(fill='plasma_tight') works end-to-end."""
+    result = render("HI", font="block", fill="plasma_tight")
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+def test_plasma_slow_via_render():
+    """render(fill='plasma_slow') works end-to-end."""
+    result = render("HI", font="block", fill="plasma_slow")
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+def test_plasma_diagonal_via_render():
+    """render(fill='plasma_diagonal') works end-to-end."""
+    result = render("HI", font="block", fill="plasma_diagonal")
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+def test_plasma_fill_kwargs_via_render():
+    """render(fill='plasma', fill_kwargs={'t': 1.0}) passes t to plasma_fill."""
+    r1 = render("HI", font="block", fill="plasma", fill_kwargs={"t": 0.0})
+    r2 = render("HI", font="block", fill="plasma", fill_kwargs={"t": 1.5})
+    # Different t → different output
+    assert r1 != r2
+
+
+def test_plasma_wave_animation():
+    """plasma_wave preset yields correct number of frames."""
+    from justdoit.animate.presets import plasma_wave
+    frames = list(plasma_wave("HI", font="block", n_frames=6, loop=False))
+    assert len(frames) == 6
+    assert all(isinstance(f, str) for f in frames)
+    assert all(len(f) > 0 for f in frames)
+
+
+def test_plasma_wave_animation_loop():
+    """plasma_wave with loop=True yields 2×n_frames frames."""
+    from justdoit.animate.presets import plasma_wave
+    frames = list(plasma_wave("HI", font="block", n_frames=6, loop=True))
+    assert len(frames) == 12
+
+
+def test_plasma_wave_animation_varies():
+    """plasma_wave yields frames that differ (plasma is actually animating)."""
+    from justdoit.animate.presets import plasma_wave
+    frames = list(plasma_wave("HI", font="block", n_frames=6, loop=False))
+    # Not all frames should be identical
+    unique_frames = set(frames)
+    assert len(unique_frames) > 1
+
+
+def test_fill_registry_contains_plasma():
+    """_FILL_FNS must contain plasma keys."""
+    assert "plasma" in _FILL_FNS
+    assert "plasma_tight" in _FILL_FNS
+    assert "plasma_slow" in _FILL_FNS
+    assert "plasma_diagonal" in _FILL_FNS
