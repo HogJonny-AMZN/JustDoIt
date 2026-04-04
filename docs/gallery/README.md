@@ -117,14 +117,10 @@ Run `python scripts/demo.py --gallery` to regenerate.
 <table>
 <tr>
 <td align="center"><img src="2026-04-04-A08.svg" width="480"><br><sub><b>2026-04-04 · A08</b></sub></td>
-</tr>
-<tr>
 <td align="center"><img src="2026-04-03-A10.svg" width="480"><br><sub><b>2026-04-03 · A10</b></sub></td>
 </tr>
 <tr>
 <td align="center"><img src="2026-04-02-F07.svg" width="480"><br><sub><b>2026-04-02 · F07</b></sub></td>
-</tr>
-<tr>
 <td align="center"><img src="2026-03-30-N09.svg" width="480"><br><sub><b>2026-03-30 · N09</b></sub></td>
 </tr>
 <tr>
