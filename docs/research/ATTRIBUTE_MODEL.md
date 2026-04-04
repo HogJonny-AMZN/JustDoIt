@@ -159,7 +159,77 @@ Once C11 exists, every fill gets a free color dimension:
 | noise + thermal_palette | heat map of a terrain |
 | rd + chem_palette | chemical reaction visualization |
 
-### 4c — Light model axes (future)
+### 4c — The dual-channel insight (foreground + background)
+
+Each terminal cell has TWO independent color channels. JustDoIt currently
+uses only one:
+
+| Channel | ANSI code | Current use | Opportunity |
+|---------|-----------|-------------|-------------|
+| Foreground | `\033[38;2;r;g;bm` | fill color, gradients | already used |
+| Background | `\033[48;2;r;g;bm` | **completely unused** | bloom, glow, halo |
+
+A space character with a bright background color is a **pure light-emitting cell**
+— no glyph, just emitted light. This is the bloom medium.
+
+A character with a dim background and a bright foreground reads as a cell inside
+a lit volume. This is ambient lighting / depth cueing.
+
+### 4d — C12: Bloom / Exterior Glow (new territory)
+
+Bloom = bright foreground pixels above a threshold bleed spatially into
+surrounding space cells via their background color channel.
+
+**Algorithm:**
+
+```
+1. Identify ink cells (mask >= 0.5)
+2. Compute outward SDF: for each space cell, dist = min distance to nearest ink cell
+3. For each space cell where dist <= bloom_radius:
+     intensity = exp(-dist * falloff_rate)  # exponential decay
+     bloom_color = lerp(glyph_color, black, 1 - intensity)
+     write \033[48;2;r;g;bm + " " to that cell
+4. For ink cells: optionally boost foreground brightness based on fill float
+   (the "core" — simulates the bright center of a light source)
+```
+
+**Bloom color source options:**
+- Fixed color (e.g. always orange for fire theme)
+- Nearest ink cell's foreground color (spatially correct, more complex)
+- Fill float value of nearest ink cell (physically motivated)
+- Constant per-preset (simplest, most controllable)
+
+**What it produces:**
+- Neon text: glowing colored halo in surrounding space
+- Flame fill: fire that lights the air around the letters
+- Plasma fill: pulsing light that bleeds outward as the field peaks
+- Any colored fill: letters appear to emit light into the terminal
+
+**This is completely unexplored in ASCII art tooling.** No existing library
+(asciimatics, aalib, jp2a, blessed, textual) uses background color for spatial
+light bleeding. Patent-flag candidate.
+
+### 4e — C13: HDR Tone Mapping
+
+Replaces the linear float→char mapping inside fill functions with a named
+tone curve. Applied as a post-step before char selection.
+
+| Curve | Formula | Visual character |
+|-------|---------|-----------------|
+| `linear` | `t_out = t_in` | current behavior, reference |
+| `reinhard` | `t_out = t_in / (1 + t_in)` | soft rolloff, shadow detail preserved |
+| `aces` | approx. polynomial | punchy mids, cinematic highlights, industry standard |
+| `blown_out` | `t_out = 1.0 if t_in > threshold else t_in / threshold` | values above threshold → densest char (`@`/`█`), simulates overexposure |
+
+Most impactful on fills with high dynamic range (flame, plasma, fractal).
+With `blown_out`, the hot core of a flame becomes solid `@` while the
+cooling outer cells retain density variation — distinctly different look from
+the current soft gradient.
+
+**Implementation:** ~15 lines. Add `tone_curve` param to fill functions or
+apply as a pre-processing step on the fill float grid before char mapping.
+
+### 4f — Light model axes (future)
 
 | Concept | Description | Depends on |
 |---------|-------------|-----------|
@@ -168,7 +238,7 @@ Once C11 exists, every fill gets a free color dimension:
 | Specular highlight | bright spot that moves per frame | any spatial output |
 | Ambient occlusion | darkening at char density clusters | fill float |
 | Chromatic aberration | RGB channels offset slightly | post-process |
-| Phosphor glow | CRT green/amber bloom | post-process |
+| Phosphor glow | CRT green/amber bloom | C12 + green palette |
 | Scanline shading | alternating dim/bright rows | post-process |
 
 ---
@@ -251,6 +321,15 @@ FONT shape  ──→  FILL behavior        [SDF font → smoother masks → smo
 | X_TURING_BIO | turing + bio_palette | leopard/zebra coat colors |
 | X_FRACTAL_CLASSIC | fractal + escape_palette | classic Mandelbrot color bands |
 
+### Needs C12 (bloom infrastructure)
+
+| ID | Combination | Visual interest | Notes |
+|----|-------------|----------------|-------|
+| X_NEON_BLOOM | neon fill + C12 bloom | tension=5 emerge=4 distinct=5 wow=5 → 19 | Neon chars glow into surrounding space. Neon color defines bloom hue. Minimal exterior radius (2–3 cells). |
+| X_FLAME_BLOOM | flame fill + C12 bloom + C13 blown_out | tension=5 emerge=5 distinct=5 wow=5 → 20 | Hot core blows out to solid chars; bloom bleeds orange light into surrounding space. Fire that lights the air. Highest-score combo in catalog. |
+| X_PLASMA_BLOOM | plasma fill + C12 bloom | tension=4 emerge=4 distinct=5 wow=4 → 17 | Bloom radius oscillates with plasma field value — exterior glow breathes with the wave. |
+| A_BLOOM1 | C12 bloom radius + sin animation | tension=4 emerge=4 distinct=5 wow=5 → 18 | Bloom breathes in/out around any fill. Combined with flame interior: pulsing fire halo. |
+
 ### Needs new infrastructure
 
 | ID | Combination | Infra needed |
@@ -268,6 +347,7 @@ FONT shape  ──→  FILL behavior        [SDF font → smoother masks → smo
 |----|-------------|-------------|
 | X_PLASMA_ISO | plasma fill + iso extrude + C11 | 3D block letters with lava-lamp interior AND Z-depth color on faces |
 | X_FLAME_ISO | flame fill + iso extrude + A08c color | burning 3D letters, hot base white, tips red, depth face ember-shaded |
+| X_FLAME_ISO_BLOOM | flame fill + iso extrude + C12 bloom | **flagship**: burning 3D letters that light the surrounding space. Depth face is ember-shaded; exterior cells glow orange from bloom falloff. Three axes: fill, spatial, light. |
 | X_TURING_WARP | turing spots/stripes modulate sine_warp phase per row | letters warp in the pattern of their own skin |
 | X_RD_PLASMA | reaction-diffusion fill spatially modulated by plasma field | two generative systems layered, plasma shapes where RD can grow |
 | X_FRACTAL_ZOOM_ANIM | fractal fill + zoom animation + C11 escape bands | zoom into Mandelbrot live inside letterforms, colored |
@@ -296,13 +376,17 @@ that no other technique has. Each face can be treated independently.
 
 Based on implementation cost vs novelty payoff:
 
-1. **C11** — fill-float → per-cell color infrastructure. Unlocks 6+ techniques.
-2. **A_F09a** — wave phase animation. Nearly free. Do in same session as C11 warmup.
-3. **A08c** — flame gradient color. First C11 consumer. Validates the infra.
-4. **A_N09a** — Turing morphogenesis animation. Standalone, highest novelty.
-5. **A_ISO1** — isometric depth animation. Short, makes S03 come alive.
-6. **A08d** — plasma-modulated flame. Needs fill-float→fill-param coupling. Most novel cross-breed.
-7. **X_ISO_FLAME** — burning 3D letters. Needs per-face fill routing + C11. Flagship visual.
+1. **C11** — fill-float → per-cell color. Unlocks 6+ C11-gated combos. ~40 lines.
+2. **C12** — bloom / exterior glow via background color channel. Unlocks 4+ bloom combos. ~60 lines. **Patent-flag before shipping.**
+3. **C13** — HDR tone mapping curves inside fills. ~15 lines. Pairs with C12 for maximum impact.
+4. **A_F09a** — wave phase animation. ~20 lines. Near-free warmup before a heavier session.
+5. **A08c** — flame gradient + sin-wave color. First C11 consumer. Validates infra.
+6. **X_NEON_BLOOM** — neon + C12. First C12 consumer. Score 19/20.
+7. **X_FLAME_BLOOM** — flame + C12 + C13 blown_out. Score 20/20. Flagship light effect.
+8. **A_N09a** — Turing morphogenesis animation. Standalone, highest scientific novelty.
+9. **A_ISO1** — isometric depth animation. Short, makes S03 come alive.
+10. **A08d** — plasma-modulated flame. Fill-float→fill-param coupling. Most novel generative cross-breed.
+11. **X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project's flagship composite visual.
 
 ---
 
@@ -328,6 +412,107 @@ the string output + a separately computed float grid, which is how A08c works to
 (derive the palette from row index, not the actual heat values). The "proper" version
 that routes actual fill floats comes later and is the unlock for A08d and the spatial
 modulation family.
+
+---
+
+## C12 Architecture Sketch
+
+This section is a pre-implementation design spec for the bloom effect so the
+implementing session starts with a clear plan rather than designing on the fly.
+
+### The dual-channel opportunity
+
+Every terminal cell has two independent 24-bit color channels:
+- **Foreground** `\033[38;2;r;g;bm` — the ink character color. Currently used.
+- **Background** `\033[48;2;r;g;bm` — the cell background. **Currently unused.**
+
+A space character (`" "`) with a bright background is a pure light-emitting cell.
+No glyph, no density — just a colored rectangle of terminal real estate. This is
+the bloom medium.
+
+### Function signature
+
+```python
+def bloom(
+    text: str,
+    ink_mask: list[list[bool]],
+    bloom_color: tuple[int, int, int],
+    radius: int = 4,
+    falloff: float = 0.9,
+    core_boost: bool = True,
+) -> str:
+    """Apply bloom glow to space cells surrounding ink cells (C12).
+
+    For each space cell within `radius` steps of an ink cell, sets the
+    background color to `bloom_color` attenuated by exponential falloff:
+        intensity = falloff ** distance   (distance in cells, 1-indexed)
+
+    :param text: Multi-line rendered string (may contain existing ANSI).
+    :param ink_mask: 2D bool grid — True where ink cells are (same shape as text grid).
+    :param bloom_color: (r, g, b) tuple for the bloom hue.
+    :param radius: Max cells outward from ink to apply bloom (default 4).
+    :param falloff: Per-cell intensity falloff factor, 0–1 (default 0.9 → ~66% at dist=4).
+    :param core_boost: If True, brighten foreground of ink edge cells slightly (inner glow).
+    :returns: Multi-line string with background ANSI codes on bloom cells.
+    """
+```
+
+### Algorithm (pure Python, no numpy)
+
+```
+1. Parse text grid into (char, fg_color) per cell
+2. Identify ink cells from ink_mask
+3. For each space cell (ink_mask == False):
+     min_dist = min(chebyshev_distance(cell, ink) for ink in ink_cells in radius)
+     if min_dist <= radius:
+         intensity = falloff ** min_dist        # exponential decay
+         r = int(bloom_color[0] * intensity)
+         g = int(bloom_color[1] * intensity)
+         b = int(bloom_color[2] * intensity)
+         write \033[48;2;{r};{g};{b}m + " " + \033[0m
+4. If core_boost: for ink cells adjacent to space cells, brighten fg slightly
+5. Return assembled string
+```
+
+**Performance note:** naive O(space_cells × ink_cells) is acceptable for
+terminal-width text (~80×24 = 1920 cells). If slow, precompute a distance
+transform (BFS from all ink cells simultaneously) — O(cells) instead.
+
+### Bloom color strategies
+
+The simplest and most controllable: pass a fixed `bloom_color` per preset.
+
+| Preset | bloom_color | Notes |
+|--------|------------|-------|
+| fire | (255, 80, 0) | deep orange |
+| neon_cyan | (0, 220, 255) | cyan plasma |
+| neon_magenta | (255, 0, 200) | magenta tube |
+| cold | (100, 150, 255) | cool blue |
+| plasma | derived from current plasma value | varies per frame |
+
+Future extension: per-cell bloom color derived from nearest ink cell's actual
+foreground RGB — spatially accurate but more complex. Implement fixed-color first.
+
+### Output compatibility
+
+The bloom function emits `\033[48;2;...m` background codes and `\033[0m` resets.
+Downstream SVG/PNG exporters in `justdoit/output/` need to handle background
+color tokens — check and extend the tokenizer in `color.py` if needed.
+
+The SVG exporter in `svg.py` currently writes `<rect>` background fills per char
+(check `_bg_color` param) — confirm it handles the background ANSI codes before
+calling bloom a gallery-ready technique. If the SVG exporter can't render it,
+bloom is terminal-only for now and should be flagged as such in TECHNIQUES.md.
+
+### ⚠️ Patent flag
+
+The use of terminal background color channel as a spatial light-bleeding medium
+applied to ASCII art output does not appear in any prior art in:
+- asciimatics, aalib, jp2a, blessed, textual, rich (all checked)
+- Any ASCII art research paper known to us
+
+**Do not commit the C12 implementation to the public repo without flagging
+to Jonny first.** This is a candidate for IP review.
 
 ---
 

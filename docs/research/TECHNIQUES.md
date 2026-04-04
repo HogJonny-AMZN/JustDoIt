@@ -73,6 +73,9 @@ Color systems beyond flat ANSI.
 | C08 | Chromatic Aberration | RGB channels offset slightly | 5 | `idea` |
 | C09 | Scanline Shading | Alternating bright/dim rows (CRT effect) | 3 | `idea` |
 | C10 | Phosphor Glow | Green/amber CRT phosphor palette + bloom simulation | 4 | `idea` |
+| C11 | Fill-Float Color | Infrastructure: per-cell float→RGB color mapping. fill_float_colorize(text, float_grid, palette) → str. Receives the fill's raw float grid before char snapping; maps it through a named palette (FIRE, LAVA, SPECTRAL, BIO). Unlocks A08c, A10c, A_VOR1, A_F09b, X_TURING_BIO, X_FRACTAL_CLASSIC. | 2 | `idea` |
+| C12 | Bloom / Exterior Glow | Post-process: outward SDF from ink cells drives background-color (`\033[48;2;r;g;bm`) on surrounding space cells. Exponential falloff by cell distance (radius 1–6). Bloom color derived from the glyph's own foreground color (flame→orange, neon→cyan, etc.). Background color channel is completely unused in terminal ASCII art — this is new territory. Composable: pipe after any render output. | 5 | `idea` |
+| C13 | HDR Tone Mapping | Replace linear float→char mapping with named tone curves applied inside fill functions: `reinhard` (soft rolloff, shadow detail), `aces` (punchy mids, filmic highlights), `blown_out` (values above threshold → solid block chars, simulates overexposure). Parameter: `tone_curve="linear"|"reinhard"|"aces"|"blown_out"`. ~15 lines; most visually impactful on flame/plasma fills. | 3 | `idea` |
 
 ### E. Animation
 Frame-based terminal animation techniques.
@@ -97,6 +100,7 @@ Frame-based terminal animation techniques.
 | A_F09a | Wave Interference Animation | F09 wave_fill already accepts phase1/phase2 but they're never swept. Animate by stepping both phases 0→2π per frame — moiré bands slide, interference fringes flow. The `moire` preset animated looks like a signal broadcast. ~20 lines, directly analogous to plasma_wave. | 3 | `idea` |
 | A_F09b | Wave Chromatic Interference | F09 + C11: constructive peaks (intensity≈1.0) → one hue (e.g. cyan), destructive troughs (≈0.0) → complementary (red/orange), smooth interpolation between. Moire preset animated with color bands sliding = optical interference experiment. Simple once C11 exists. | 3 | `idea` |
 | A_N09a | Turing Morphogenesis | Animate the *process* of Turing pattern formation: precompute snapshots at steps 100, 200, 400, 800, 1200, 2000, 3000, play as frames. Letterforms appear to grow a coat/skin pattern. Shows genuine morphogenesis — Turing's 1952 theory playing out inside a glyph. Highest novelty animation in the list — nobody is doing this in ASCII art. | 5 | `idea` |
+| A_BLOOM1 | Bloom Pulse | Animation: C12 bloom radius oscillates via sin(t) — the glow breathes in and out around letterforms. Combined with flame fill interior (tone-mapped ACES curve) and fire palette: a burning core with a pulsing light halo. The bloom radius, color saturation, and fill heat all independently driven. Needs C12 + C13 first. | 5 | `idea` |
 
 ### F. Output Targets
 Rendering to non-terminal targets.
