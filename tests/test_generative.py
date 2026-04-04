@@ -524,3 +524,142 @@ def test_fill_registry_contains_plasma():
     assert "plasma_tight" in _FILL_FNS
     assert "plasma_slow" in _FILL_FNS
     assert "plasma_diagonal" in _FILL_FNS
+
+
+# =============================================================================
+# A08 — Flame Simulation tests
+
+def test_flame_fill_basic_dimensions():
+    """flame_fill output has same dimensions as input mask."""
+    from justdoit.effects.generative import flame_fill
+    mask = [
+        [0.0, 1.0, 1.0, 0.0],
+        [0.0, 1.0, 1.0, 0.0],
+        [0.0, 1.0, 1.0, 0.0],
+        [0.0, 1.0, 1.0, 0.0],
+        [0.0, 1.0, 1.0, 0.0],
+    ]
+    result = flame_fill(mask, seed=42)
+    assert len(result) == 5
+    for row in result:
+        assert len(row) == 4
+
+
+def test_flame_fill_exterior_cells_are_spaces():
+    """Exterior cells (mask < 0.5) must be space characters."""
+    from justdoit.effects.generative import flame_fill
+    mask = [
+        [0.0, 1.0, 1.0, 0.0],
+        [0.0, 1.0, 1.0, 0.0],
+        [0.0, 1.0, 1.0, 0.0],
+    ]
+    result = flame_fill(mask, seed=0)
+    for row in result:
+        assert row[0] == " ", "Exterior left cell should be space"
+        assert row[3] == " ", "Exterior right cell should be space"
+
+
+def test_flame_fill_nonempty():
+    """flame_fill produces non-empty output for a solid mask."""
+    from justdoit.effects.generative import flame_fill
+    mask = [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]]
+    result = flame_fill(mask, seed=1)
+    combined = "".join(result).strip()
+    assert combined != ""
+
+
+def test_flame_fill_all_presets():
+    """All four flame presets run without error."""
+    from justdoit.effects.generative import flame_fill
+    mask = [[1.0] * 4 for _ in range(6)]
+    for preset_name in ["default", "hot", "cool", "embers"]:
+        result = flame_fill(mask, preset=preset_name, seed=0)
+        assert len(result) == 6, f"Preset {preset_name} wrong row count"
+        for row in result:
+            assert len(row) == 4
+
+
+def test_flame_fill_bad_preset_raises():
+    """Unknown preset name raises ValueError."""
+    from justdoit.effects.generative import flame_fill
+    import pytest
+    with pytest.raises(ValueError, match="Unknown flame preset"):
+        flame_fill([[1.0]], preset="nonexistent")
+
+
+def test_flame_fill_deterministic_with_seed():
+    """Same seed produces identical output."""
+    from justdoit.effects.generative import flame_fill
+    mask = [[1.0, 1.0, 0.0], [1.0, 1.0, 0.0], [1.0, 1.0, 0.0], [1.0, 1.0, 0.0]]
+    a = flame_fill(mask, seed=99)
+    b = flame_fill(mask, seed=99)
+    assert a == b
+
+
+def test_flame_fill_different_seeds_differ():
+    """Different seeds produce different output."""
+    from justdoit.effects.generative import flame_fill
+    mask = [[1.0] * 6 for _ in range(8)]
+    a = flame_fill(mask, seed=1)
+    b = flame_fill(mask, seed=2)
+    assert a != b, "Different seeds should yield different flame patterns"
+
+
+def test_flame_fill_empty_mask():
+    """Empty mask returns empty list."""
+    from justdoit.effects.generative import flame_fill
+    assert flame_fill([]) == []
+
+
+def test_flame_fill_via_render():
+    """render() with fill='flame' works end-to-end."""
+    out = render("HI", fill="flame")
+    assert len(out) > 0
+
+
+def test_flame_fill_via_render_hot():
+    """render() with fill='flame_hot' works end-to-end."""
+    out = render("HI", fill="flame_hot")
+    assert len(out) > 0
+
+
+def test_flame_fill_via_render_cool():
+    """render() with fill='flame_cool' works end-to-end."""
+    out = render("HI", fill="flame_cool")
+    assert len(out) > 0
+
+
+def test_flame_fill_via_render_embers():
+    """render() with fill='flame_embers' works end-to-end."""
+    out = render("HI", fill="flame_embers")
+    assert len(out) > 0
+
+
+def test_fill_registry_contains_flame():
+    """_FILL_FNS must contain all flame keys."""
+    assert "flame" in _FILL_FNS
+    assert "flame_hot" in _FILL_FNS
+    assert "flame_cool" in _FILL_FNS
+    assert "flame_embers" in _FILL_FNS
+
+
+def test_flame_flicker_animation_frame_count():
+    """flame_flicker yields correct number of frames."""
+    from justdoit.animate.presets import flame_flicker
+    frames = list(flame_flicker("HI", font="block", n_frames=6, loop=True))
+    assert len(frames) == 12
+
+
+def test_flame_flicker_animation_no_loop():
+    """flame_flicker no-loop yields n_frames frames."""
+    from justdoit.animate.presets import flame_flicker
+    frames = list(flame_flicker("HI", font="block", n_frames=8, loop=False))
+    assert len(frames) == 8
+
+
+def test_flame_flicker_animation_varies():
+    """flame_flicker yields frames that differ (flame is actually flickering)."""
+    from justdoit.animate.presets import flame_flicker
+    frames = list(flame_flicker("HI", font="block", n_frames=6, loop=False))
+    unique_frames = set(frames)
+    assert len(unique_frames) > 1, "Flame flicker should produce varied frames"

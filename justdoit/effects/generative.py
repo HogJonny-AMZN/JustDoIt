@@ -52,6 +52,14 @@ Implemented techniques:
                        chemical concentration in front, rotating toward the strongest
                        gradient. The resulting trail map creates organic vein-like
                        networks inside the glyph mask.
+  A08 — flame_fill:    Classic Doom-fire algorithm adapted for ASCII glyph masks.
+                       Bottom rows of the glyph seeded at full heat (1.0); each
+                       simulation step propagates heat upward with small random
+                       lateral drift and random per-cell cooling. After n_steps
+                       iterations the heat field is mapped to density chars —
+                       hot cells (heat ≈ 1.0) → '@#', cooling cells → '+;:,',
+                       fully cooled → '.'. Deterministic with seed parameter.
+                       Named presets: default, hot, cool, embers.
 
 All are pure Python stdlib — no external dependencies.
 """
@@ -2639,6 +2647,158 @@ def plasma_fill(
             idx = int(norm * (n_chars - 1) + 0.5)
             idx = max(0, min(n_chars - 1, idx))
             line += chars[n_chars - 1 - idx]   # high intensity → chars[0] (dense)
+        result.append(line)
+
+    return result
+
+
+# =============================================================================
+# A08 — Flame Simulation
+#
+# Classic Doom-fire algorithm adapted for ASCII glyph masks.
+# Bottom rows seeded as full heat; each step propagates heat upward with
+# random sideways drift and random cooling. Heat value → density char.
+#
+# Reference: Fabien Sanglard "Fire Effect" (2013), fabiensanglard.net/doom_fire_psx/;
+#   original Doom PSX fire effect by id Software; adapted to character-grid fills.
+#
+
+_FLAME_PRESETS: dict = {
+    "default": {"n_steps": 25, "cooling": 0.12},
+    "hot":     {"n_steps": 30, "cooling": 0.06},
+    "cool":    {"n_steps": 20, "cooling": 0.20},
+    "embers":  {"n_steps": 15, "cooling": 0.30},
+}
+
+# Fire chars — hottest first; we use the standard _DENSE but strip trailing space.
+_FLAME_CHARS: str = "@#S%?*+;:,."
+
+
+# -------------------------------------------------------------------------
+def flame_fill(
+    mask: list,
+    preset: str = "default",
+    n_steps: int = 25,
+    cooling: float = 0.12,
+    seed: Optional[int] = None,
+    density_chars: Optional[str] = None,
+) -> list:
+    """Fill glyph mask with a Doom-fire heat simulation (A08).
+
+    Classic PSX Doom fire algorithm adapted for ASCII glyph masks.  The
+    bottom rows of each glyph are seeded at full heat (1.0).  On each
+    simulation step, heat propagates upward with small random lateral drift
+    and random per-cell cooling, producing an organic upward-drifting flame
+    pattern.  After ``n_steps`` iterations the stable pattern is mapped to
+    density characters — hot cells (heat ≈ 1.0) render as ``@#``, cooling
+    cells render as ``+;:,``, and fully cooled cells render as ``.``.
+
+    Named presets:
+
+      "default" — n_steps=25, cooling=0.12  (balanced flame)
+      "hot"     — n_steps=30, cooling=0.06  (tall hot flame, hotter top)
+      "cool"    — n_steps=20, cooling=0.20  (shorter, quick-cooling flame)
+      "embers"  — n_steps=15, cooling=0.30  (low dying embers, mostly dark)
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param preset: Named parameter preset; overrides n_steps/cooling when specified
+        (default 'default').
+    :param n_steps: Number of fire propagation iterations (default 25).
+    :param cooling: Per-step random cooling factor; higher = cooler flame (default 0.12).
+    :param seed: Random seed for deterministic output (default None — random).
+    :param density_chars: Hottest-to-coolest character sequence (default: _FLAME_CHARS).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _FLAME_PRESETS:
+        raise ValueError(
+            f"Unknown flame preset '{preset}'. "
+            f"Available: {', '.join(_FLAME_PRESETS.keys())}"
+        )
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask) if rows > 0 else 0
+    if cols == 0:
+        return []
+
+    # Apply preset — overrides individual params
+    p = _FLAME_PRESETS[preset]
+    n_steps = p["n_steps"]
+    cooling = p["cooling"]
+
+    chars = (density_chars if density_chars is not None else _FLAME_CHARS)
+    # Strip trailing space so minimum-intensity ink cells still render as visible chars
+    chars = chars.rstrip(" ") or "."
+    n_chars = len(chars)
+
+    rng = random.Random(seed)
+
+    # -------------------------------------------------------------------------
+    # Build ink mask (boolean grid)
+    ink: list = [
+        [bool(mask[r][c] >= 0.5) if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    # Identify all ink cells and find the bottom ink rows per column
+    ink_cells = [(r, c) for r in range(rows) for c in range(cols) if ink[r][c]]
+    if not ink_cells:
+        return [" " * cols for _ in range(rows)]
+
+    # -------------------------------------------------------------------------
+    # Initialize heat grid
+    heat: list = [[0.0] * cols for _ in range(rows)]
+
+    # Seed: bottom ink cells get full heat.  "Bottom" = highest row index that is ink.
+    max_ink_row = max(r for r, _ in ink_cells)
+    # Seed bottom 2 rows (max_ink_row and max_ink_row - 1) with full heat
+    seed_rows = {max_ink_row, max_ink_row - 1}
+    for r, c in ink_cells:
+        if r in seed_rows:
+            heat[r][c] = 1.0
+
+    # -------------------------------------------------------------------------
+    # Doom fire propagation — heat moves upward (lower row indices)
+    for _step in range(n_steps):
+        new_heat = [row[:] for row in heat]   # shallow copy each row
+        # Propagate: for each ink cell (except seed rows), compute heat from below
+        for r, c in ink_cells:
+            if r in seed_rows:
+                # Seed rows stay at full heat
+                new_heat[r][c] = 1.0
+                continue
+            # Look at the cell one row below
+            below_r = r + 1
+            if below_r >= rows:
+                continue
+            # Random lateral drift: -1, 0, or 1
+            drift = rng.randint(-1, 1)
+            below_c = c + drift
+            # Clamp drift to valid column and must be an ink cell
+            if below_c < 0 or below_c >= cols or not ink[below_r][below_c]:
+                below_c = c   # no drift if it would exit the glyph
+            if ink[below_r][below_c]:
+                raw = heat[below_r][below_c] - cooling * rng.random()
+                new_heat[r][c] = max(0.0, raw)
+            # else: cell below isn't ink — heat stays as is (preserve edge heat)
+        heat = new_heat
+
+    # -------------------------------------------------------------------------
+    # Map heat → density chars
+    result = []
+    for r in range(rows):
+        line = ""
+        for c in range(cols):
+            if not ink[r][c]:
+                line += " "
+                continue
+            h = max(0.0, min(1.0, heat[r][c]))
+            # h=1.0 → chars[0] (hottest, densest); h=0.0 → chars[-1] (coolest)
+            idx = int((1.0 - h) * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += chars[idx]
         result.append(line)
 
     return result

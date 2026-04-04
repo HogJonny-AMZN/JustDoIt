@@ -994,3 +994,48 @@ def plasma_wave(
             fill_kwargs={"t": t_val, "preset": preset},
         )
         yield frame
+
+
+# -------------------------------------------------------------------------
+def flame_flicker(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 24,
+    preset: str = "default",
+    color: Optional[str] = None,
+    loop: bool = True,
+) -> Iterator[str]:
+    """Flame Flicker animation — Doom-fire simulation flickering inside glyph mask (A08).
+
+    Re-renders the text at each frame with a different random seed, producing a
+    new flame heat pattern per frame.  The result is a natural flickering fire
+    effect — each frame is a statistically independent snapshot of the flame,
+    so the animation never loops identically even when ``loop=True``.
+
+    When ``loop=True``, the frame sequence repeats seamlessly (both directions
+    are identical since each frame is independently random).
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Total number of animation frames (default 24).
+    :param preset: Flame preset name — 'default', 'hot', 'cool', 'embers'.
+    :param color: Optional ANSI color name applied after fill (e.g. 'red', 'yellow').
+    :param loop: If True, append a second copy of frames in reverse for a seamless loop
+        (default True). Total frames = 2×n_frames when loop=True.
+    :returns: Iterator of frame strings.
+    """
+    from justdoit.core.rasterizer import render as _render
+
+    seeds = list(range(n_frames))
+    if loop:
+        seeds = seeds + list(reversed(seeds))
+
+    for frame_seed in seeds:
+        frame = _render(
+            text_plain,
+            font=font,
+            color=color,
+            fill="flame",
+            fill_kwargs={"preset": preset, "seed": frame_seed},
+        )
+        yield frame

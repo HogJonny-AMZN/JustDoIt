@@ -1,6 +1,6 @@
 # Animation Gallery
 
-Auto-generated 2026-04-03 — do not edit manually.
+Auto-generated 2026-04-04 — do not edit manually.
 Run `uv run python scripts/generate_anim_gallery.py` to regenerate.
 
 Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
@@ -175,3 +175,19 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 | Variant | Preview | Terminal |
 |---------|---------|----------|
 | plasma-wave-cyan | ![plasma-wave-cyan](A10b-plasma-wave-cyan.apng) | [▶ terminal](A10b-plasma-wave-cyan.cast) |
+
+## A08 — Flame-Flicker
+
+**48 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| flame-flicker | ![flame-flicker](A08-flame-flicker.apng) | [▶ terminal](A08-flame-flicker.cast) |
+
+## A08b — Flame-Flicker
+
+**48 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| flame-flicker-hot-red | ![flame-flicker-hot-red](A08b-flame-flicker-hot-red.apng) | [▶ terminal](A08b-flame-flicker-hot-red.cast) |

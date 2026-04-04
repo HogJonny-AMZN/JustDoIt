@@ -13,7 +13,7 @@ from justdoit.fonts import FONTS
 from justdoit.effects.color import colorize
 from justdoit.core.glyph import glyph_to_mask
 from justdoit.effects.fill import density_fill, sdf_fill
-from justdoit.effects.generative import noise_fill, cells_fill, truchet_fill, reaction_diffusion_fill, slime_mold_fill, strange_attractor_fill, lsystem_fill, turing_fill, wave_fill, fractal_fill, voronoi_fill, plasma_fill
+from justdoit.effects.generative import noise_fill, cells_fill, truchet_fill, reaction_diffusion_fill, slime_mold_fill, strange_attractor_fill, lsystem_fill, turing_fill, wave_fill, fractal_fill, voronoi_fill, plasma_fill, flame_fill
 from justdoit.effects.shape_fill import shape_fill
 from justdoit.effects.recursive import typographic_recursion
 
@@ -49,6 +49,10 @@ _FILL_FNS: dict = {
     "plasma_tight":    lambda m, **kw: plasma_fill(m, preset="tight", **kw),
     "plasma_slow":     lambda m, **kw: plasma_fill(m, preset="slow", **kw),
     "plasma_diagonal": lambda m, **kw: plasma_fill(m, preset="diagonal", **kw),
+    "flame":           flame_fill,
+    "flame_hot":       lambda m, **kw: flame_fill(m, preset="hot", **kw),
+    "flame_cool":      lambda m, **kw: flame_fill(m, preset="cool", **kw),
+    "flame_embers":    lambda m, **kw: flame_fill(m, preset="embers", **kw),
 }
 
 

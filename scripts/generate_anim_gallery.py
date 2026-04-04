@@ -131,7 +131,7 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
@@ -307,6 +307,22 @@ def _build_showcase() -> list[dict]:
             "name": "plasma-wave",
             "label": "plasma-wave-cyan",
             "frames": lambda: list(plasma_wave(text_plain, n_frames=36, preset="tight", color="cyan", loop=True)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A08",
+            "name": "flame-flicker",
+            "label": "flame-flicker",
+            "frames": lambda: list(flame_flicker(text_plain, n_frames=24, preset="default", loop=True)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A08b",
+            "name": "flame-flicker",
+            "label": "flame-flicker-hot-red",
+            "frames": lambda: list(flame_flicker(text_plain, n_frames=24, preset="hot", color="red", loop=True)),
             "fps": 12.0,
             "loop": True,
         },
