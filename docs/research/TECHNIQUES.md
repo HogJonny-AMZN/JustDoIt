@@ -123,6 +123,17 @@ Synchronized audio output — optional, gracefully degraded if unavailable.
 | SO02 | Transporter Beam Audio | TNG/TOS transporter sound synthesized procedurally — frequency sweep + bandpass noise + reverb tail, synced to A11 materialize animation frames | 5 | `idea` |
 | SO03 | Sound Asset Playback | WAV/OGG file playback via `pygame.mixer` for pre-recorded effects; asset pipeline for bundled sounds | 3 | `idea` |
 
+### L. Layout & Scale Infrastructure
+
+| ID | Name | Description | Novelty | Status |
+|----|------|-------------|---------|--------|
+| L01 | measure() | Pure measurement function: returns (cols, rows) for a given text+font+gap without rendering. Accounts for iso depth, bloom radius, warp amplitude footprints. Foundation for all size-aware features. ~15 lines. | 1 | `idea` |
+| L02 | RenderTarget | Display geometry descriptor: display_w/h, dpi, scaling → cell_size_px(), max_columns(), max_font_pt(), svg_font_size_px(), fit_font_pt(). Named presets: fhd/qhd/4k/5k/ultrawide. ~60 lines. | 1 | `idea` |
+| L03 | fit_text() | Given target_cols, returns longest text prefix that fits + actual width. Accounts for spatial effect footprints. | 1 | `idea` |
+| L04 | Gallery Profiles | Three render tiers: standard (14px SVG, 480px README), wide (28px, 800px), 4k (72px, 1600px). GalleryProfile dataclass + --profile flag on generate_gallery.py. | 1 | `idea` |
+| L05 | CLI Size Flags | --measure (print col/row dims), --target WxH[@Sx] (compute max font pt), --fit N (truncate to N cols), --svg-font-size N. | 1 | `idea` |
+| L06 | render_wrapped() | Word-wrap for ASCII art: break text across multiple 7-row bands. Requires measure() per word. Future feature — do not implement before L01-L03. | 2 | `idea` |
+
 ### H. Pipeline & Composition
 Architectural ideas — not a single technique but a way of combining them at a higher level.
 
