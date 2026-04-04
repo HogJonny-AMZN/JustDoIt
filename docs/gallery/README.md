@@ -6,10 +6,10 @@ Run `python scripts/demo.py --gallery` to regenerate.
 ## Contents
 
 - [Fonts (4)](#fonts)
-- [Fill Effects (7)](#fill-effects)
+- [Fill Effects (15)](#fill-effects)
 - [Color Effects (8)](#color-effects)
 - [Spatial & 3D (8)](#spatial--3d)
-- [Daily Techniques (1)](#daily-techniques)
+- [Daily Techniques (5)](#daily-techniques)
 
 ## Fonts
 
@@ -41,10 +41,26 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 <tr>
 <td align="center"><img src="S-F03-cells-fill.svg" width="480"><br><sub><b>F03 — Cells Fill</b></sub></td>
+<td align="center"><img src="S-F05-fractal-default.svg" width="480"><br><sub><b>F05 — Fractal Default</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-F05-fractal-julia.svg" width="480"><br><sub><b>F05 — Fractal Julia</b></sub></td>
 <td align="center"><img src="S-F06-sdf-fill.svg" width="480"><br><sub><b>F06 — Sdf Fill</b></sub></td>
 </tr>
 <tr>
 <td align="center"><img src="S-F07-shape-fill.svg" width="480"><br><sub><b>F07 — Shape Fill</b></sub></td>
+<td align="center"><img src="S-F07-voronoi-coarse.svg" width="480"><br><sub><b>F07 — Voronoi Coarse</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-F07-voronoi-cracked.svg" width="480"><br><sub><b>F07 — Voronoi Cracked</b></sub></td>
+<td align="center"><img src="S-F07-voronoi-default.svg" width="480"><br><sub><b>F07 — Voronoi Default</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-F07-voronoi-fine.svg" width="480"><br><sub><b>F07 — Voronoi Fine</b></sub></td>
+<td align="center"><img src="S-F09-wave-default.svg" width="480"><br><sub><b>F09 — Wave Default</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-F09-wave-moire.svg" width="480"><br><sub><b>F09 — Wave Moire</b></sub></td>
 </tr>
 </table>
 
@@ -100,8 +116,16 @@ Run `python scripts/demo.py --gallery` to regenerate.
 
 <table>
 <tr>
+<td align="center"><img src="2026-04-04-A08.svg" width="480"><br><sub><b>2026-04-04 · A08</b></sub></td>
+<td align="center"><img src="2026-04-03-A10.svg" width="480"><br><sub><b>2026-04-03 · A10</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="2026-04-02-F07.svg" width="480"><br><sub><b>2026-04-02 · F07</b></sub></td>
+<td align="center"><img src="2026-03-30-N09.svg" width="480"><br><sub><b>2026-03-30 · N09</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="2026-03-29-N01.svg" width="480"><br><sub><b>2026-03-29 · N01</b></sub></td>
 </tr>
 </table>
 
-*Last updated: 2026-03-29 — 28 techniques*
+*Last updated: 2026-04-04 — 50 techniques*

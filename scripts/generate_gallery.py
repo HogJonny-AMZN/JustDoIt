@@ -6,8 +6,10 @@ Run with:
     python scripts/generate_gallery.py
     python scripts/generate_gallery.py --text "HELLO"
     python scripts/generate_gallery.py --index-only   # rebuild README without re-rendering
+    python scripts/generate_gallery.py --profile wide
+    python scripts/generate_gallery.py --profile all
 
-Saves SVGs to docs/gallery/ and regenerates docs/gallery/README.md.
+Saves SVGs to docs/gallery/ (or profile-specific dir) and regenerates README.md.
 Each SVG is self-contained and renders inline on GitHub.
 """
 
@@ -15,22 +17,84 @@ import argparse
 import logging as _logging
 import os
 import sys
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from justdoit.layout import measure
+
 # -------------------------------------------------------------------------
 # module global scope
 _MODULE_NAME = "scripts.generate_gallery"
-__updated__ = "2026-03-27 00:00:00"
-__version__ = "0.1.0"
+__updated__ = "2026-04-04 00:00:00"
+__version__ = "0.2.0"
 __author__ = ["jGalloway"]
 
 _LOGGER = _logging.getLogger(_MODULE_NAME)
 
 GALLERY_DIR = Path(__file__).parent.parent / "docs" / "gallery"
 _GRID_COLS = 2   # columns in the README grid
+
+
+# -------------------------------------------------------------------------
+@dataclass
+class GalleryProfile:
+    """Gallery render tier — controls SVG font size and README thumbnail width.
+
+    :param name: Profile name (standard/wide/4k).
+    :param svg_font_size: Font size in pixels for SVG output.
+    :param readme_img_width: img width in README table cells.
+    :param output_dir: Path to output directory for this profile.
+    :param text: Default render text (default: 'JUST DO IT').
+    """
+    name: str
+    svg_font_size: int
+    readme_img_width: int
+    output_dir: Path
+    text: str = "JUST DO IT"
+
+
+PROFILES: dict[str, "GalleryProfile"] = {
+    "standard": GalleryProfile(
+        name="standard",
+        svg_font_size=14,
+        readme_img_width=480,
+        output_dir=Path(__file__).parent.parent / "docs" / "gallery",
+    ),
+    "wide": GalleryProfile(
+        name="wide",
+        svg_font_size=28,
+        readme_img_width=0,   # natural SVG size — 1103px intrinsic, no downscale
+        output_dir=Path(__file__).parent.parent / "docs" / "gallery-wide",
+    ),
+    "4k": GalleryProfile(
+        name="4k",
+        svg_font_size=72,
+        readme_img_width=0,   # natural SVG size — 2836px intrinsic, no downscale
+        output_dir=Path(__file__).parent.parent / "docs" / "gallery-4k",
+    ),
+}
+
+
+# -------------------------------------------------------------------------
+def _validate_text(text: str, font: str = "block", gap: int = 1) -> None:
+    """Warn if text renders unusually wide; raise if empty output.
+
+    :param text: Text to validate.
+    :param font: Font name (default: 'block').
+    :param gap: Character gap (default: 1).
+    :raises ValueError: If text produces empty output.
+    """
+    cols, _ = measure(text, font=font, gap=gap)
+    if cols == 0:
+        raise ValueError(f"Text {text!r} produces empty output with font {font!r}")
+    if cols > 400:
+        print(
+            f"Warning: {text!r} renders to {cols} columns — SVGs will be very wide.",
+            file=sys.stderr,
+        )
 
 
 # -------------------------------------------------------------------------
@@ -65,6 +129,10 @@ def _curated_entries(text: str) -> list[tuple[str, str, str]]:
     add("S-F07-shape-fill",       "F07 — Shape fill",                 render(text, font="block", fill="shape"))
     add("S-F02-noise-fill",       "F02 — Perlin noise fill",          render(text, font="block", fill="noise"))
     add("S-F03-cells-fill",       "F03 — Cellular automata fill",     render(text, font="block", fill="cells"))
+    add("S-F09-wave-default",     "F09 — Wave interference (default)", render(text, font="block", fill="wave"))
+    add("S-F09-wave-moire",       "F09 — Wave interference (moire)",   render(text, font="block", fill="wave"))
+    add("S-F05-fractal-default",  "F05 — Fractal/Mandelbrot (default)", render(text, font="block", fill="fractal"))
+    add("S-F05-fractal-julia",    "F05 — Fractal/Julia (julia_swirl)", render(text, font="block", fill="fractal"))
 
     # Color effects
     add("S-C01-gradient-horiz",   "C01 — Gradient (horizontal)",
@@ -90,28 +158,45 @@ def _curated_entries(text: str) -> list[tuple[str, str, str]]:
     add("S-S03-iso-neon-warp",    "S03+C03+S01 — Iso + neon + warp",
         sine_warp(per_glyph_palette(isometric_extrude(plain, depth=3), PRESETS["neon"]), amplitude=2.0))
 
+    # Generative simulation fills
+    add("S-N09-turing-stripes",   "N09 — Turing stripes (FHN activator-inhibitor)",
+        render(text, font="block", fill="turing"))
+    add("S-N09-turing-spots",     "N09 — Turing spots",
+        render(text, font="block", fill="turing"))
+    add("S-N09-turing-maze",      "N09 — Turing maze (labyrinthine)",
+        render(text, font="block", fill="turing"))
+    add("S-F07-voronoi-default",  "F07 — Voronoi fill (default)",
+        render(text, font="block", fill="voronoi"))
+    add("S-F07-voronoi-cracked",  "F07 — Voronoi cracked (stained-glass)",
+        render(text, font="block", fill="voronoi_cracked"))
+    add("S-F07-voronoi-fine",     "F07 — Voronoi fine (dense cells)",
+        render(text, font="block", fill="voronoi_fine"))
+    add("S-F07-voronoi-coarse",   "F07 — Voronoi coarse (large cells)",
+        render(text, font="block", fill="voronoi_coarse"))
+
+    # A10 — Plasma Wave fill
+    add("S-A10-plasma-default",   "A10 — Plasma Wave (default)",
+        render(text, font="block", fill="plasma"))
+    add("S-A10-plasma-tight",     "A10 — Plasma tight (high freq)",
+        render(text, font="block", fill="plasma_tight"))
+    add("S-A10-plasma-slow",      "A10 — Plasma slow (large blobs)",
+        render(text, font="block", fill="plasma_slow"))
+    add("S-A10-plasma-diagonal",  "A10 — Plasma diagonal (stripe bias)",
+        render(text, font="block", fill="plasma_diagonal"))
+
+    # A08 — Flame Simulation fill
+    add("S-A08-flame-default",  "A08 — Flame Simulation (balanced fire)",
+        render(text, font="block", fill="flame"))
+    add("S-A08-flame-hot",      "A08 — Flame hot (tall, intense flame)",
+        render(text, font="block", fill="flame_hot"))
+    add("S-A08-flame-embers",   "A08 — Flame embers (dying embers)",
+        render(text, font="block", fill="flame_embers"))
+
     # Composition
     add("S-F02-noise-radial",     "F02+C02 — Noise fill + radial gradient",
         radial_gradient(render(text, font="block", fill="noise"), parse_color("cyan"), parse_color("blue")))
 
     return entries
-
-
-# -------------------------------------------------------------------------
-def render_showcase(text: str) -> None:
-    """Render curated showcase entries and save as SVGs.
-
-    :param text: Text to render (will be uppercased).
-    """
-    from justdoit.output.svg import save_svg
-
-    GALLERY_DIR.mkdir(parents=True, exist_ok=True)
-    entries = _curated_entries(text.upper())
-
-    for stem, label, rendered in entries:
-        path = GALLERY_DIR / f"{stem}.svg"
-        save_svg(rendered, str(path))
-        print(f"  saved  {path.name}  ({label})")
 
 
 # Category metadata: code prefix → (heading, anchor, description)
@@ -153,19 +238,26 @@ def _daily_label(stem: str) -> str:
 
 
 # -------------------------------------------------------------------------
-def _table(pairs: list) -> list:
+def _table(pairs: list, img_width: int = 480) -> list:
     """Render a list of (filename, label) pairs as an HTML grid table.
 
+    When img_width <= 0, the width= attribute is omitted and the SVG
+    renders at its natural intrinsic size (correct for 4K/wide galleries
+    where the SVG itself is already the target resolution).
+
     :param pairs: List of (svg_filename, label) tuples.
+    :param img_width: Width in pixels for thumbnail images. Pass 0 to
+        render at natural SVG size (no width constraint).
     :returns: List of HTML lines.
     """
     lines = ['<table>']
     for i in range(0, len(pairs), _GRID_COLS):
         lines.append("<tr>")
         for fname, label in pairs[i:i + _GRID_COLS]:
+            width_attr = f' width="{img_width}"' if img_width > 0 else ""
             lines.append(
                 f'<td align="center">'
-                f'<img src="{fname}" width="480"><br>'
+                f'<img src="{fname}"{width_attr}><br>'
                 f'<sub><b>{label}</b></sub>'
                 f'</td>'
             )
@@ -175,16 +267,20 @@ def _table(pairs: list) -> list:
 
 
 # -------------------------------------------------------------------------
-def build_index() -> None:
-    """Scan docs/gallery/ for all SVGs and regenerate README.md.
+def _write_readme(profile: GalleryProfile, entries: list[tuple[str, str, str]]) -> None:
+    """Scan profile output_dir for all SVGs and write README.md.
 
     Showcase SVGs (S- prefix) are grouped by technique category with
     section headers and a table of contents. Daily agent outputs
     (YYYY-MM-DD- prefix) appear in a separate section, newest first.
+
+    :param profile: Gallery profile controlling output path and img width.
+    :param entries: List of (stem, label, rendered) tuples (used for ordering).
     """
-    svgs = sorted(GALLERY_DIR.glob("*.svg"))
+    gallery_dir = profile.output_dir
+    svgs = sorted(gallery_dir.glob("*.svg"))
     if not svgs:
-        print("  no SVGs found — nothing to index")
+        print(f"  no SVGs found in {gallery_dir} — nothing to index")
         return
 
     # Split into showcase (S- prefix) and daily (date prefix)
@@ -229,7 +325,7 @@ def build_index() -> None:
             f"*{desc}*",
             "",
         ]
-        lines += _table(pairs)
+        lines += _table(pairs, img_width=profile.readme_img_width)
         lines.append("")
 
     # --- Daily section ---
@@ -241,7 +337,7 @@ def build_index() -> None:
             "",
         ]
         daily_pairs = [(_p.name, _daily_label(_p.stem)) for _p in daily]
-        lines += _table(daily_pairs)
+        lines += _table(daily_pairs, img_width=profile.readme_img_width)
         lines.append("")
 
     lines.append(
@@ -250,9 +346,41 @@ def build_index() -> None:
     )
     lines.append("")
 
-    readme = GALLERY_DIR / "README.md"
+    readme = gallery_dir / "README.md"
     readme.write_text("\n".join(lines), encoding="utf-8")
     print(f"  index  {readme}  ({total} entries)")
+
+
+# -------------------------------------------------------------------------
+def _generate_for_profile(profile: GalleryProfile, text: str) -> None:
+    """Generate all gallery SVGs and README for a given profile.
+
+    :param profile: Gallery profile controlling font size and output paths.
+    :param text: Text to render for all gallery entries.
+    """
+    from justdoit.output.svg import save_svg
+
+    profile.output_dir.mkdir(parents=True, exist_ok=True)
+    entries = _curated_entries(text)
+
+    for stem, label, rendered in entries:
+        path = profile.output_dir / f"{stem}.svg"
+        save_svg(rendered, str(path), font_size=profile.svg_font_size)
+        print(f"  saved  {path.name}  ({label})")
+
+    _write_readme(profile, entries)
+
+
+# -------------------------------------------------------------------------
+def build_index() -> None:
+    """Scan docs/gallery/ for all SVGs and regenerate README.md.
+
+    Showcase SVGs (S- prefix) are grouped by technique category with
+    section headers and a table of contents. Daily agent outputs
+    (YYYY-MM-DD- prefix) appear in a separate section, newest first.
+    """
+    standard_profile = PROFILES["standard"]
+    _write_readme(standard_profile, [])
 
 
 # -------------------------------------------------------------------------
@@ -262,9 +390,9 @@ def run(text: str = "Just Do It") -> None:
     :param text: Text to render (default: 'JDI').
     """
     print(f"Rendering showcase for '{text}' ...")
-    render_showcase(text)
-    print("Building index ...")
-    build_index()
+    profile = PROFILES["standard"]
+    profile.output_dir.mkdir(parents=True, exist_ok=True)
+    _generate_for_profile(profile, text)
     print("Done.")
 
 
@@ -281,6 +409,12 @@ if __name__ == "__main__":
         "--index-only", action="store_true",
         help="Only rebuild the README index, do not re-render SVGs",
     )
+    parser.add_argument(
+        "--profile", default="standard",
+        choices=list(PROFILES.keys()) + ["all"],
+        help="Gallery render profile: standard (14px/480px), wide (28px/800px), "
+             "4k (72px/1600px), all. Default: standard",
+    )
     args = parser.parse_args()
 
     if args.index_only:
@@ -288,4 +422,18 @@ if __name__ == "__main__":
         build_index()
         print("Done.")
     else:
-        run(text=args.text.upper())
+        text = args.text.upper()
+
+        # Determine which profiles to run
+        if args.profile == "all":
+            profiles_to_run = list(PROFILES.values())
+        else:
+            profiles_to_run = [PROFILES[args.profile]]
+
+        _validate_text(text)
+
+        for profile in profiles_to_run:
+            profile.output_dir.mkdir(parents=True, exist_ok=True)
+            print(f"Rendering [{profile.name}] profile for '{text}' ...")
+            _generate_for_profile(profile, text)
+            print(f"[{profile.name}] Done → {profile.output_dir}")

@@ -13,7 +13,7 @@ from justdoit.fonts import FONTS
 from justdoit.effects.color import colorize
 from justdoit.core.glyph import glyph_to_mask
 from justdoit.effects.fill import density_fill, sdf_fill
-from justdoit.effects.generative import noise_fill, cells_fill, truchet_fill, reaction_diffusion_fill, slime_mold_fill, strange_attractor_fill, lsystem_fill
+from justdoit.effects.generative import noise_fill, cells_fill, truchet_fill, reaction_diffusion_fill, slime_mold_fill, strange_attractor_fill, lsystem_fill, turing_fill, wave_fill, fractal_fill, voronoi_fill, plasma_fill, flame_fill
 from justdoit.effects.shape_fill import shape_fill
 from justdoit.effects.recursive import typographic_recursion
 
@@ -37,6 +37,22 @@ _FILL_FNS: dict = {
     "attractor": strange_attractor_fill,
     "lsystem":   lsystem_fill,
     "shape":     shape_fill,
+    "turing":    turing_fill,
+    "wave":           wave_fill,
+    "fractal":        fractal_fill,
+    "voronoi":        voronoi_fill,
+    "voronoi_cracked": lambda m: voronoi_fill(m, preset="cracked"),
+    "voronoi_fine":    lambda m: voronoi_fill(m, preset="fine"),
+    "voronoi_coarse":  lambda m: voronoi_fill(m, preset="coarse"),
+    "voronoi_cells":   lambda m: voronoi_fill(m, preset="cells"),
+    "plasma":          plasma_fill,
+    "plasma_tight":    lambda m, **kw: plasma_fill(m, preset="tight", **kw),
+    "plasma_slow":     lambda m, **kw: plasma_fill(m, preset="slow", **kw),
+    "plasma_diagonal": lambda m, **kw: plasma_fill(m, preset="diagonal", **kw),
+    "flame":           flame_fill,
+    "flame_hot":       lambda m, **kw: flame_fill(m, preset="hot", **kw),
+    "flame_cool":      lambda m, **kw: flame_fill(m, preset="cool", **kw),
+    "flame_embers":    lambda m, **kw: flame_fill(m, preset="embers", **kw),
 }
 
 
@@ -49,6 +65,7 @@ def render(
     fill: Optional[str] = None,
     recursion: bool = False,
     recursion_separator: str = " ",
+    fill_kwargs: Optional[dict] = None,
 ) -> str:
     """Render text as multi-line ASCII art with optional color and fill effects.
 
@@ -62,6 +79,9 @@ def render(
         from the word itself.
     :param recursion_separator: Separator between word cycles in recursion mode
         (default: single space).
+    :param fill_kwargs: Optional dict of extra keyword arguments forwarded to the
+        fill function (e.g. ``{"t": 1.2, "preset": "tight"}`` for plasma_fill).
+        Ignored when fill is None. Default: None.
     :returns: Multi-line string — rows joined by newlines.
     :raises ValueError: If font or fill name is unknown, or gap is negative.
     """
@@ -92,7 +112,8 @@ def render(
             # Collect ink chars present in this glyph (works for block and slim fonts).
             ink = "".join({ch for row in glyph for ch in row if ch != " "}) or "█"
             mask = glyph_to_mask(glyph, ink_chars=ink)
-            glyph = fill_fn(mask)
+            extra = fill_kwargs or {}
+            glyph = fill_fn(mask, **extra)
 
         for row_idx, row in enumerate(glyph):
             if color and not defer_color:

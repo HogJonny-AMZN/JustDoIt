@@ -8,6 +8,7 @@ and prints to stdout. All user-facing error messages go to stderr.
 
 import argparse
 import logging as _logging
+import os
 import sys
 from typing import Optional
 
@@ -62,6 +63,13 @@ examples:
   %(prog)s "CO3DEX" --fill density
   %(prog)s "JUST" --fill sdf --color cyan
   %(prog)s "Hi" --ttf /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+  %(prog)s "JUST DO IT" --measure
+  %(prog)s "JUST DO IT" --target 3840x2160
+  %(prog)s "JUST DO IT" --target 3840x2160 --save-svg out.svg
+  %(prog)s "JUST DO IT" --fit 80
+  %(prog)s "JUST DO IT" --hd --fill voronoi
+  %(prog)s "JUST DO IT" --hd 800 --ttf /path/to/font.ttf --fill flame --color fire
+  %(prog)s "JUST DO IT" --hd --fill turing --color neon
         """,
     )
     parser.add_argument("text", nargs="?", help="Text to render as ASCII art")
@@ -185,6 +193,29 @@ examples:
         "--list-colors", action="store_true",
         help="List available colors and exit",
     )
+    parser.add_argument(
+        "--measure", action="store_true",
+        help="Print render dimensions (cols x rows) and display fit table, then exit.",
+    )
+    parser.add_argument(
+        "--target", metavar="WxH[@Sx]", default=None,
+        help="Display target spec (e.g. 3840x2160 or 3840x2160@2.0x). "
+             "With --save-svg: auto-sizes font. Standalone: prints sizing info to stderr.",
+    )
+    parser.add_argument(
+        "--svg-font-size", type=int, default=None, metavar="N",
+        help="Font size in pixels for SVG output (default: 14). Overrides --target auto-sizing.",
+    )
+    parser.add_argument(
+        "--fit", type=int, default=None, metavar="COLS",
+        help="Truncate text to fit within COLS terminal columns before rendering.",
+    )
+    parser.add_argument(
+        "--hd", type=int, nargs="?", const=0, default=None, metavar="COLS",
+        help="High-density render: auto-sizes TTF rasterization to fill COLS terminal "
+             "columns (0 or omitted = auto-detect terminal width). Fills letters with "
+             "more cells for richer fill effects. Requires Pillow and --ttf or a system font.",
+    )
 
     args = parser.parse_args()
 
@@ -226,6 +257,69 @@ examples:
             print(f"Error loading TTF font: {exc}", file=sys.stderr)
             sys.exit(1)
 
+    # --- HD: auto-size TTF rasterization to fill target columns ---
+    if args.hd is not None:
+        from justdoit.layout import fit_ttf_size, terminal_size, find_default_ttf
+        from justdoit.fonts.ttf import load_ttf_font as _load_ttf
+
+        # Determine target columns
+        hd_target = args.hd if args.hd > 0 else int(terminal_size()[0] * 0.9)
+
+        # Determine TTF path
+        ttf_path = args.ttf if args.ttf else find_default_ttf()
+        if ttf_path is None:
+            print(
+                "Error: --hd requires a TTF font. Use --ttf /path/to/font.ttf "
+                "or install a system font (e.g. fonts-dejavu).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        try:
+            iso_d = args.iso if args.iso else 0
+            hd_size = fit_ttf_size(
+                args.text, hd_target, ttf_path,
+                gap=args.gap, iso_depth=iso_d,
+            )
+            font_name = _load_ttf(ttf_path, font_size=hd_size)
+            print(
+                f"HD: {hd_size}pt TTF → {hd_target} cols target "
+                f"(font: {os.path.basename(ttf_path)})",
+                file=sys.stderr,
+            )
+        except (ImportError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+    # --- 1. Parse --target immediately after font resolution ---
+    _target_rt = None
+    if args.target:
+        from justdoit.layout import RenderTarget
+        try:
+            _target_rt = RenderTarget.from_string(args.target)
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+    # --- 2. Handle --measure (print + exit before render) ---
+    if args.measure:
+        from justdoit.layout import measure, DISPLAYS
+        iso_d = args.iso if args.iso else 0
+        cols, rows = measure(args.text, font=font_name, gap=args.gap, iso_depth=iso_d)
+        print(f"Render size:  {cols} cols x {rows} rows")
+        print()
+        print("Display fits:")
+        for label, rt in DISPLAYS.items():
+            pt = rt.max_font_pt(cols, rows)
+            cell_w, cell_h = rt.cell_size_px(pt)
+            letter_h_in = (rows * cell_h) / 96.0
+            print(
+                f"  {label:<12} {rt.display_w}x{rt.display_h}  ->  {pt}pt  "
+                f"letter height {letter_h_in:.2f}\"  "
+                f"grid {rt.max_columns(pt)}x{rt.max_rows(pt)}"
+            )
+        sys.exit(0)
+
     # If truchet fill is selected, patch the registry to honour --truchet-style
     if args.fill == "truchet" and args.truchet_style != "diagonal":
         from justdoit.effects.generative import truchet_fill as _tf
@@ -233,9 +327,29 @@ examples:
         _chosen_style = args.truchet_style
         _fns["truchet"] = lambda mask: _tf(mask, style=_chosen_style)
 
-    try:
-        output = render(
+    # --- 3. Handle --fit (set text_to_render before render call) ---
+    text_to_render = args.text
+    if args.fit is not None:
+        from justdoit.layout import fit_text
+        iso_d = args.iso if args.iso else 0
+        text_to_render, actual_cols = fit_text(
             args.text,
+            target_cols=args.fit,
+            font=font_name,
+            gap=args.gap,
+            iso_depth=iso_d,
+        )
+        if text_to_render != args.text:
+            print(
+                f"Note: text truncated to fit {args.fit} cols "
+                f"(rendered {actual_cols} cols)",
+                file=sys.stderr,
+            )
+
+    try:
+        # --- 4. Use text_to_render in render() call ---
+        output = render(
+            text_to_render,
             font=font_name,
             color=args.color,
             gap=args.gap,
@@ -283,11 +397,37 @@ examples:
         if args.shear is not None:
             output = shear(output, amount=args.shear, direction=args.shear_dir)
 
+        # --- 5. Handle --target standalone info → stderr (after render, before save) ---
+        if _target_rt is not None and not args.save_svg:
+            from justdoit.layout import measure
+            iso_d = args.iso if args.iso else 0
+            cols, rows = measure(args.text, font=font_name, gap=args.gap, iso_depth=iso_d)
+            pt = _target_rt.max_font_pt(cols, rows)
+            cell_w, cell_h = _target_rt.cell_size_px(pt)
+            letter_h = rows * cell_h / 96.0
+            print(
+                f"Target: {_target_rt.display_w}x{_target_rt.display_h} "
+                f"@ {_target_rt.scaling:.1f}x scaling\n"
+                f"Max font size: {pt}pt  (cell: {cell_w:.1f}x{cell_h:.1f}px)\n"
+                f"Letter height: {letter_h:.2f}\"  ({letter_h*2.54:.2f} cm)\n"
+                f"Terminal grid: {_target_rt.max_columns(pt)}x{_target_rt.max_rows(pt)}\n"
+                f"SVG font-size: {_target_rt.svg_font_size_px(pt)}px",
+                file=sys.stderr,
+            )
+
         # Save to file targets (can combine with terminal output)
         if args.save_html:
             save_html(output, args.save_html)
+        # --- 6. Handle --svg-font-size + --target auto-size inside save_svg block ---
         if args.save_svg:
-            save_svg(output, args.save_svg)
+            svg_font_size = args.svg_font_size  # explicit override, may be None
+            if svg_font_size is None and _target_rt is not None:
+                from justdoit.layout import measure
+                iso_d = args.iso if args.iso else 0
+                cols, rows = measure(args.text, font=font_name, gap=args.gap, iso_depth=iso_d)
+                pt = _target_rt.max_font_pt(cols, rows)
+                svg_font_size = _target_rt.svg_font_size_px(pt)
+            save_svg(output, args.save_svg, font_size=svg_font_size or 14)
         if args.save_png:
             try:
                 from justdoit.output.image import save_png
