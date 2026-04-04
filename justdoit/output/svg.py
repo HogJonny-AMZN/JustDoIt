@@ -94,14 +94,15 @@ def to_svg(
 
 
 # -------------------------------------------------------------------------
-def save_svg(text: str, path: str, **kwargs) -> None:
+def save_svg(text: str, path: str, font_size: int = 14, **kwargs) -> None:
     """Save rendered ASCII art as an SVG file.
 
     :param text: Multi-line rendered string from render().
     :param path: Output file path (e.g. 'output.svg').
+    :param font_size: Font size in pixels (controls overall scale, default: 14).
     :param kwargs: Additional keyword arguments passed to to_svg().
     """
-    svg = to_svg(text, **kwargs)
+    svg = to_svg(text, font_size=font_size, **kwargs)
     with open(path, "w", encoding="utf-8") as f:
         f.write(svg)
     _LOGGER.info(f"Saved SVG to {path}")
