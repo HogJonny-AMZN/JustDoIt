@@ -61,18 +61,18 @@ def test_gallery_profile_standard_values():
 
 
 def test_gallery_profile_wide_values():
-    """Wide profile has correct svg_font_size and readme_img_width."""
+    """Wide profile has correct svg_font_size; readme_img_width=0 means natural SVG size."""
     p = PROFILES["wide"]
     assert p.svg_font_size == 28
-    assert p.readme_img_width == 800
+    assert p.readme_img_width == 0   # natural size — no width= constraint in README
     assert p.name == "wide"
 
 
 def test_gallery_profile_4k_values():
-    """4k profile has correct svg_font_size and readme_img_width."""
+    """4k profile has correct svg_font_size; readme_img_width=0 means natural SVG size."""
     p = PROFILES["4k"]
     assert p.svg_font_size == 72
-    assert p.readme_img_width == 1600
+    assert p.readme_img_width == 0   # natural size — no width= constraint in README
     assert p.name == "4k"
 
 
@@ -89,10 +89,15 @@ def test_gallery_profile_font_sizes_ordered():
     assert PROFILES["wide"].svg_font_size < PROFILES["4k"].svg_font_size
 
 
-def test_gallery_profile_img_widths_ordered():
-    """Profile readme_img_widths increase: standard < wide < 4k."""
-    assert PROFILES["standard"].readme_img_width < PROFILES["wide"].readme_img_width
-    assert PROFILES["wide"].readme_img_width < PROFILES["4k"].readme_img_width
+def test_gallery_profile_standard_uses_fixed_img_width():
+    """Standard profile uses a fixed readme_img_width (480) for thumbnail display."""
+    assert PROFILES["standard"].readme_img_width == 480
+
+
+def test_gallery_profile_wide_4k_use_natural_size():
+    """Wide and 4k profiles use readme_img_width=0 (natural SVG size, no downscale)."""
+    assert PROFILES["wide"].readme_img_width == 0
+    assert PROFILES["4k"].readme_img_width == 0
 
 
 def test_gallery_profile_output_dirs_differ():
@@ -199,7 +204,7 @@ def test_generate_for_profile_creates_readme():
 
 
 def test_generate_for_profile_readme_uses_img_width():
-    """README.md contains the profile's readme_img_width in img tags."""
+    """README.md contains width= when readme_img_width > 0."""
     with tempfile.TemporaryDirectory() as tmpdir:
         profile = GalleryProfile(
             name="test",
@@ -210,6 +215,22 @@ def test_generate_for_profile_readme_uses_img_width():
         _generate_for_profile(profile, "HI")
         readme = (Path(tmpdir) / "README.md").read_text()
         assert 'width="999"' in readme, "README does not use profile's readme_img_width"
+
+
+def test_generate_for_profile_readme_no_width_when_zero():
+    """README.md omits width= attribute when readme_img_width=0 (natural SVG size)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        profile = GalleryProfile(
+            name="test",
+            svg_font_size=72,
+            readme_img_width=0,   # natural size — no constraint
+            output_dir=Path(tmpdir),
+        )
+        _generate_for_profile(profile, "HI")
+        readme = (Path(tmpdir) / "README.md").read_text()
+        assert 'width="0"' not in readme, "README should not emit width=0"
+        # img tags should exist but without a width= attribute
+        assert '<img src=' in readme
 
 
 def test_generate_for_profile_72px_canvas_larger_than_14px():
