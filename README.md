@@ -20,8 +20,10 @@ ASCII/ANSI text art with a serious rendering pipeline — fills, spatial effects
 
 | Gallery | Contents |
 |---------|----------|
-| [**Static Gallery →**](docs/gallery/README.md) | Fonts, fills, color effects, spatial & 3D — SVG snapshots of all rendering techniques |
-| [**Animation Gallery →**](docs/anim_gallery/README.md) | APNG + asciinema `.cast` — animated effects (typewriter, glitch, transporter, particle fills) |
+| [**Static Gallery →**](docs/gallery/README.md) | Fonts, fills, color effects, spatial & 3D — SVG snapshots (14px / standard) |
+| [**Wide Gallery →**](docs/gallery-wide/README.md) | Same techniques at 28px — sharper on retina/HiDPI screens |
+| [**4K Gallery →**](docs/gallery-4k/README.md) | Full 4K renders at 72px — pixel-perfect for 3840×2160 displays |
+| [**Animation Gallery →**](docs/anim_gallery/README.md) | APNG + asciinema `.cast` — animated effects (typewriter, glitch, neon, flame, plasma) |
 
 ---
 
@@ -40,14 +42,19 @@ uv run python justdoit.py "ENERGIZE" --animate transporter --trek-era tng
 |------|-------|-------------|
 | `--font` | `-f` | Font: `block`, `slim`, FIGlet fonts, TTF |
 | `--color` | `-c` | Color: `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `bold`, `rainbow`, gradients, palettes |
-| `--fill` | | Fill mode: `density`, `noise`, `cells`, `sdf`, `shape`, `fractal`, `slime`, `attractor`, … |
-| `--effect` | | Spatial effect: `sine-warp`, `perspective`, `isometric`, `shear`, … |
-| `--animate` | | Animation: `typewriter`, `scanline`, `glitch`, `pulse`, `transporter`, … |
-| `--trek-era` | | Trek era for transporter: `tos`, `tng`, `ds9`, `ent`, `kelvin` |
+| `--fill` | | Fill mode: `density`, `noise`, `cells`, `sdf`, `shape`, `fractal`, `slime`, `attractor`, `turing`, `plasma`, `flame`, `voronoi`, `wave`, … |
+| `--animate` | | Animation: `typewriter`, `scanline`, `glitch`, `pulse`, `dissolve` |
 | `--gap` | `-g` | Gap between characters (default: 1) |
-| `--fps` | | Animation framerate (default: per-effect; baseline 24) |
-| `--export-apng` | | Export animation to APNG file |
-| `--export-cast` | | Export animation to asciinema `.cast` file |
+| `--fps` | | Animation framerate (default: 12) |
+| `--iso` | | Isometric 3D extrusion depth (e.g. `--iso 4`) |
+| `--gradient` | | Linear gradient between two colors (e.g. `--gradient red cyan`) |
+| `--warp` | | Sine wave warp amplitude (e.g. `--warp 3.0`) |
+| `--save-svg` | | Save output as SVG |
+| `--save-png` | | Save output as PNG (requires Pillow) |
+| `--measure` | | Print render dimensions + display fit table for all known displays, then exit |
+| `--target` | | Display target spec (e.g. `3840x2160` or `3840x2160@2.0x`) — auto-sizes SVG with `--save-svg` |
+| `--svg-font-size` | | SVG font size in pixels (default: 14; overrides `--target`) |
+| `--fit` | | Truncate text to fit within N terminal columns |
 | `--list-fonts` | | List available fonts |
 | `--list-colors` | | List available colors |
 
@@ -112,7 +119,8 @@ Core is zero-dependency Python stdlib. Optional deps unlock fonts, export format
 
 - [VISION.md](docs/VISION.md) — where this is going
 - [TECHNIQUES.md](docs/research/TECHNIQUES.md) — full technique registry
-- [star_trek_effects.md](docs/star_trek_effects.md) — transporter design doc
+- [ATTRIBUTE_MODEL.md](docs/research/ATTRIBUTE_MODEL.md) — axis decomposition + cross-breed catalog
+- [SIZE_SCALE_RESOLUTION.md](docs/SIZE_SCALE_RESOLUTION.md) — size/scale feature design
 - [animation_gallery.md](docs/animation_gallery.md) — animation pipeline design
 - [sound_design.md](docs/sound_design.md) — audio engine design
 - [decisions/](docs/decisions/) — architecture decision records
