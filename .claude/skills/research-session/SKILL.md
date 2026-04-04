@@ -142,14 +142,17 @@ Minimum test coverage for any new technique:
 - Deterministic output (if algorithm is non-random, same input → same output)
 - At least one integration test via `render("HI", fill="mykey")`
 
-### Step 6 — Generate output
+### Step 6 — Generate output and update daily gallery
 
-Save gallery SVG:
+**This step is mandatory every session, even animation-only sessions.**
+
+#### 6a — Regenerate the static technique gallery
+
 ```bash
 uv run python scripts/generate_gallery.py
 ```
 
-If that's too slow, save a targeted output only:
+If that's too slow, save a targeted SVG only:
 ```python
 # run via: uv run python -c "..."
 from justdoit.output.svg import save_svg
@@ -158,7 +161,45 @@ result = render("JUST DO IT", fill="mykey")
 save_svg(result, "docs/gallery/YYYY-MM-DD-<id>.svg")
 ```
 
-### Step 6b — Animation gallery (run when animation pipeline work is done or available)
+#### 6b — Save a dated daily entry to docs/gallery/
+
+Every session must produce a new dated file in `docs/gallery/` named
+`YYYY-MM-DD-<TechniqueID>.svg`. Use today's UTC date.
+
+- **Fill/color/spatial effects:** render with the new technique key directly.
+- **Animation effects:** render a representative *static* frame — e.g. a mid-dissolve
+  density state, a neon-lit frame, a flame peak frame. The point is a visual
+  snapshot that shows what the effect looks like. Use fill + color params that
+  best represent the animation's character.
+
+```python
+# Example for an animation — save a static representative frame:
+from justdoit.output.svg import save_svg
+from justdoit.core.rasterizer import render
+# Use whatever fill/color combo best shows the effect
+result = render("JUST DO IT", fill="density_fill", color="fire")
+save_svg(result, "docs/gallery/2026-04-04-A08.svg")
+```
+
+#### 6c — Update docs/gallery/README.md
+
+After saving the dated SVG, **add a row to the Daily Techniques table** in
+`docs/gallery/README.md`. The table lives under the `## Daily Techniques` heading.
+Prepend the new row (newest first):
+
+```html
+<tr>
+<td align="center"><img src="YYYY-MM-DD-<ID>.svg" width="480"><br><sub><b>YYYY-MM-DD · <ID></b></sub></td>
+</tr>
+```
+
+Also update the "Last updated" line at the bottom of the README with today's date
+and the new total technique count.
+
+**Do not skip this.** The dated gallery is the human-readable history of the
+project's creative progress. A session without a dated entry is invisible.
+
+### Step 6d — Animation gallery (run when animation pipeline work is done or available)
 
 The animation gallery lives at `docs/anim_gallery/` and is separate from the
 static gallery. It requires `justdoit/output/cast.py` and `justdoit/output/apng.py`
@@ -191,6 +232,9 @@ The spec is in `docs/animation_gallery.md` — the format is trivial JSON lines.
 **Priority:** implement `cast.py` before any new fill effect if the animation pipeline
 is still unbuilt. `.cast` files unblock gallery artifacts for all existing animations
 (typewriter, glitch, pulse, dissolve) immediately — no new effects needed.
+
+**Note:** Step 6d does NOT replace Steps 6b and 6c. Both the static dated entry
+and the animation gallery must be updated in the same session.
 
 ### Step 7 — Update records
 
