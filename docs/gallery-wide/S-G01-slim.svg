@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="784" height="128">
+  <rect width="784" height="128" fill="#111111"/>
+  <text x="33" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="84" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="117" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="168" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">/</text>
+  <text x="184" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">_</text>
+  <text x="235" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="252" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="268" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="369" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="386" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">\</text>
+  <text x="453" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">/</text>
+  <text x="470" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">\</text>
+  <text x="571" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="588" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="604" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="655" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="672" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="688" y="33" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="33" y="67" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="84" y="67" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="117" y="67" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="184" y="67" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">_</text>
+  <text x="201" y="67" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">)</text>
+  <text x="252" y="67" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="369" y="67" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="403" y="67" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">)</text>
+  <text x="453" y="67" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">\</text>
+  <text x="470" y="67" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">/</text>
+  <text x="588" y="67" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="672" y="67" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="0" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">\</text>
+  <text x="16" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">_</text>
+  <text x="33" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">/</text>
+  <text x="84" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">\</text>
+  <text x="100" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="117" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">/</text>
+  <text x="168" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">/</text>
+  <text x="184" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">_</text>
+  <text x="268" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="386" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+  <text x="403" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">/</text>
+  <text x="588" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="604" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="621" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">-</text>
+  <text x="688" y="100" fill="#dcdcdc" font-size="28" font-family="Courier New, Courier, monospace">|</text>
+</svg>
