@@ -120,6 +120,14 @@ def _curated_entries(text: str) -> list[tuple[str, str, str]]:
     add("S-A10-plasma-diagonal",  "A10 — Plasma diagonal (stripe bias)",
         render(text, font="block", fill="plasma_diagonal"))
 
+    # A08 — Flame Simulation fill
+    add("S-A08-flame-default",  "A08 — Flame Simulation (balanced fire)",
+        render(text, font="block", fill="flame"))
+    add("S-A08-flame-hot",      "A08 — Flame hot (tall, intense flame)",
+        render(text, font="block", fill="flame_hot"))
+    add("S-A08-flame-embers",   "A08 — Flame embers (dying embers)",
+        render(text, font="block", fill="flame_embers"))
+
     # Composition
     add("S-F02-noise-radial",     "F02+C02 — Noise fill + radial gradient",
         radial_gradient(render(text, font="block", fill="noise"), parse_color("cyan"), parse_color("blue")))

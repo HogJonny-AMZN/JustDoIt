@@ -86,7 +86,7 @@ Frame-based terminal animation techniques.
 | A05 | Particle Dissolve | Characters drift/scatter on exit | 3 | `done` |
 | A06 | Living Fill | Cellular automata animating inside glyph mask in real time | 5 | `idea` |
 | A07 | Matrix Rain | Characters falling through the glyph shape | 3 | `idea` |
-| A08 | Flame Simulation | Heat-based upward particle drift inside glyphs | 4 | `idea` |
+| A08 | Flame Simulation | Heat-based upward particle drift inside glyphs | 4 | `done` |
 | A09 | Liquid Fill | Glyph fills up like liquid pouring in from bottom | 4 | `idea` |
 | A11 | Transporter Materialize | Star Trek transporter effect — particles scatter in bounding column then converge/coalesce into glyph shape; half-block subpixel resolution (▀▄█) for particle precision; brightness cascade per cell as it locks in; bidirectional (materialize + dematerialize); TOS/TNG/ENT/Kelvin era variants; fps configurable (24–60, effect decides) | 5 | `idea` |
 | A10 | Plasma Wave | Animated plasma sin-field drives *character density selection* (not just color) inside glyph mask — classic demoscene formula applied to char choice; asciimatics has color-only plasma (no char selection, no glyph masking) — that is prior art to color component, not to this | 4 | `done` |

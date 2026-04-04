@@ -29,10 +29,12 @@ Reordered after each session. Top = next bite.
 |----------|-----------|-----|---------|--------|
 | 1 | Transporter Materialize | A11 | 5 | `idea` |
 | 2 | SDF Font Generator | G04 | 5 | `idea` |
-| 3 | Voronoi Fill | F07 | 4 | `idea` |
-| 4 | Plasma Wave Animation | A10 | 4 | `idea` |
-| 5 | Flame Simulation | A08 | 4 | `idea` |
-| 6 | Chromatic Aberration | C08 | 5 | `idea` |
+| 3 | Living Fill (CA animated) | A06 | 5 | `idea` |
+| 4 | Chromatic Aberration | C08 | 5 | `idea` |
+| 5 | Stipple Fill | F08 | 3 | `idea` |
+| — | Flame Simulation | A08 | 4 | `done` |
+| — | Plasma Wave Animation | A10 | 4 | `done` |
+| — | Voronoi Fill | F07 | 4 | `done` |
 | — | Wave Interference Fill | F09 | 4 | `done` |
 | — | Fractal Fill (Mandelbrot) | F05 | 4 | `done` |
 | — | Typographic Recursion | N01 | 5 | `done` |
@@ -450,3 +452,28 @@ No changes to the registry — all four topics confirm existing entries. Priorit
 - 18 new tests (test_generative.py) — all 413 passing
 - 4 new static gallery SVGs (docs/gallery/): S-A10-plasma-default, S-A10-plasma-tight, S-A10-plasma-slow, S-A10-plasma-diagonal
 - 2 new animation files (docs/anim_gallery/): A10-plasma-wave.cast/.apng, A10b-plasma-wave-cyan.cast/.apng (72 frames each @ 12fps, seamless loop)
+
+## Session 2026-04-04
+
+**Research focus:** Demoscene fire effect algorithms; Doom PSX fire algorithm for ASCII glyph mask application; web search unavailable — worked from prior knowledge of Fabien Sanglard's 2013 Doom fire article and the original id Software PSX Doom implementation.
+**New techniques found:** 0 new (web search unavailable; A08 was already registered; session implemented it from prior knowledge of the classic Doom fire algorithm)
+**Sources:** Fabien Sanglard (2013) "Doom Fire Effect" fabiensanglard.net/doom_fire_psx/ — the canonical reference for the heat-propagation algorithm used in PSX Doom; id Software PSX Doom fire.c — original source of the bottom-seeded heat-upward-propagation approach; prior knowledge of ASCII density char rendering.
+**Key insight:** The Doom fire algorithm maps cleanly onto a glyph mask because it only propagates heat between cells that are already inside the mask — no ghost cells, no boundary conditions, no upscale-simulate-downsample cycle required (unlike Gray-Scott). The key design choice: use `random.Random(seed)` with per-frame seeds for the animation preset, making each frame a deterministic but independent snapshot. This gives a "flicker" effect rather than a smooth sweep (like plasma_wave does), which is the right visual for fire — random and chaotic, not periodic. The bottom-2-rows seed strategy ensures every font/glyph combination has a fire source, including thin-stroke fonts where only one row might exist at the base. One subtle correctness issue: the drift clamping logic — when a sideways drift would exit the mask boundary or hit an exterior cell, we fall back to the un-drifted column (`below_c = c`) rather than skipping the update entirely. This prevents heat from "stalling" at mask edges and allows it to propagate upward even when lateral movement is blocked.
+**Priority queue update:** A08 complete. Updated priority queue:
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | Living Fill (CA animated) | A06 | 5 | `idea` |
+| 4 | Chromatic Aberration | C08 | 5 | `idea` |
+| 5 | Stipple Fill | F08 | 3 | `idea` |
+
+**Implementation notes:**
+- `flame_fill(mask, preset, n_steps, cooling, seed, density_chars)` in `justdoit/effects/generative.py`
+- 4 presets: default (n_steps=25, cooling=0.12) / hot (30, 0.06) / cool (20, 0.20) / embers (15, 0.30)
+- Registered as "flame", "flame_hot", "flame_cool", "flame_embers" in `_FILL_FNS`
+- `flame_flicker(text_plain, font, n_frames, preset, color, loop)` animation preset — per-frame seed → independent flickering flame snapshots
+- 16 new tests, all 429 passing (was 413)
+- 3 new static gallery SVGs (docs/gallery/): S-A08-flame-default, S-A08-flame-hot, S-A08-flame-embers
+- 2 new animation pairs (docs/anim_gallery/): A08-flame-flicker (.cast + .apng, 48 frames @ 12fps), A08b-flame-flicker-hot-red (.cast + .apng, 48 frames @ 12fps)
