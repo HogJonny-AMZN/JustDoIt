@@ -8,6 +8,7 @@ and prints to stdout. All user-facing error messages go to stderr.
 
 import argparse
 import logging as _logging
+import os
 import sys
 from typing import Optional
 
@@ -66,6 +67,9 @@ examples:
   %(prog)s "JUST DO IT" --target 3840x2160
   %(prog)s "JUST DO IT" --target 3840x2160 --save-svg out.svg
   %(prog)s "JUST DO IT" --fit 80
+  %(prog)s "JUST DO IT" --hd --fill voronoi
+  %(prog)s "JUST DO IT" --hd 800 --ttf /path/to/font.ttf --fill flame --color fire
+  %(prog)s "JUST DO IT" --hd --fill turing --color neon
         """,
     )
     parser.add_argument("text", nargs="?", help="Text to render as ASCII art")
@@ -206,6 +210,12 @@ examples:
         "--fit", type=int, default=None, metavar="COLS",
         help="Truncate text to fit within COLS terminal columns before rendering.",
     )
+    parser.add_argument(
+        "--hd", type=int, nargs="?", const=0, default=None, metavar="COLS",
+        help="High-density render: auto-sizes TTF rasterization to fill COLS terminal "
+             "columns (0 or omitted = auto-detect terminal width). Fills letters with "
+             "more cells for richer fill effects. Requires Pillow and --ttf or a system font.",
+    )
 
     args = parser.parse_args()
 
@@ -245,6 +255,40 @@ examples:
             sys.exit(1)
         except ValueError as exc:
             print(f"Error loading TTF font: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+    # --- HD: auto-size TTF rasterization to fill target columns ---
+    if args.hd is not None:
+        from justdoit.layout import fit_ttf_size, terminal_size, find_default_ttf
+        from justdoit.fonts.ttf import load_ttf_font as _load_ttf
+
+        # Determine target columns
+        hd_target = args.hd if args.hd > 0 else int(terminal_size()[0] * 0.9)
+
+        # Determine TTF path
+        ttf_path = args.ttf if args.ttf else find_default_ttf()
+        if ttf_path is None:
+            print(
+                "Error: --hd requires a TTF font. Use --ttf /path/to/font.ttf "
+                "or install a system font (e.g. fonts-dejavu).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        try:
+            iso_d = args.iso if args.iso else 0
+            hd_size = fit_ttf_size(
+                args.text, hd_target, ttf_path,
+                gap=args.gap, iso_depth=iso_d,
+            )
+            font_name = _load_ttf(ttf_path, font_size=hd_size)
+            print(
+                f"HD: {hd_size}pt TTF → {hd_target} cols target "
+                f"(font: {os.path.basename(ttf_path)})",
+                file=sys.stderr,
+            )
+        except (ImportError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
 
     # --- 1. Parse --target immediately after font resolution ---

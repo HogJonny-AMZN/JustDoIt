@@ -342,3 +342,69 @@ def test_terminal_size_fallback_values(monkeypatch):
     cols, rows = terminal_size()
     assert cols == 80
     assert rows == 24
+
+
+# -------------------------------------------------------------------------
+# fit_ttf_size() — requires Pillow
+
+def test_fit_ttf_size_returns_int():
+    """fit_ttf_size() returns an integer font size."""
+    pytest.importorskip("PIL")
+    ttf = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    import os
+    if not os.path.isfile(ttf):
+        pytest.skip("DejaVuSans.ttf not found on this system")
+    from justdoit.layout import fit_ttf_size
+    result = fit_ttf_size("HI", target_cols=200, font_path=ttf)
+    assert isinstance(result, int)
+    assert result > 0
+
+
+def test_fit_ttf_size_output_fits_target():
+    """fit_ttf_size() result produces render <= target_cols."""
+    pytest.importorskip("PIL")
+    ttf = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    import os
+    if not os.path.isfile(ttf):
+        pytest.skip("DejaVuSans.ttf not found on this system")
+    from justdoit.layout import fit_ttf_size
+    from justdoit.fonts.ttf import load_ttf_font
+    target = 300
+    size = fit_ttf_size("JUST DO IT", target_cols=target, font_path=ttf)
+    fname = load_ttf_font(ttf, font_size=size)
+    cols, _ = measure("JUST DO IT", font=fname, gap=1)
+    assert cols <= target, f"render cols={cols} exceeds target={target}"
+
+
+def test_fit_ttf_size_larger_than_min():
+    """fit_ttf_size() returns a size >= size_min."""
+    pytest.importorskip("PIL")
+    ttf = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    import os
+    if not os.path.isfile(ttf):
+        pytest.skip("DejaVuSans.ttf not found on this system")
+    from justdoit.layout import fit_ttf_size
+    size = fit_ttf_size("HI", target_cols=500, font_path=ttf, size_min=12)
+    assert size >= 12
+
+
+def test_fit_ttf_size_larger_target_gives_larger_size():
+    """Larger target_cols produces larger or equal TTF size."""
+    pytest.importorskip("PIL")
+    ttf = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    import os
+    if not os.path.isfile(ttf):
+        pytest.skip("DejaVuSans.ttf not found on this system")
+    from justdoit.layout import fit_ttf_size
+    size_small = fit_ttf_size("JUST DO IT", target_cols=150, font_path=ttf)
+    size_large = fit_ttf_size("JUST DO IT", target_cols=400, font_path=ttf)
+    assert size_large >= size_small
+
+
+def test_find_default_ttf():
+    """find_default_ttf() returns None or a valid file path."""
+    from justdoit.layout import find_default_ttf
+    import os
+    result = find_default_ttf()
+    if result is not None:
+        assert os.path.isfile(result), f"find_default_ttf returned non-existent path: {result}"

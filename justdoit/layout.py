@@ -334,3 +334,123 @@ def terminal_size() -> tuple[int, int]:
         return ts.columns, ts.lines
     except OSError:
         return 80, 24
+
+
+# -------------------------------------------------------------------------
+def fit_ttf_size(
+    text: str,
+    target_cols: int,
+    font_path: str,
+    gap: int = 1,
+    iso_depth: int = 0,
+    bloom_radius: int = 0,
+    size_min: int = 8,
+    size_max: int = 200,
+) -> int:
+    """Find the largest TTF rasterization size where text fits within target_cols.
+
+    Performs a two-pass search: a coarse scan in steps of 8pt to bracket the
+    answer, then a fine binary search in the bracketed range. Caches rasterized
+    font measurements to avoid redundant Pillow calls.
+
+    Requires Pillow (``pip install Pillow``).
+
+    :param text: Text to render (same as render()).
+    :param target_cols: Maximum terminal columns to fit within.
+    :param font_path: Path to a .ttf or .otf font file.
+    :param gap: Character gap between letters (default: 1).
+    :param iso_depth: Isometric depth footprint to account for (default: 0).
+    :param bloom_radius: Bloom halo margin on each side (default: 0).
+    :param size_min: Minimum font size to try in points (default: 8).
+    :param size_max: Maximum font size to try in points (default: 200).
+    :returns: Optimal TTF font size in points as an integer.
+    :raises ImportError: If Pillow is not installed.
+    :raises ValueError: If even size_min produces output wider than target_cols,
+        or if the font file cannot be loaded.
+    """
+    try:
+        from justdoit.fonts.ttf import load_ttf_font
+    except ImportError:
+        raise ImportError(
+            "fit_ttf_size() requires Pillow. Install with: pip install Pillow"
+        )
+
+    # Cache: (font_path, size) -> cols so we don't re-rasterize same size twice
+    _cache: dict = {}
+
+    def _cols_at_size(size: int) -> int:
+        if (font_path, size) not in _cache:
+            fname = load_ttf_font(font_path, font_size=size)
+            c, _ = measure(text, font=fname, gap=gap,
+                           iso_depth=iso_depth, bloom_radius=bloom_radius)
+            _cache[(font_path, size)] = c
+        return _cache[(font_path, size)]
+
+    # Validate minimum size fits
+    if _cols_at_size(size_min) > target_cols:
+        raise ValueError(
+            f"Text '{text}' at minimum TTF size {size_min}pt requires "
+            f"{_cols_at_size(size_min)} cols — exceeds target {target_cols}. "
+            f"Use shorter text or increase target_cols."
+        )
+
+    # Pass 1: coarse scan in steps of 8 to bracket the answer
+    coarse_step = 8
+    coarse_sizes = list(range(size_min, size_max + 1, coarse_step))
+
+    best_coarse = size_min
+    for s in coarse_sizes:
+        if _cols_at_size(s) <= target_cols:
+            best_coarse = s
+        else:
+            break
+
+    # Pass 2: fine binary search in [best_coarse, best_coarse + coarse_step]
+    lo = best_coarse
+    hi = min(best_coarse + coarse_step, size_max)
+
+    # If hi already fits, extend search upward (stop at size_max to avoid infinite loop)
+    while hi < size_max and _cols_at_size(hi) <= target_cols:
+        lo = hi
+        hi = min(hi + coarse_step, size_max)
+
+    best = lo
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if _cols_at_size(mid) <= target_cols:
+            best = mid
+            lo = mid + 1
+        else:
+            hi = mid - 1
+
+    return best
+
+
+# -------------------------------------------------------------------------
+def find_default_ttf() -> "str | None":
+    """Return path to a usable system TTF font, or None if none found.
+
+    Checks common system font locations. Returns the first monospace font
+    found, falling back to the first TTF found.
+
+    :returns: Absolute path to a .ttf file, or None.
+    """
+    candidates = [
+        # Prefer monospace fonts for ASCII art
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
+        "/mnt/c/Windows/Fonts/consola.ttf",   # Consolas (WSL)
+        "/mnt/c/Windows/Fonts/cour.ttf",       # Courier New (WSL)
+    ]
+    for p in candidates:
+        if os.path.isfile(p):
+            return p
+    # Fall back: first TTF found anywhere
+    try:
+        from justdoit.fonts.ttf import find_system_fonts
+        fonts = find_system_fonts()
+        return fonts[0] if fonts else None
+    except ImportError:
+        return None
