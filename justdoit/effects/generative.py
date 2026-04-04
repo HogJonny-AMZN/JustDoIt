@@ -39,11 +39,27 @@ Implemented techniques:
                        chars, sparse regions → light chars. The result is a
                        calligraphically beautiful fill that encodes chaotic geometry
                        inside each letterform.
+  N09 — turing_fill:   Turing activator-inhibitor reaction-diffusion model (1952).
+                       Uses a FitzHugh-Nagumo-style activator/inhibitor system
+                       distinct from Gray-Scott — short-range activation, long-range
+                       inhibition. A single `epsilon` parameter transitions patterns
+                       from isolated spots (biological leopard spots) through zebra
+                       stripes to labyrinthine mazes. Named presets: spots, stripes,
+                       maze, labyrinth. Based on Turing (1952) "The Chemical Basis
+                       of Morphogenesis", Philos. Trans. R. Soc. Lond. B 237:37–72.
   N10 — slime_mold_fill: Physarum polycephalum (slime mold) agent-based simulation.
                        Agents move by chemotaxis — they deposit trail and sense
                        chemical concentration in front, rotating toward the strongest
                        gradient. The resulting trail map creates organic vein-like
                        networks inside the glyph mask.
+  A08 — flame_fill:    Classic Doom-fire algorithm adapted for ASCII glyph masks.
+                       Bottom rows of the glyph seeded at full heat (1.0); each
+                       simulation step propagates heat upward with small random
+                       lateral drift and random per-cell cooling. After n_steps
+                       iterations the heat field is mapped to density chars —
+                       hot cells (heat ≈ 1.0) → '@#', cooling cells → '+;:,',
+                       fully cooled → '.'. Deterministic with seed parameter.
+                       Named presets: default, hot, cool, embers.
 
 All are pure Python stdlib — no external dependencies.
 """
@@ -892,6 +908,364 @@ def slime_mold_fill(
 
 
 # -------------------------------------------------------------------------
+# Wave Interference fill — F09
+#
+# Two plane waves at different angles and frequencies interfere inside the
+# glyph mask. The superposition I(x,y) is normalized to [0,1] and mapped
+# to density chars.
+#
+
+_WAVE_PRESETS: dict = {
+    "default": {"freq1": 3.0,  "angle1":   0.0, "freq2": 5.0, "angle2":  45.0},
+    "moire":   {"freq1": 8.0,  "angle1":   0.0, "freq2": 8.0, "angle2":   5.0},
+    "radial":  {"freq1": 4.0,  "angle1":  30.0, "freq2": 4.0, "angle2": -30.0},
+    "fine":    {"freq1": 10.0, "angle1":  22.5, "freq2": 7.0, "angle2":  67.5},
+}
+
+
+# -------------------------------------------------------------------------
+def wave_fill(
+    mask: list,
+    freq1: float = 3.0,
+    angle1: float = 0.0,
+    freq2: float = 5.0,
+    angle2: float = 45.0,
+    phase1: float = 0.0,
+    phase2: float = 0.0,
+    preset: str = "default",
+    density_chars: Optional[str] = None,
+) -> list:
+    """Fill glyph mask with two-wave interference pattern (F09).
+
+    Two plane waves at different angles and frequencies interfere inside the
+    glyph ink cells. The interference intensity:
+
+      I(x,y) = cos(2π*(fx1*x + fy1*y) + phase1) + cos(2π*(fx2*x + fy2*y) + phase2)
+
+    where fx = freq*cos(angle_rad), fy = freq*sin(angle_rad), and x,y are
+    normalised to [0, 1] within the bounding box of ink cells.  I ranges
+    from -2 to +2; it is normalised to [0, 1] before char mapping.
+
+    Named presets (override individual params when specified):
+      "default" — freq1=3,  angle1=0,    freq2=5,  angle2=45   (gentle diagonal cross)
+      "moire"   — freq1=8,  angle1=0,    freq2=8,  angle2=5    (near-parallel moiré bands)
+      "radial"  — freq1=4,  angle1=30,   freq2=4,  angle2=-30  (symmetric bowtie)
+      "fine"    — freq1=10, angle1=22.5, freq2=7,  angle2=67.5 (fine diagonal interference)
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param freq1: Spatial frequency of wave 1 (cycles across the glyph, default: 3.0).
+    :param angle1: Propagation angle of wave 1 in degrees (default: 0.0).
+    :param freq2: Spatial frequency of wave 2 (default: 5.0).
+    :param angle2: Propagation angle of wave 2 in degrees (default: 45.0).
+    :param phase1: Phase offset of wave 1 in radians (default: 0.0).
+    :param phase2: Phase offset of wave 2 in radians (default: 0.0).
+    :param preset: Named parameter preset; overrides all wave params when set (default: 'default').
+    :param density_chars: Darkest-to-lightest character sequence (default: _DENSE).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _WAVE_PRESETS:
+        raise ValueError(
+            f"Unknown wave preset '{preset}'. "
+            f"Available: {', '.join(_WAVE_PRESETS.keys())}"
+        )
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    # Apply preset — overrides individual params
+    p = _WAVE_PRESETS[preset]
+    freq1  = p["freq1"]
+    angle1 = p["angle1"]
+    freq2  = p["freq2"]
+    angle2 = p["angle2"]
+
+    chars = density_chars if density_chars is not None else _DENSE
+    n_chars = len(chars)
+
+    # -------------------------------------------------------------------------
+    # Identify ink cells and build bounding box for normalised coordinates
+    ink_cells = [
+        (r, c)
+        for r in range(rows)
+        for c in range(len(mask[r]))
+        if mask[r][c] >= 0.5
+    ]
+    if not ink_cells:
+        return [" " * cols for _ in range(rows)]
+
+    min_r = min(r for r, _ in ink_cells)
+    max_r = max(r for r, _ in ink_cells)
+    min_c = min(c for _, c in ink_cells)
+    max_c = max(c for _, c in ink_cells)
+
+    row_span = max(max_r - min_r, 1)
+    col_span = max(max_c - min_c, 1)
+
+    # -------------------------------------------------------------------------
+    # Pre-compute wave direction components
+    TWO_PI = 2.0 * math.pi
+    a1_rad = math.radians(angle1)
+    a2_rad = math.radians(angle2)
+    fx1 = freq1 * math.cos(a1_rad)
+    fy1 = freq1 * math.sin(a1_rad)
+    fx2 = freq2 * math.cos(a2_rad)
+    fy2 = freq2 * math.sin(a2_rad)
+
+    # -------------------------------------------------------------------------
+    # Evaluate interference value for every ink cell, track min/max for normalisation
+    wave_grid = [[0.0] * cols for _ in range(rows)]
+    ink_mask  = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    ink_vals: list = []
+    for r, c in ink_cells:
+        x = (c - min_c) / col_span   # 0.0–1.0
+        y = (r - min_r) / row_span   # 0.0–1.0
+        val = (
+            math.cos(TWO_PI * (fx1 * x + fy1 * y) + phase1)
+            + math.cos(TWO_PI * (fx2 * x + fy2 * y) + phase2)
+        )
+        wave_grid[r][c] = val
+        ink_vals.append(val)
+
+    # -------------------------------------------------------------------------
+    # Normalise from [-2, +2] → [0, 1] and map to chars
+    w_min = min(ink_vals)
+    w_max = max(ink_vals)
+    w_span = w_max - w_min
+    if w_span < 1e-9:
+        w_span = 1.0
+
+    result = []
+    for r in range(rows):
+        line = ""
+        for c in range(cols):
+            if not ink_mask[r][c]:
+                line += " "
+                continue
+            norm = (wave_grid[r][c] - w_min) / w_span   # 0.0–1.0
+            norm = max(0.0, min(1.0, norm))
+            idx = int(norm * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += chars[n_chars - 1 - idx]   # high intensity → chars[0] (dense)
+        result.append(line)
+
+    return result
+
+
+# -------------------------------------------------------------------------
+# Fractal Fill — F05
+#
+# Mandelbrot or Julia set escape-time algorithm.  Each ink cell is mapped to
+# a complex coordinate; the escape iteration count (with smooth colouring)
+# drives character density.
+#
+
+_FRACTAL_PRESETS: dict = {
+    "default":      {"mode": "mandelbrot", "cx": -0.5,   "cy": 0.0,  "zoom": 1.5,
+                     "julia_cx": -0.7,   "julia_cy": 0.27},
+    "seahorse":     {"mode": "mandelbrot", "cx": -0.75,  "cy": 0.1,  "zoom": 0.1,
+                     "julia_cx": -0.7,   "julia_cy": 0.27},
+    "lightning":    {"mode": "mandelbrot", "cx": 0.0,    "cy": 0.65, "zoom": 0.3,
+                     "julia_cx": -0.7,   "julia_cy": 0.27},
+    "julia_swirl":  {"mode": "julia",      "cx": -0.5,   "cy": 0.0,  "zoom": 1.5,
+                     "julia_cx": -0.4,   "julia_cy": 0.6},
+    "julia_rabbit": {"mode": "julia",      "cx": -0.5,   "cy": 0.0,  "zoom": 1.5,
+                     "julia_cx": -0.123, "julia_cy": 0.745},
+}
+
+
+# -------------------------------------------------------------------------
+def fractal_fill(
+    mask: list,
+    cx: float = -0.5,
+    cy: float = 0.0,
+    zoom: float = 1.5,
+    max_iter: int = 64,
+    mode: str = "mandelbrot",
+    julia_cx: float = -0.7,
+    julia_cy: float = 0.27,
+    preset: str = "default",
+    density_chars: Optional[str] = None,
+) -> list:
+    """Fill glyph mask with Mandelbrot or Julia set escape time (F05).
+
+    Each ink cell is mapped to a complex coordinate based on its normalised
+    position in the glyph bounding box.  An aspect-ratio correction of 2.0 is
+    applied to the y-axis (character cells are taller than wide).
+
+    Escape-time algorithm:
+
+      Mandelbrot: z₀=0+0j, c=mapped_coord; iterate z = z² + c
+      Julia:      z₀=mapped_coord, c=julia_cx+julia_cy·j; iterate z = z² + c
+
+    Smooth colouring (removes integer banding):
+      When |z|²>4: smooth_val = n + 1 - log2(log2(|z|²))
+
+    Interior cells (never escape) → 0.0 → densest character.
+    Exterior cells → smooth_val normalised to [0, 1] → lighter characters.
+
+    Named presets:
+      "default"      — full Mandelbrot, cx=-0.5, cy=0, zoom=1.5
+      "seahorse"     — seahorse valley, cx=-0.75, cy=0.1, zoom=0.1
+      "lightning"    — lightning bolt region, cx=0, cy=0.65, zoom=0.3
+      "julia_swirl"  — Julia set, c=-0.4+0.6j, swirling spirals
+      "julia_rabbit" — Julia set, c=-0.123+0.745j, Douady rabbit
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param cx: Real-axis centre of the view window (default: -0.5).
+    :param cy: Imaginary-axis centre of the view window (default: 0.0).
+    :param zoom: View half-width in the complex plane (default: 1.5).
+    :param max_iter: Maximum iteration count before declaring interior (default: 64).
+    :param mode: 'mandelbrot' or 'julia' (default: 'mandelbrot').
+    :param julia_cx: Real part of the Julia constant c (default: -0.7).
+    :param julia_cy: Imaginary part of the Julia constant c (default: 0.27).
+    :param preset: Named parameter preset; overrides all params when set (default: 'default').
+    :param density_chars: Darkest-to-lightest character sequence (default: _DENSE).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset or mode name is unknown.
+    """
+    if preset not in _FRACTAL_PRESETS:
+        raise ValueError(
+            f"Unknown fractal preset '{preset}'. "
+            f"Available: {', '.join(_FRACTAL_PRESETS.keys())}"
+        )
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    # Apply preset — overrides individual params
+    p = _FRACTAL_PRESETS[preset]
+    mode     = p["mode"]
+    cx       = p["cx"]
+    cy       = p["cy"]
+    zoom     = p["zoom"]
+    julia_cx = p["julia_cx"]
+    julia_cy = p["julia_cy"]
+
+    if mode not in ("mandelbrot", "julia"):
+        raise ValueError(f"Unknown fractal mode '{mode}'. Use 'mandelbrot' or 'julia'.")
+
+    chars   = density_chars if density_chars is not None else _DENSE
+    n_chars = len(chars)
+
+    # -------------------------------------------------------------------------
+    # Identify ink cells and build bounding box for normalised coordinates
+    ink_cells = [
+        (r, c)
+        for r in range(rows)
+        for c in range(len(mask[r]))
+        if mask[r][c] >= 0.5
+    ]
+    if not ink_cells:
+        return [" " * cols for _ in range(rows)]
+
+    min_r = min(r for r, _ in ink_cells)
+    max_r = max(r for r, _ in ink_cells)
+    min_c = min(c for _, c in ink_cells)
+    max_c = max(c for _, c in ink_cells)
+
+    row_span = max(max_r - min_r, 1)
+    col_span = max(max_c - min_c, 1)
+
+    # Aspect-ratio correction: character cells are ~2× taller than wide, so
+    # the y extent in the complex plane must be stretched accordingly.
+    aspect_ratio = 2.0
+
+    # Julia constant (only used in julia mode)
+    julia_c = complex(julia_cx, julia_cy)
+
+    ink_mask = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    # -------------------------------------------------------------------------
+    # Compute escape values for all ink cells
+    escape_grid: list = [[0.0] * cols for _ in range(rows)]
+    exterior_vals: list = []   # smooth escape values for exterior cells
+
+    for r, c in ink_cells:
+        # Normalise to [-1, +1] within bounding box
+        nx = (c - min_c) / col_span * 2.0 - 1.0   # -1.0 to +1.0
+        ny = (r - min_r) / row_span * 2.0 - 1.0   # -1.0 to +1.0
+
+        # Map to complex plane centred at (cx, cy) with half-width zoom
+        re = cx + nx * zoom
+        im = cy + ny * zoom * aspect_ratio
+
+        if mode == "mandelbrot":
+            z = complex(0.0, 0.0)
+            c_val = complex(re, im)
+        else:
+            z = complex(re, im)
+            c_val = julia_c
+
+        escaped = False
+        smooth_val = 0.0
+        for n in range(max_iter):
+            z = z * z + c_val
+            absq = z.real * z.real + z.imag * z.imag
+            if absq > 4.0:
+                # Smooth colouring: fractional iteration count
+                smooth_val = n + 1.0 - math.log2(math.log2(absq))
+                escaped = True
+                break
+
+        if escaped:
+            escape_grid[r][c] = smooth_val
+            exterior_vals.append(smooth_val)
+        else:
+            escape_grid[r][c] = -1.0   # sentinel for interior
+
+    # -------------------------------------------------------------------------
+    # Normalise exterior smooth values to [0, 1]
+    if exterior_vals:
+        e_min = min(exterior_vals)
+        e_max = max(exterior_vals)
+        e_span = e_max - e_min
+        if e_span < 1e-9:
+            e_span = 1.0
+    else:
+        e_min, e_span = 0.0, 1.0
+
+    # -------------------------------------------------------------------------
+    # Build output rows
+    result = []
+    for r in range(rows):
+        line = ""
+        for c in range(cols):
+            if not ink_mask[r][c]:
+                line += " "
+                continue
+            val = escape_grid[r][c]
+            if val < 0.0:
+                # Interior — never escaped → densest character
+                line += chars[0]
+            else:
+                norm = (val - e_min) / e_span
+                norm = max(0.0, min(1.0, norm))
+                idx = int(norm * (n_chars - 1) + 0.5)
+                idx = max(0, min(n_chars - 1, idx))
+                # Low norm (barely escaped) → dense; high norm → light
+                line += chars[n_chars - 1 - idx]
+        result.append(line)
+
+    return result
+
+
+# -------------------------------------------------------------------------
 # Strange Attractor fill — N08
 #
 # Chaotic attractor trajectory projected into a 2D density histogram,
@@ -1651,6 +2025,780 @@ def lsystem_fill(
             idx = int(d * (n_chars - 1) + 0.5)
             idx = max(0, min(n_chars - 1, idx))
             line += ink_chars[n_chars - 1 - idx]   # high density → ink_chars[0] (dense)
+        result.append(line)
+
+    return result
+
+
+# =============================================================================
+# Turing Pattern fill (N09)
+# =============================================================================
+#
+# Based on Alan Turing's "The Chemical Basis of Morphogenesis" (1952),
+# Philos. Trans. R. Soc. Lond. B 237:37–72.
+#
+# This implementation uses a FitzHugh-Nagumo-style activator-inhibitor system,
+# which is categorically distinct from the Gray-Scott model (F04):
+#
+#   Gray-Scott (F04):
+#     dU/dt = Du·∇²U - U·V² + f·(1-U)
+#     dV/dt = Dv·∇²V + U·V² - (f+k)·V
+#     → autocatalytic cubic kinetics; requires careful (f,k) tuning
+#
+#   Turing / FitzHugh-Nagumo (N09):
+#     dU/dt = Du·∇²U + alpha·U - U³ - V + beta
+#     dV/dt = Dv·∇²V + epsilon·(U - gamma·V)
+#     → bistable cubic activator, linear inhibitor; epsilon controls scale
+#
+# The `epsilon` parameter governs spatial frequency of patterns:
+#   - low epsilon  → large isolated spots (leopard / cheetah spots)
+#   - mid epsilon  → elongated stripes (zebra / tiger stripes)
+#   - high epsilon → labyrinthine maze (brain coral / fingerprint)
+#
+# Named presets encode canonical values from the literature / empirical tuning:
+#   "spots"     — isolated circular domains, epsilon=0.01
+#   "stripes"   — alternating stripe bands,  epsilon=0.025
+#   "maze"      — labyrinthine maze,         epsilon=0.05
+#   "labyrinth" — dense fingerprint pattern, epsilon=0.08
+
+_TURING_DENSE = "@#S%?*+;:,. "
+
+_TURING_PRESETS: dict = {
+    # (alpha, beta, gamma, Da, Db, epsilon, steps)
+    # alpha: activator self-activation rate
+    # beta:  activator bias (spatial asymmetry control)
+    # gamma: inhibitor decay ratio (normally 1.0)
+    # Da, Db: diffusion rates (Db >> Da for Turing instability)
+    #   Stability constraint for explicit Euler: dt ≤ 1 / (4 · Db)
+    #   With dt=0.1: Db_max = 2.5.  We use Da=0.1, Db=2.0 for a safe 20× ratio.
+    # epsilon: activator-inhibitor coupling — controls pattern spatial scale
+    # steps: simulation iterations at scale-upsampled resolution
+    "spots":     {"alpha": 0.9, "beta": -0.05, "gamma": 1.0, "Da": 0.10, "Db": 2.0, "epsilon": 0.010, "steps": 3000},  # noqa: E501
+    "stripes":   {"alpha": 0.9, "beta": -0.05, "gamma": 1.0, "Da": 0.10, "Db": 2.0, "epsilon": 0.025, "steps": 3000},  # noqa: E501
+    "maze":      {"alpha": 0.9, "beta": -0.05, "gamma": 1.0, "Da": 0.10, "Db": 2.0, "epsilon": 0.050, "steps": 3000},  # noqa: E501
+    "labyrinth": {"alpha": 0.9, "beta": -0.05, "gamma": 1.0, "Da": 0.10, "Db": 2.0, "epsilon": 0.080, "steps": 3500},  # noqa: E501
+}
+
+_TURING_dt: float = 0.1   # dt=0.1 stable for Db=2.0 (4·Db·dt = 0.8 < 1)
+_TURING_CLAMP: float = 10.0   # hard clamp for U/V to catch any residual instability
+
+
+# -------------------------------------------------------------------------
+def _turing_laplacian(grid: list, r: int, c: int, rows: int, cols: int, ink: list) -> float:
+    """5-point Laplacian with Neumann boundary condition at mask boundary.
+
+    Cells outside the ink mask are treated as equal to the queried cell
+    (zero-flux Neumann BC), so diffusion cannot escape the glyph.
+
+    :param grid: 2D float list (rows × cols).
+    :param r: Row index.
+    :param c: Column index.
+    :param rows: Total grid rows.
+    :param cols: Total grid columns.
+    :param ink: 2D bool list — True where simulation is active.
+    :returns: Discrete Laplacian value at (r, c).
+    """
+    def _get(rr: int, cc: int) -> float:
+        """Return grid value or replicate edge for Neumann BC."""
+        if 0 <= rr < rows and 0 <= cc < cols and ink[rr][cc]:
+            return grid[rr][cc]
+        return grid[r][c]   # Neumann: replicate self at boundary
+
+    val = grid[r][c]
+    return _get(r - 1, c) + _get(r + 1, c) + _get(r, c - 1) + _get(r, c + 1) - 4.0 * val
+
+
+# -------------------------------------------------------------------------
+def turing_fill(
+    mask: list,
+    preset: str = "stripes",
+    steps: Optional[int] = None,
+    seed: Optional[int] = None,
+    density_chars: Optional[str] = None,
+    scale: int = 4,
+) -> list:
+    """Fill glyph mask with Turing activator-inhibitor reaction-diffusion (N09).
+
+    Implements the FitzHugh-Nagumo activator-inhibitor model, categorically
+    distinct from Gray-Scott (F04). The equations are:
+
+      dU/dt = Da·∇²U + alpha·U - U³ - V + beta
+      dV/dt = Db·∇²V + epsilon·(U - gamma·V)
+
+    where U is the activator and V is the inhibitor. The Turing instability
+    condition requires Db >> Da (inhibitor diffuses much faster than activator),
+    which generates spatially periodic patterns whose wavelength is controlled
+    by the `epsilon` coupling parameter.
+
+    Pattern morphologies (via `preset`):
+      "spots"     — isolated circular spots (leopard / cheetah pattern)
+      "stripes"   — alternating stripe bands (zebra / tiger pattern)
+      "maze"      — labyrinthine maze (brain coral / fingerprint)
+      "labyrinth" — dense fingerprint pattern (high spatial frequency)
+
+    The glyph mask is upscaled by `scale` (default 4×) before simulation
+    so that at least one full pattern wavelength fits inside even small glyphs,
+    then downsampled back. The activator U concentration drives char density:
+    high U → dense chars; low/negative U → light chars.
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param preset: Named parameter preset (default: 'stripes').
+    :param steps: Simulation steps override (default: preset-dependent, 3000–3500).
+    :param seed: Integer seed for reproducible initialisation (default: None = random).
+    :param density_chars: Darkest-to-lightest character sequence (default: _TURING_DENSE).
+    :param scale: Upscale factor for simulation resolution (default: 4).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _TURING_PRESETS:
+        raise ValueError(
+            f"Unknown Turing preset '{preset}'. "
+            f"Available: {', '.join(_TURING_PRESETS.keys())}"
+        )
+
+    orig_rows = len(mask)
+    if orig_rows == 0:
+        return []
+    orig_cols = max(len(row) for row in mask)
+    if orig_cols == 0:
+        return []
+
+    p = _TURING_PRESETS[preset]
+    alpha = p["alpha"]
+    beta = p["beta"]
+    gamma = p["gamma"]
+    Da = p["Da"]
+    Db = p["Db"]
+    epsilon = p["epsilon"]
+    n_steps = steps if steps is not None else p["steps"]
+    chars = (density_chars or _TURING_DENSE).rstrip(" ") or "."
+    n_chars = len(chars)
+
+    # -------------------------------------------------------------------------
+    # Build original ink mask
+    orig_ink = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(orig_cols)]
+        for r in range(orig_rows)
+    ]
+
+    # -------------------------------------------------------------------------
+    # Upscale by nearest-neighbour
+    sim_rows = orig_rows * scale
+    sim_cols = orig_cols * scale
+    ink = [
+        [orig_ink[r // scale][c // scale] for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+
+    # -------------------------------------------------------------------------
+    # Initialise U and V with small random perturbation around (0, 0).
+    # The FHN system is symmetric about (U=0, V=0); small noise breaks symmetry
+    # and seeds the Turing instability. Exterior cells stay at 0.0.
+    rng = random.Random(seed)
+    noise_amplitude = 0.02
+    U = [
+        [rng.gauss(0.0, noise_amplitude) if ink[r][c] else 0.0 for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+    V = [
+        [rng.gauss(0.0, noise_amplitude) if ink[r][c] else 0.0 for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+
+    # Pre-flatten ink for iteration speed
+    active_cells = [(r, c) for r in range(sim_rows) for c in range(sim_cols) if ink[r][c]]
+
+    # -------------------------------------------------------------------------
+    # Run Euler integration of the FHN activator-inhibitor system
+    dt = _TURING_dt
+    for _step in range(n_steps):
+        dU = [[0.0] * sim_cols for _ in range(sim_rows)]
+        dV = [[0.0] * sim_cols for _ in range(sim_rows)]
+
+        for r, c in active_cells:
+            u = U[r][c]
+            v = V[r][c]
+            lap_u = _turing_laplacian(U, r, c, sim_rows, sim_cols, ink)
+            lap_v = _turing_laplacian(V, r, c, sim_rows, sim_cols, ink)
+            # FitzHugh-Nagumo kinetics:
+            #   activator: Da·∇²U + alpha·U - U³ - V + beta
+            #   inhibitor: Db·∇²V + epsilon·(U - gamma·V)
+            dU[r][c] = Da * lap_u + alpha * u - u * u * u - v + beta
+            dV[r][c] = Db * lap_v + epsilon * (u - gamma * v)
+
+        for r, c in active_cells:
+            U[r][c] += dt * dU[r][c]
+            V[r][c] += dt * dV[r][c]
+            # Hard clamp — prevents NaN propagation if any residual instability
+            if U[r][c] > _TURING_CLAMP:
+                U[r][c] = _TURING_CLAMP
+            elif U[r][c] < -_TURING_CLAMP:
+                U[r][c] = -_TURING_CLAMP
+            if V[r][c] > _TURING_CLAMP:
+                V[r][c] = _TURING_CLAMP
+            elif V[r][c] < -_TURING_CLAMP:
+                V[r][c] = -_TURING_CLAMP
+
+    # -------------------------------------------------------------------------
+    # Downsample U to original resolution by averaging the scale×scale blocks
+    U_down = []
+    for r in range(orig_rows):
+        row_vals = []
+        for c in range(orig_cols):
+            total = 0.0
+            count = 0
+            for dr in range(scale):
+                for dc in range(scale):
+                    sr = r * scale + dr
+                    sc = c * scale + dc
+                    if sr < sim_rows and sc < sim_cols and ink[sr][sc]:
+                        total += U[sr][sc]
+                        count += 1
+            row_vals.append(total / count if count > 0 else 0.0)
+        U_down.append(row_vals)
+
+    # -------------------------------------------------------------------------
+    # Normalise U_down to [0, 1] across ink cells for char mapping.
+    # U lives in roughly [-1, +1] for FHN steady states; we want +1 → dense chars.
+    ink_vals = [
+        U_down[r][c]
+        for r in range(orig_rows)
+        for c in range(orig_cols)
+        if orig_ink[r][c]
+    ]
+    if not ink_vals:
+        return [" " * orig_cols for _ in range(orig_rows)]
+
+    u_min = min(ink_vals)
+    u_max = max(ink_vals)
+    u_range = u_max - u_min
+    if u_range < 1e-9:
+        u_range = 1.0
+
+    # -------------------------------------------------------------------------
+    # Map normalised U to density chars and assemble output rows
+    result = []
+    for r in range(orig_rows):
+        line = ""
+        for c in range(orig_cols):
+            if c >= len(mask[r]) or mask[r][c] < 0.5:
+                line += " "
+                continue
+            raw = U_down[r][c]
+            if raw != raw:   # NaN guard (should not occur with clamping, but be safe)
+                raw = 0.0
+            u_norm = (raw - u_min) / u_range   # 0.0–1.0, high = activator peak
+            idx = int(u_norm * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += chars[n_chars - 1 - idx]   # high activator → chars[0] (dense)
+        result.append(line)
+
+    return result
+
+
+# -------------------------------------------------------------------------
+# F07 — Voronoi Fill
+# -------------------------------------------------------------------------
+
+_VORONOI_PRESETS: dict = {
+    # name: n_factor (multiplier on sqrt(interior) for seed count),
+    #        border_char (char for cell borders),
+    #        invert (True = dark edges/borders, light centers; False = dark centers, light edges)
+    "default": {"n_factor": 1.2, "border_char": "#", "invert": False},
+    "cracked": {"n_factor": 0.7, "border_char": "@", "invert": True},
+    "fine":    {"n_factor": 2.5, "border_char": "+", "invert": False},
+    "coarse":  {"n_factor": 0.4, "border_char": "#", "invert": True},
+    "cells":   {"n_factor": 1.8, "border_char": "*", "invert": False},
+}
+
+# Interior density chars for Voronoi — omits `@` so seed centres stand out in "default"
+_VORONOI_DENSE: str = "#S%?*+;:,."
+
+
+# -------------------------------------------------------------------------
+def _voronoi_dist2(r1: int, c1: int, r2: int, c2: int) -> float:
+    """Return squared Euclidean distance between two grid cells.
+
+    :param r1: Row of first cell.
+    :param c1: Column of first cell.
+    :param r2: Row of second cell.
+    :param c2: Column of second cell.
+    :returns: Squared Euclidean distance (float).
+    """
+    dr = r1 - r2
+    dc = c1 - c2
+    return float(dr * dr + dc * dc)
+
+
+# -------------------------------------------------------------------------
+def voronoi_fill(
+    mask: list,
+    preset: str = "default",
+    n_seeds: Optional[int] = None,
+    seed: Optional[int] = None,
+    density_chars: Optional[str] = None,
+) -> list:
+    """Fill glyph mask with Voronoi cell pattern (F07).
+
+    Generates N random seed points inside the glyph ink region, partitions
+    every interior cell into the Voronoi region of its nearest seed (by
+    Euclidean distance), and renders the result as ASCII art:
+
+    - **Cell borders** — cells adjacent to a different Voronoi region get a
+      border character, creating visible cell walls.
+    - **Cell interiors** — each cell shows a radial density gradient from its
+      seed centre outward (dark centre, fading toward the border), or inverted
+      (light centre, dark edges) depending on the preset.
+
+    Named presets:
+      "default" — ~sqrt(area)×1.2 seeds, ``#`` borders, dark-centre shading
+      "cracked" — few seeds, ``@`` borders, light centres with dark edges
+                  (cracked-earth / stained-glass look)
+      "fine"    — many seeds (dense cells), ``+`` borders, dark-centre shading
+      "coarse"  — few seeds (large cells), ``#`` borders, inverted shading
+      "cells"   — medium seeds, ``*`` borders, dark-centre shading
+                  (biological cell / bubble look)
+
+    The number of seeds auto-scales with the interior area: ``n_seeds =
+    max(4, int(sqrt(len(interior)) * n_factor))``, unless ``n_seeds`` is
+    explicitly provided.
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param preset: Named preset controlling seed density and visual style
+        (default: 'default').
+    :param n_seeds: Override number of Voronoi seed points (default: auto-scaled
+        from interior area via the preset's n_factor).
+    :param seed: Integer RNG seed for reproducible placement (default: None = 42).
+    :param density_chars: Darkest-to-lightest interior char sequence
+        (default: _VORONOI_DENSE = ``"#S%?*+;:,."``)
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _VORONOI_PRESETS:
+        raise ValueError(
+            f"Unknown Voronoi preset '{preset}'. "
+            f"Available: {', '.join(_VORONOI_PRESETS.keys())}"
+        )
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    p = _VORONOI_PRESETS[preset]
+    border_char: str = p["border_char"]
+    invert: bool = p["invert"]
+    chars: str = density_chars if density_chars is not None else _VORONOI_DENSE
+    n_chars = len(chars)
+
+    # -------------------------------------------------------------------------
+    # Identify interior (ink) cells
+    interior = [
+        (r, c)
+        for r in range(rows)
+        for c in range(len(mask[r]))
+        if mask[r][c] >= 0.5
+    ]
+    if not interior:
+        return [" " * cols for _ in range(rows)]
+
+    # -------------------------------------------------------------------------
+    # Determine seed count
+    if n_seeds is None:
+        n_factor: float = p["n_factor"]
+        n_seeds = max(4, int(math.sqrt(len(interior)) * n_factor))
+    n_seeds = min(n_seeds, len(interior))
+
+    # -------------------------------------------------------------------------
+    # Place seeds — random sample of interior cells
+    rng = random.Random(seed if seed is not None else 42)
+    seeds = rng.sample(interior, n_seeds)
+
+    # -------------------------------------------------------------------------
+    # Assign each interior cell to the nearest seed (Voronoi partitioning).
+    # Also record d1 (nearest distance) for the radial gradient.
+    region: dict = {}    # (r, c) -> seed index
+    d1_map: dict = {}    # (r, c) -> distance to nearest seed (float, squared)
+
+    for r, c in interior:
+        best_idx = 0
+        best_d2 = _voronoi_dist2(r, c, seeds[0][0], seeds[0][1])
+        for i in range(1, n_seeds):
+            d2 = _voronoi_dist2(r, c, seeds[i][0], seeds[i][1])
+            if d2 < best_d2:
+                best_d2 = d2
+                best_idx = i
+        region[(r, c)] = best_idx
+        d1_map[(r, c)] = best_d2  # stored as squared (monotone, saves sqrt)
+
+    # -------------------------------------------------------------------------
+    # Detect border cells: any ink cell whose 4-connected neighbour is ink
+    # AND belongs to a different region.
+    border_cells: set = set()
+    _neighbours = ((-1, 0), (1, 0), (0, -1), (0, 1))
+    for r, c in interior:
+        my_reg = region[(r, c)]
+        for dr, dc in _neighbours:
+            nr, nc = r + dr, c + dc
+            if (nr, nc) in region and region[(nr, nc)] != my_reg:
+                border_cells.add((r, c))
+                break
+
+    # -------------------------------------------------------------------------
+    # Per-region max distance (squared) — used to normalise the radial gradient.
+    # We use squared distances (no sqrt needed), so the gradient is slightly
+    # non-linear but still monotone and visually smooth.
+    max_d2: dict = {}
+    for cell, reg in region.items():
+        d = d1_map[cell]
+        if reg not in max_d2 or d > max_d2[reg]:
+            max_d2[reg] = d
+
+    # -------------------------------------------------------------------------
+    # Build output rows
+    result = []
+    for r in range(rows):
+        row_len = len(mask[r]) if r < rows else 0
+        line = ""
+        for c in range(cols):
+            if c >= row_len or mask[r][c] < 0.5:
+                line += " "
+                continue
+            if (r, c) in border_cells:
+                line += border_char
+                continue
+            # Interior cell — radial gradient
+            reg = region[(r, c)]
+            d = d1_map[(r, c)]
+            md = max_d2.get(reg, 1.0) or 1.0
+            norm = d / md          # 0.0 = at seed centre, 1.0 = at region edge
+            if invert:
+                norm = 1.0 - norm  # flip: dark at centre, light at edge → inverted
+            # Map norm → char index: 0.0 → darkest (index 0), 1.0 → lightest (index n-1)
+            idx = int(norm * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += chars[idx]
+        result.append(line)
+
+    return result
+
+
+# -------------------------------------------------------------------------
+# Plasma Wave fill — A10
+#
+# Classic demoscene plasma effect applied to character density selection
+# inside the glyph mask. Four sinusoidal waves (along x, y, x+y, and
+# radial distance) interfere to produce the characteristic organic plasma
+# field. Novelty over asciimatics Plasma: (1) drives *character selection*
+# instead of color, (2) confined to the glyph mask shape.
+#
+# Algorithm:
+#   For each ink cell at normalised position (x, y) ∈ [0,1]²:
+#     v = sin(2π·f1·x + t)
+#       + sin(2π·f2·y + t·1.3)
+#       + sin(2π·f3·(x+y) + t·0.7)
+#       + sin(2π·f4·√(x²+y²) + t·0.9)
+#   v ∈ [-4, 4] is normalised to [0,1] and mapped to density chars.
+#   The time parameter t ∈ [0, 2π] enables smooth animation.
+#
+# Reference: Classic demoscene plasma — see Rosetta Code "Plasma effect";
+#   Asciimatics Plasma renderer (color-only, no glyph masking — prior art
+#   to the color component only); JustDoIt novelty is char selection + mask.
+#
+
+_PLASMA_PRESETS: dict = {
+    "default":  {"freq1": 1.5, "freq2": 2.0, "freq3": 1.0, "freq4": 1.2},
+    "tight":    {"freq1": 3.0, "freq2": 4.0, "freq3": 2.0, "freq4": 2.5},
+    "slow":     {"freq1": 0.8, "freq2": 1.0, "freq3": 0.5, "freq4": 0.6},
+    "diagonal": {"freq1": 2.0, "freq2": 2.0, "freq3": 3.0, "freq4": 0.5},
+}
+
+
+# -------------------------------------------------------------------------
+def plasma_fill(
+    mask: list,
+    t: float = 0.0,
+    freq1: float = 1.5,
+    freq2: float = 2.0,
+    freq3: float = 1.0,
+    freq4: float = 1.2,
+    preset: str = "default",
+    density_chars: Optional[str] = None,
+) -> list:
+    """Fill glyph mask with a plasma sin-field driving character density selection (A10).
+
+    Classic demoscene plasma formula — four sinusoidal waves along x, y, x+y,
+    and the radial distance from the bounding-box centre interfere to produce
+    organic plasma patterns. The plasma value drives *character selection* inside
+    the glyph mask; the time parameter ``t`` enables smooth frame-by-frame
+    animation by shifting all wave phases simultaneously.
+
+    Named presets (override individual freq params when specified):
+
+      "default"  — freq1=1.5, freq2=2.0, freq3=1.0, freq4=1.2  (balanced blobs)
+      "tight"    — freq1=3.0, freq2=4.0, freq3=2.0, freq4=2.5  (high freq, fine pattern)
+      "slow"     — freq1=0.8, freq2=1.0, freq3=0.5, freq4=0.6  (large slow blobs)
+      "diagonal" — freq1=2.0, freq2=2.0, freq3=3.0, freq4=0.5  (diagonal stripe bias)
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param t: Time phase offset in radians (0.0–2π for one full cycle, default 0.0).
+    :param freq1: Frequency of horizontal wave (default 1.5, overridden by preset).
+    :param freq2: Frequency of vertical wave (default 2.0, overridden by preset).
+    :param freq3: Frequency of diagonal wave (default 1.0, overridden by preset).
+    :param freq4: Frequency of radial wave (default 1.2, overridden by preset).
+    :param preset: Named parameter preset; overrides freq1–4 when specified (default 'default').
+    :param density_chars: Darkest-to-lightest character sequence (default: _DENSE).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _PLASMA_PRESETS:
+        raise ValueError(
+            f"Unknown plasma preset '{preset}'. "
+            f"Available: {', '.join(_PLASMA_PRESETS.keys())}"
+        )
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    # Apply preset — overrides individual freq params
+    p = _PLASMA_PRESETS[preset]
+    freq1 = p["freq1"]
+    freq2 = p["freq2"]
+    freq3 = p["freq3"]
+    freq4 = p["freq4"]
+
+    # Strip trailing space from density chars so that minimum-intensity ink cells
+    # still render as a visible character (not a space, which looks like exterior).
+    chars = (density_chars if density_chars is not None else _DENSE).rstrip(" ") or "."
+    n_chars = len(chars)
+
+    # -------------------------------------------------------------------------
+    # Identify ink cells and build bounding box for normalised coordinates
+    ink_cells = [
+        (r, c)
+        for r in range(rows)
+        for c in range(len(mask[r]))
+        if mask[r][c] >= 0.5
+    ]
+    if not ink_cells:
+        return [" " * cols for _ in range(rows)]
+
+    min_r = min(r for r, _ in ink_cells)
+    max_r = max(r for r, _ in ink_cells)
+    min_c = min(c for _, c in ink_cells)
+    max_c = max(c for _, c in ink_cells)
+
+    row_span = max(max_r - min_r, 1)
+    col_span = max(max_c - min_c, 1)
+
+    # -------------------------------------------------------------------------
+    # Evaluate plasma field for every ink cell
+    TWO_PI = 2.0 * math.pi
+    plasma_grid: list = [[0.0] * cols for _ in range(rows)]
+    ink_mask: list = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    ink_vals: list = []
+    for r, c in ink_cells:
+        # Normalised coordinates: x, y ∈ [0, 1]
+        x = (c - min_c) / col_span
+        # Aspect ratio correction: terminal cells are ~2x taller than wide
+        y = ((r - min_r) / row_span) * (row_span / max(col_span, 1)) * 0.5
+
+        # Radial distance from bounding-box centre (normalised, clamped)
+        cx = 0.5
+        cy = 0.5 * (row_span / max(col_span, 1)) * 0.5
+        radial = math.sqrt(max((x - cx) ** 2 + (y - cy) ** 2, 1e-9))
+
+        val = (
+            math.sin(TWO_PI * freq1 * x + t)
+            + math.sin(TWO_PI * freq2 * y + t * 1.3)
+            + math.sin(TWO_PI * freq3 * (x + y) + t * 0.7)
+            + math.sin(TWO_PI * freq4 * radial + t * 0.9)
+        )
+        plasma_grid[r][c] = val
+        ink_vals.append(val)
+
+    # -------------------------------------------------------------------------
+    # Normalise from [-4, +4] → [0, 1] and map to chars
+    v_min = min(ink_vals)
+    v_max = max(ink_vals)
+    v_span = v_max - v_min
+    if v_span < 1e-9:
+        v_span = 1.0
+
+    result = []
+    for r in range(rows):
+        line = ""
+        for c in range(cols):
+            if not ink_mask[r][c]:
+                line += " "
+                continue
+            norm = (plasma_grid[r][c] - v_min) / v_span   # 0.0–1.0
+            norm = max(0.0, min(1.0, norm))
+            idx = int(norm * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += chars[n_chars - 1 - idx]   # high intensity → chars[0] (dense)
+        result.append(line)
+
+    return result
+
+
+# =============================================================================
+# A08 — Flame Simulation
+#
+# Classic Doom-fire algorithm adapted for ASCII glyph masks.
+# Bottom rows seeded as full heat; each step propagates heat upward with
+# random sideways drift and random cooling. Heat value → density char.
+#
+# Reference: Fabien Sanglard "Fire Effect" (2013), fabiensanglard.net/doom_fire_psx/;
+#   original Doom PSX fire effect by id Software; adapted to character-grid fills.
+#
+
+_FLAME_PRESETS: dict = {
+    "default": {"n_steps": 25, "cooling": 0.12},
+    "hot":     {"n_steps": 30, "cooling": 0.06},
+    "cool":    {"n_steps": 20, "cooling": 0.20},
+    "embers":  {"n_steps": 15, "cooling": 0.30},
+}
+
+# Fire chars — hottest first; we use the standard _DENSE but strip trailing space.
+_FLAME_CHARS: str = "@#S%?*+;:,."
+
+
+# -------------------------------------------------------------------------
+def flame_fill(
+    mask: list,
+    preset: str = "default",
+    n_steps: int = 25,
+    cooling: float = 0.12,
+    seed: Optional[int] = None,
+    density_chars: Optional[str] = None,
+) -> list:
+    """Fill glyph mask with a Doom-fire heat simulation (A08).
+
+    Classic PSX Doom fire algorithm adapted for ASCII glyph masks.  The
+    bottom rows of each glyph are seeded at full heat (1.0).  On each
+    simulation step, heat propagates upward with small random lateral drift
+    and random per-cell cooling, producing an organic upward-drifting flame
+    pattern.  After ``n_steps`` iterations the stable pattern is mapped to
+    density characters — hot cells (heat ≈ 1.0) render as ``@#``, cooling
+    cells render as ``+;:,``, and fully cooled cells render as ``.``.
+
+    Named presets:
+
+      "default" — n_steps=25, cooling=0.12  (balanced flame)
+      "hot"     — n_steps=30, cooling=0.06  (tall hot flame, hotter top)
+      "cool"    — n_steps=20, cooling=0.20  (shorter, quick-cooling flame)
+      "embers"  — n_steps=15, cooling=0.30  (low dying embers, mostly dark)
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param preset: Named parameter preset; overrides n_steps/cooling when specified
+        (default 'default').
+    :param n_steps: Number of fire propagation iterations (default 25).
+    :param cooling: Per-step random cooling factor; higher = cooler flame (default 0.12).
+    :param seed: Random seed for deterministic output (default None — random).
+    :param density_chars: Hottest-to-coolest character sequence (default: _FLAME_CHARS).
+    :returns: List of strings — one per row, same shape as input mask.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _FLAME_PRESETS:
+        raise ValueError(
+            f"Unknown flame preset '{preset}'. "
+            f"Available: {', '.join(_FLAME_PRESETS.keys())}"
+        )
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask) if rows > 0 else 0
+    if cols == 0:
+        return []
+
+    # Apply preset — overrides individual params
+    p = _FLAME_PRESETS[preset]
+    n_steps = p["n_steps"]
+    cooling = p["cooling"]
+
+    chars = (density_chars if density_chars is not None else _FLAME_CHARS)
+    # Strip trailing space so minimum-intensity ink cells still render as visible chars
+    chars = chars.rstrip(" ") or "."
+    n_chars = len(chars)
+
+    rng = random.Random(seed)
+
+    # -------------------------------------------------------------------------
+    # Build ink mask (boolean grid)
+    ink: list = [
+        [bool(mask[r][c] >= 0.5) if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    # Identify all ink cells and find the bottom ink rows per column
+    ink_cells = [(r, c) for r in range(rows) for c in range(cols) if ink[r][c]]
+    if not ink_cells:
+        return [" " * cols for _ in range(rows)]
+
+    # -------------------------------------------------------------------------
+    # Initialize heat grid
+    heat: list = [[0.0] * cols for _ in range(rows)]
+
+    # Seed: bottom ink cells get full heat.  "Bottom" = highest row index that is ink.
+    max_ink_row = max(r for r, _ in ink_cells)
+    # Seed bottom 2 rows (max_ink_row and max_ink_row - 1) with full heat
+    seed_rows = {max_ink_row, max_ink_row - 1}
+    for r, c in ink_cells:
+        if r in seed_rows:
+            heat[r][c] = 1.0
+
+    # -------------------------------------------------------------------------
+    # Doom fire propagation — heat moves upward (lower row indices)
+    for _step in range(n_steps):
+        new_heat = [row[:] for row in heat]   # shallow copy each row
+        # Propagate: for each ink cell (except seed rows), compute heat from below
+        for r, c in ink_cells:
+            if r in seed_rows:
+                # Seed rows stay at full heat
+                new_heat[r][c] = 1.0
+                continue
+            # Look at the cell one row below
+            below_r = r + 1
+            if below_r >= rows:
+                continue
+            # Random lateral drift: -1, 0, or 1
+            drift = rng.randint(-1, 1)
+            below_c = c + drift
+            # Clamp drift to valid column and must be an ink cell
+            if below_c < 0 or below_c >= cols or not ink[below_r][below_c]:
+                below_c = c   # no drift if it would exit the glyph
+            if ink[below_r][below_c]:
+                raw = heat[below_r][below_c] - cooling * rng.random()
+                new_heat[r][c] = max(0.0, raw)
+            # else: cell below isn't ink — heat stays as is (preserve edge heat)
+        heat = new_heat
+
+    # -------------------------------------------------------------------------
+    # Map heat → density chars
+    result = []
+    for r in range(rows):
+        line = ""
+        for c in range(cols):
+            if not ink[r][c]:
+                line += " "
+                continue
+            h = max(0.0, min(1.0, heat[r][c]))
+            # h=1.0 → chars[0] (hottest, densest); h=0.0 → chars[-1] (coolest)
+            idx = int((1.0 - h) * (n_chars - 1) + 0.5)
+            idx = max(0, min(n_chars - 1, idx))
+            line += chars[idx]
         result.append(line)
 
     return result

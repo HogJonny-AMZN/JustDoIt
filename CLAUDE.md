@@ -6,6 +6,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **System overview, architecture, patterns:** [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
 - **Python coding standards, module structure, conventions:** [`.github/python-instructions.md`](.github/python-instructions.md)
+- **Vision and roadmap:** [`docs/VISION.md`](docs/VISION.md)
+- **Technique registry (all fills, fonts, effects — status + novelty):** [`docs/research/TECHNIQUES.md`](docs/research/TECHNIQUES.md)
+- **Architecture decisions (why things are the way they are):** [`docs/decisions/`](docs/decisions/)
+- **Effects danger zone (fill contract, module map):** [`justdoit/effects/CLAUDE.md`](justdoit/effects/CLAUDE.md)
+
+## ⚠️ Patent Flag Protocol
+
+If you implement or discover something with **no known prior art**, stop before pushing to GitHub.
+
+Message Jonny (HogJonny) immediately:
+> "⚠️ PATENT FLAG: [name] — [why it's novel]. No prior art found in [sources]. Recommend review before publishing."
+
+Public disclosure destroys patent rights. When in doubt, flag it.
+
+---
+
+## Skills (Reusable Workflows)
+
+Use these when asked to perform common tasks — load the SKILL.md, follow it exactly:
+
+| Task | Skill |
+|------|-------|
+| Research session / daily build | [`.claude/skills/research-session/SKILL.md`](.claude/skills/research-session/SKILL.md) |
+| Add a new fill effect | [`.claude/skills/add-fill-effect/SKILL.md`](.claude/skills/add-fill-effect/SKILL.md) |
+| Add a new font | [`.claude/skills/add-font/SKILL.md`](.claude/skills/add-font/SKILL.md) |
+| Regenerate gallery SVGs | [`.claude/skills/regenerate-gallery/SKILL.md`](.claude/skills/regenerate-gallery/SKILL.md) |
 
 ---
 
@@ -98,24 +124,32 @@ There is also a legacy `justdoit.py` at the repo root for backwards compatibilit
 
 ### Python Environment — IMPORTANT
 
-This project uses `uv` + a managed `.venv`. **Do not use `pip` or `python3` directly.**
+This project uses `uv`. **Do not use `pip`, `python3`, or `.venv/bin/` paths directly.**
+The `.venv` shebangs are hardcoded to the machine that built them — they break in Docker/CI.
+Always use `uv run` instead. It works everywhere.
 
 ```bash
 # Run tests:
-.venv/bin/pytest tests/ -q
+uv run pytest tests/ -q
+
+# Run a single test file:
+uv run pytest tests/test_fill.py -v
 
 # Run scripts:
-.venv/bin/python scripts/demo.py
+uv run python scripts/demo.py
+uv run python scripts/generate_gallery.py
 
 # Run CLI:
-.venv/bin/python justdoit.py "Hello"
+uv run python justdoit.py "Hello"
 
 # Add a dependency:
 uv add --dev <package>
+
+# Sync environment (after clone or dependency change):
+uv sync --dev
 ```
 
-The `.venv` has `pytest`, `Pillow`, and `justdoit` (editable install) already.
-System `python3` does NOT have these — always use `.venv/bin/python` or `uv run`.
+`uv run` automatically uses the project's `.venv` regardless of working directory or platform.
 
 Optional Pillow features degrade gracefully — all PIL-gated code checks availability at call time and raises `ImportError` with a helpful install hint.
 
