@@ -66,13 +66,13 @@ PROFILES: dict[str, "GalleryProfile"] = {
     "wide": GalleryProfile(
         name="wide",
         svg_font_size=28,
-        readme_img_width=800,
+        readme_img_width=0,   # natural SVG size — 1103px intrinsic, no downscale
         output_dir=Path(__file__).parent.parent / "docs" / "gallery-wide",
     ),
     "4k": GalleryProfile(
         name="4k",
         svg_font_size=72,
-        readme_img_width=1600,
+        readme_img_width=0,   # natural SVG size — 2836px intrinsic, no downscale
         output_dir=Path(__file__).parent.parent / "docs" / "gallery-4k",
     ),
 }
@@ -241,17 +241,23 @@ def _daily_label(stem: str) -> str:
 def _table(pairs: list, img_width: int = 480) -> list:
     """Render a list of (filename, label) pairs as an HTML grid table.
 
+    When img_width <= 0, the width= attribute is omitted and the SVG
+    renders at its natural intrinsic size (correct for 4K/wide galleries
+    where the SVG itself is already the target resolution).
+
     :param pairs: List of (svg_filename, label) tuples.
-    :param img_width: Width in pixels for thumbnail images.
+    :param img_width: Width in pixels for thumbnail images. Pass 0 to
+        render at natural SVG size (no width constraint).
     :returns: List of HTML lines.
     """
     lines = ['<table>']
     for i in range(0, len(pairs), _GRID_COLS):
         lines.append("<tr>")
         for fname, label in pairs[i:i + _GRID_COLS]:
+            width_attr = f' width="{img_width}"' if img_width > 0 else ""
             lines.append(
                 f'<td align="center">'
-                f'<img src="{fname}" width="{img_width}"><br>'
+                f'<img src="{fname}"{width_attr}><br>'
                 f'<sub><b>{label}</b></sub>'
                 f'</td>'
             )
