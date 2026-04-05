@@ -48,12 +48,16 @@ class GalleryProfile:
     :param readme_img_width: img width in README table cells.
     :param output_dir: Path to output directory for this profile.
     :param text: Default render text (default: 'JUST DO IT').
+    :param use_hd: Enable HD TTF rendering for higher character density (default: False).
+    :param hd_target_cols: Target column count for HD TTF auto-sizing (default: 160).
     """
     name: str
     svg_font_size: int
     readme_img_width: int
     output_dir: Path
     text: str = "JUST DO IT"
+    use_hd: bool = False
+    hd_target_cols: int = 160
 
 
 PROFILES: dict[str, "GalleryProfile"] = {
@@ -66,14 +70,18 @@ PROFILES: dict[str, "GalleryProfile"] = {
     "wide": GalleryProfile(
         name="wide",
         svg_font_size=28,
-        readme_img_width=0,   # natural SVG size — 1103px intrinsic, no downscale
+        readme_img_width=780,
         output_dir=Path(__file__).parent.parent / "docs" / "gallery-wide",
+        use_hd=True,
+        hd_target_cols=160,
     ),
     "4k": GalleryProfile(
         name="4k",
         svg_font_size=72,
-        readme_img_width=0,   # natural SVG size — 2836px intrinsic, no downscale
+        readme_img_width=780,
         output_dir=Path(__file__).parent.parent / "docs" / "gallery-4k",
+        use_hd=True,
+        hd_target_cols=240,
     ),
 }
 
@@ -98,10 +106,12 @@ def _validate_text(text: str, font: str = "block", gap: int = 1) -> None:
 
 
 # -------------------------------------------------------------------------
-def _curated_entries(text: str) -> list[tuple[str, str, str]]:
+def _curated_entries(text: str, font: str = "block") -> list[tuple[str, str, str]]:
     """Render all curated showcase techniques.
 
     :param text: Text to render.
+    :param font: Base font for block-style renders (default: 'block'). Pass an HD
+        TTF font name here to get higher-density renders for wide/4k galleries.
     :returns: List of (filename_stem, label, rendered_string).
     """
     from justdoit.core.rasterizer import render
@@ -111,7 +121,7 @@ def _curated_entries(text: str) -> list[tuple[str, str, str]]:
     from justdoit.effects.isometric import isometric_extrude
     from justdoit.effects.spatial import perspective_tilt, shear, sine_warp
 
-    plain = render(text, font="block")
+    plain = render(text, font=font)
     entries: list[tuple[str, str, str]] = []
 
     def add(stem: str, label: str, rendered: str) -> None:
@@ -124,15 +134,15 @@ def _curated_entries(text: str) -> list[tuple[str, str, str]]:
     add("S-G01-slim",             "G01 — Slim font",                  render(text, font="slim"))
 
     # Fill effects
-    add("S-F01-density-fill",     "F01 — Density fill",               render(text, font="block", fill="density"))
-    add("S-F06-sdf-fill",         "F06 — SDF fill",                   render(text, font="block", fill="sdf"))
-    add("S-F07-shape-fill",       "F07 — Shape fill",                 render(text, font="block", fill="shape"))
-    add("S-F02-noise-fill",       "F02 — Perlin noise fill",          render(text, font="block", fill="noise"))
-    add("S-F03-cells-fill",       "F03 — Cellular automata fill",     render(text, font="block", fill="cells"))
-    add("S-F09-wave-default",     "F09 — Wave interference (default)", render(text, font="block", fill="wave"))
-    add("S-F09-wave-moire",       "F09 — Wave interference (moire)",   render(text, font="block", fill="wave"))
-    add("S-F05-fractal-default",  "F05 — Fractal/Mandelbrot (default)", render(text, font="block", fill="fractal"))
-    add("S-F05-fractal-julia",    "F05 — Fractal/Julia (julia_swirl)", render(text, font="block", fill="fractal"))
+    add("S-F01-density-fill",     "F01 — Density fill",               render(text, font=font, fill="density"))
+    add("S-F06-sdf-fill",         "F06 — SDF fill",                   render(text, font=font, fill="sdf"))
+    add("S-F07-shape-fill",       "F07 — Shape fill",                 render(text, font=font, fill="shape"))
+    add("S-F02-noise-fill",       "F02 — Perlin noise fill",          render(text, font=font, fill="noise"))
+    add("S-F03-cells-fill",       "F03 — Cellular automata fill",     render(text, font=font, fill="cells"))
+    add("S-F09-wave-default",     "F09 — Wave interference (default)", render(text, font=font, fill="wave"))
+    add("S-F09-wave-moire",       "F09 — Wave interference (moire)",   render(text, font=font, fill="wave"))
+    add("S-F05-fractal-default",  "F05 — Fractal/Mandelbrot (default)", render(text, font=font, fill="fractal"))
+    add("S-F05-fractal-julia",    "F05 — Fractal/Julia (julia_swirl)", render(text, font=font, fill="fractal"))
 
     # Color effects
     add("S-C01-gradient-horiz",   "C01 — Gradient (horizontal)",
@@ -160,41 +170,41 @@ def _curated_entries(text: str) -> list[tuple[str, str, str]]:
 
     # Generative simulation fills
     add("S-N09-turing-stripes",   "N09 — Turing stripes (FHN activator-inhibitor)",
-        render(text, font="block", fill="turing"))
+        render(text, font=font, fill="turing"))
     add("S-N09-turing-spots",     "N09 — Turing spots",
-        render(text, font="block", fill="turing"))
+        render(text, font=font, fill="turing"))
     add("S-N09-turing-maze",      "N09 — Turing maze (labyrinthine)",
-        render(text, font="block", fill="turing"))
+        render(text, font=font, fill="turing"))
     add("S-F07-voronoi-default",  "F07 — Voronoi fill (default)",
-        render(text, font="block", fill="voronoi"))
+        render(text, font=font, fill="voronoi"))
     add("S-F07-voronoi-cracked",  "F07 — Voronoi cracked (stained-glass)",
-        render(text, font="block", fill="voronoi_cracked"))
+        render(text, font=font, fill="voronoi_cracked"))
     add("S-F07-voronoi-fine",     "F07 — Voronoi fine (dense cells)",
-        render(text, font="block", fill="voronoi_fine"))
+        render(text, font=font, fill="voronoi_fine"))
     add("S-F07-voronoi-coarse",   "F07 — Voronoi coarse (large cells)",
-        render(text, font="block", fill="voronoi_coarse"))
+        render(text, font=font, fill="voronoi_coarse"))
 
     # A10 — Plasma Wave fill
     add("S-A10-plasma-default",   "A10 — Plasma Wave (default)",
-        render(text, font="block", fill="plasma"))
+        render(text, font=font, fill="plasma"))
     add("S-A10-plasma-tight",     "A10 — Plasma tight (high freq)",
-        render(text, font="block", fill="plasma_tight"))
+        render(text, font=font, fill="plasma_tight"))
     add("S-A10-plasma-slow",      "A10 — Plasma slow (large blobs)",
-        render(text, font="block", fill="plasma_slow"))
+        render(text, font=font, fill="plasma_slow"))
     add("S-A10-plasma-diagonal",  "A10 — Plasma diagonal (stripe bias)",
-        render(text, font="block", fill="plasma_diagonal"))
+        render(text, font=font, fill="plasma_diagonal"))
 
     # A08 — Flame Simulation fill
     add("S-A08-flame-default",  "A08 — Flame Simulation (balanced fire)",
-        render(text, font="block", fill="flame"))
+        render(text, font=font, fill="flame"))
     add("S-A08-flame-hot",      "A08 — Flame hot (tall, intense flame)",
-        render(text, font="block", fill="flame_hot"))
+        render(text, font=font, fill="flame_hot"))
     add("S-A08-flame-embers",   "A08 — Flame embers (dying embers)",
-        render(text, font="block", fill="flame_embers"))
+        render(text, font=font, fill="flame_embers"))
 
     # Composition
     add("S-F02-noise-radial",     "F02+C02 — Noise fill + radial gradient",
-        radial_gradient(render(text, font="block", fill="noise"), parse_color("cyan"), parse_color("blue")))
+        radial_gradient(render(text, font=font, fill="noise"), parse_color("cyan"), parse_color("blue")))
 
     return entries
 
@@ -303,6 +313,14 @@ def _write_readme(profile: GalleryProfile, entries: list[tuple[str, str, str]]) 
         "Auto-generated visual showcase of rendering techniques.",
         "Run `python scripts/demo.py --gallery` to regenerate.",
         "",
+    ]
+    if profile.name == "wide":
+        lines.append("> **Wide gallery** — SVGs rendered at 1103×263px (28px font). Displayed at 780px width; open any SVG directly for full-width viewing.")
+        lines.append("")
+    elif profile.name == "4k":
+        lines.append("> **4K gallery** — SVGs rendered at 2836×676px (72px font). Displayed at 780px width; open any SVG directly for native 4K density.")
+        lines.append("")
+    lines += [
         "## Contents",
         "",
     ]
@@ -361,11 +379,42 @@ def _generate_for_profile(profile: GalleryProfile, text: str) -> None:
     from justdoit.output.svg import save_svg
 
     profile.output_dir.mkdir(parents=True, exist_ok=True)
-    entries = _curated_entries(text)
+
+    # --- HD setup: attempt TTF rasterization for higher character density ---
+    render_font = "block"
+    svg_font_size = profile.svg_font_size
+
+    if profile.use_hd:
+        use_hd_runtime = False
+        try:
+            from PIL import Image  # noqa: F401
+            use_hd_runtime = True
+        except ImportError:
+            print(f"  HD rendering skipped: Pillow not available", file=sys.stderr)
+
+        if use_hd_runtime:
+            from justdoit.layout import find_default_ttf, fit_ttf_size
+            font_path = find_default_ttf()
+            if font_path is None:
+                print(f"  HD: no system TTF found — falling back to block font", file=sys.stderr)
+            else:
+                try:
+                    pt_size = fit_ttf_size(text, profile.hd_target_cols, font_path)
+                    from justdoit.fonts.ttf import load_ttf_font
+                    render_font = load_ttf_font(font_path, font_size=pt_size)
+                    svg_font_size = int(pt_size * 96 / 72)
+                    print(
+                        f"  HD: {pt_size}pt TTF → {profile.hd_target_cols} cols target"
+                        f" (font: {os.path.basename(font_path)}, svg_px={svg_font_size})"
+                    )
+                except Exception as exc:
+                    print(f"  HD setup failed: {exc} — falling back to block font", file=sys.stderr)
+
+    entries = _curated_entries(text, font=render_font)
 
     for stem, label, rendered in entries:
         path = profile.output_dir / f"{stem}.svg"
-        save_svg(rendered, str(path), font_size=profile.svg_font_size)
+        save_svg(rendered, str(path), font_size=svg_font_size)
         print(f"  saved  {path.name}  ({label})")
 
     _write_readme(profile, entries)
