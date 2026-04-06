@@ -9,7 +9,7 @@ Run `python scripts/demo.py --gallery` to regenerate.
 - [Fill Effects (15)](#fill-effects)
 - [Color Effects (8)](#color-effects)
 - [Spatial & 3D (8)](#spatial--3d)
-- [Daily Techniques (5)](#daily-techniques)
+- [Daily Techniques (6)](#daily-techniques)
 
 ## Fonts
 
@@ -116,6 +116,9 @@ Run `python scripts/demo.py --gallery` to regenerate.
 
 <table>
 <tr>
+<td align="center"><img src="2026-04-06-A_VOR1.svg" width="480"><br><sub><b>2026-04-06 · A_VOR1</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="2026-04-04-A08.svg" width="480"><br><sub><b>2026-04-04 · A08</b></sub></td>
 <td align="center"><img src="2026-04-03-A10.svg" width="480"><br><sub><b>2026-04-03 · A10</b></sub></td>
 </tr>
@@ -128,4 +131,4 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 </table>
 
-*Last updated: 2026-04-05 — 50 techniques*
+*Last updated: 2026-04-06 — 51 techniques (A_VOR1 Voronoi Stained Glass added)*

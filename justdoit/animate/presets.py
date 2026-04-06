@@ -1039,3 +1039,104 @@ def flame_flicker(
             fill_kwargs={"preset": preset, "seed": frame_seed},
         )
         yield frame
+
+
+# -------------------------------------------------------------------------
+def voronoi_stained_glass(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 30,
+    palette_name: str = "spectral",
+    loop: bool = True,
+) -> Iterator[str]:
+    """Voronoi Stained Glass animation (A_VOR1).
+
+    Renders text with voronoi_cracked fill, then animates by rotating color
+    assignments through a named palette. Each Voronoi cell "pane" holds a
+    stable structural shape (the cracked-earth borders never move); the palette
+    offset advances each frame so the color "light" shifts through the glass.
+    Border characters (``@``) are rendered silver — the lead strips of stained
+    glass.
+
+    Structural permanence + fluid color motion = stained-glass window with
+    light shifting through it.
+
+    This preset uses a prime-based spatial hash (``row * 6271 + col * 7919``
+    modulo N_REGIONS) to assign stable per-cell region IDs without requiring
+    Voronoi region tracking. The hash distributes cells into 17 color groups
+    with a natural-looking irregular pattern that reads as distinct panes.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Frames per palette cycle (default 30). Total =
+        2×n_frames when loop=True (seamless forward+reverse).
+    :param palette_name: Palette from PALETTE_REGISTRY — 'spectral' (default),
+        'fire', 'lava', or 'bio'.
+    :param loop: If True, yield forward then reverse for a seamless loop
+        (default True).
+    :returns: Iterator of colored frame strings.
+    """
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.effects.color import PALETTE_REGISTRY
+
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["spectral"])
+    n_palette = len(palette)
+
+    # Render with voronoi_cracked fill (stable geometry, seed=42 by default)
+    rendered = _render(text_plain, font=font, fill="voronoi_cracked")
+    lines = rendered.split("\n")
+
+    # Strip any ANSI codes to get clean characters
+    clean_lines = [_ANSI_RE.sub("", ln) for ln in lines]
+    n_cols = max((len(ln) for ln in clean_lines), default=0)
+    clean_lines = [ln.ljust(n_cols) for ln in clean_lines]
+
+    # Constants for the stained-glass effect
+    BORDER_CHAR = "@"          # voronoi_cracked border character = lead strips
+    SILVER = (180, 180, 180)   # lead color
+    N_REGIONS = 17             # prime → good irregular distribution of pane colors
+    _RESET_SG = "\033[0m"
+
+    def _tc(r: int, g: int, b: int) -> str:
+        return f"\033[38;2;{r};{g};{b}m"
+
+    def _lerp(t: float) -> tuple:
+        """Interpolate palette at float t ∈ [0, 1]."""
+        t = max(0.0, min(1.0, t))
+        scaled = t * (n_palette - 1)
+        lo = int(scaled)
+        hi = min(lo + 1, n_palette - 1)
+        frac = scaled - lo
+        a, b_ = palette[lo], palette[hi]
+        return (
+            int(a[0] + (b_[0] - a[0]) * frac),
+            int(a[1] + (b_[1] - a[1]) * frac),
+            int(a[2] + (b_[2] - a[2]) * frac),
+        )
+
+    def _make_frame(offset: int) -> str:
+        result = []
+        for r, line in enumerate(clean_lines):
+            out = ""
+            for c, ch in enumerate(line):
+                if ch == " ":
+                    out += ch
+                elif ch == BORDER_CHAR:
+                    # Border cells = silver lead strips, not animated
+                    out += _tc(*SILVER) + ch + _RESET_SG
+                else:
+                    # Assign a stable region to this cell via prime hash
+                    region = (r * 6271 + c * 7919) % N_REGIONS
+                    # Rotate color assignment by offset
+                    t = ((region + offset) % N_REGIONS) / N_REGIONS
+                    rgb = _lerp(t)
+                    out += _tc(*rgb) + ch + _RESET_SG
+            result.append(out)
+        return "\n".join(result)
+
+    offsets = list(range(n_frames))
+    if loop:
+        offsets = offsets + list(reversed(offsets))
+
+    for off in offsets:
+        yield _make_frame(off)

@@ -1,6 +1,6 @@
 # Animation Gallery
 
-Auto-generated 2026-04-04 — do not edit manually.
+Auto-generated 2026-04-06 — do not edit manually.
 Run `uv run python scripts/generate_anim_gallery.py` to regenerate.
 
 Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
@@ -191,3 +191,19 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 | Variant | Preview | Terminal |
 |---------|---------|----------|
 | flame-flicker-hot-red | ![flame-flicker-hot-red](A08b-flame-flicker-hot-red.apng) | [▶ terminal](A08b-flame-flicker-hot-red.cast) |
+
+## A_VOR1 — Voronoi-Stained-Glass
+
+**60 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| voronoi-stained-glass-spectral | ![voronoi-stained-glass-spectral](A_VOR1-voronoi-stained-glass-spectral.apng) | [▶ terminal](A_VOR1-voronoi-stained-glass-spectral.cast) |
+
+## A_VOR1b — Voronoi-Stained-Glass
+
+**60 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| voronoi-stained-glass-fire | ![voronoi-stained-glass-fire](A_VOR1b-voronoi-stained-glass-fire.apng) | [▶ terminal](A_VOR1b-voronoi-stained-glass-fire.cast) |
