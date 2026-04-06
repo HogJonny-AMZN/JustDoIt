@@ -2652,6 +2652,104 @@ def plasma_fill(
     return result
 
 
+def plasma_float_grid(
+    mask: list,
+    t: float = 0.0,
+    freq1: float = 1.5,
+    freq2: float = 2.0,
+    freq3: float = 1.0,
+    freq4: float = 1.2,
+    preset: str = "default",
+) -> list:
+    """Compute normalized plasma float grid for a glyph mask (C11 companion to plasma_fill).
+
+    Returns the same plasma sin-field values used by ``plasma_fill()`` for character
+    density selection, but as a 2D list of floats in [0.0, 1.0] rather than characters.
+    Interior cells carry the normalized plasma value; exterior cells carry 0.0.
+
+    This is the float-grid source for C11 colorization - pass the result to
+    ``fill_float_colorize()`` alongside the rendered plasma char output to produce
+    per-cell color driven by the same field that drives character selection (A10c).
+
+    :param mask: 2D list of floats from glyph_to_mask() -- values 0.0-1.0.
+    :param t: Time phase offset in radians (0.0-2pi for one full cycle, default 0.0).
+    :param freq1: Frequency of horizontal wave (default 1.5, overridden by preset).
+    :param freq2: Frequency of vertical wave (default 2.0, overridden by preset).
+    :param freq3: Frequency of diagonal wave (default 1.0, overridden by preset).
+    :param freq4: Frequency of radial wave (default 1.2, overridden by preset).
+    :param preset: Named parameter preset matching plasma_fill presets (default 'default').
+    :returns: 2D list of floats -- same shape as mask; [0.0, 1.0] for ink cells, 0.0 for exterior.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _PLASMA_PRESETS:
+        raise ValueError(
+            f"Unknown plasma preset '{preset}'. "
+            f"Available: {', '.join(_PLASMA_PRESETS.keys())}"
+        )
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    p = _PLASMA_PRESETS[preset]
+    freq1 = p["freq1"]
+    freq2 = p["freq2"]
+    freq3 = p["freq3"]
+    freq4 = p["freq4"]
+
+    ink_cells = [
+        (r, c)
+        for r in range(rows)
+        for c in range(len(mask[r]))
+        if mask[r][c] >= 0.5
+    ]
+    if not ink_cells:
+        return [[0.0] * cols for _ in range(rows)]
+
+    min_r = min(r for r, _ in ink_cells)
+    max_r = max(r for r, _ in ink_cells)
+    min_c = min(c for _, c in ink_cells)
+    max_c = max(c for _, c in ink_cells)
+
+    row_span = max(max_r - min_r, 1)
+    col_span = max(max_c - min_c, 1)
+
+    TWO_PI = 2.0 * math.pi
+    raw_grid: list = [[0.0] * cols for _ in range(rows)]
+    ink_vals: list = []
+
+    for r, c in ink_cells:
+        x = (c - min_c) / col_span
+        y = ((r - min_r) / row_span) * (row_span / max(col_span, 1)) * 0.5
+        cx = 0.5
+        cy = 0.5 * (row_span / max(col_span, 1)) * 0.5
+        radial = math.sqrt(max((x - cx) ** 2 + (y - cy) ** 2, 1e-9))
+        val = (
+            math.sin(TWO_PI * freq1 * x + t)
+            + math.sin(TWO_PI * freq2 * y + t * 1.3)
+            + math.sin(TWO_PI * freq3 * (x + y) + t * 0.7)
+            + math.sin(TWO_PI * freq4 * radial + t * 0.9)
+        )
+        raw_grid[r][c] = val
+        ink_vals.append(val)
+
+    v_min = min(ink_vals)
+    v_max = max(ink_vals)
+    v_span = v_max - v_min
+    if v_span < 1e-9:
+        v_span = 1.0
+
+    float_grid: list = [[0.0] * cols for _ in range(rows)]
+    for r, c in ink_cells:
+        norm = (raw_grid[r][c] - v_min) / v_span
+        float_grid[r][c] = max(0.0, min(1.0, norm))
+
+    return float_grid
+
+
 # =============================================================================
 # A08 — Flame Simulation
 #

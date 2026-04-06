@@ -318,10 +318,12 @@ PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
 
 ### Needs C11 (fill-float → per-cell color)
 
+**Note:** `plasma_float_grid()` in generative.py is the established pattern for exposing fill float data to C11 colorization. Future C11 consumers (A08c, A_F09b, X_TURING_BIO, X_FRACTAL_CLASSIC) should follow the same pattern: add a `*_float_grid()` companion function alongside the fill function.
+
 | ID | Combination | Notes | Status |
 |----|-------------|-------|--------|
 | A08c | flame + fire_palette | hot base, cool tips, sin ripple | `idea` |
-| A10c | plasma + lava_palette | both chars and color from plasma float | `idea` |
+| A10c | plasma + lava_palette | both chars and color from plasma float | **`done` 2026-04-06** |
 | A_F09b | wave + spectral | interference fringes colored | `idea` |
 | A_VOR1 | voronoi + cell_palette | stained glass | **`done` 2026-04-06** |
 | X_TURING_BIO | turing + bio_palette | leopard/zebra coat colors | `idea` |
@@ -384,6 +386,7 @@ Based on implementation cost vs novelty payoff:
 
 ~~1. **C11** — fill-float → per-cell color. Unlocks 6+ C11-gated combos.~~ **DONE 2026-04-06**
 ~~A_VOR1 — Voronoi Stained Glass. First C11 consumer. Score 19/20.~~ **DONE 2026-04-06**
+~~A10c — Plasma Lava Lamp. Second C11 consumer. Score 18/20.~~ **DONE 2026-04-06**
 1. **C12** — bloom / exterior glow via background color channel. Unlocks 4+ bloom combos. ~60 lines. **Patent-flag before shipping.**
 2. **C13** — HDR tone mapping curves inside fills. ~15 lines. Pairs with C12 for maximum impact.
 3. **A08c** — flame gradient + sin-wave color. Next C11 consumer. Use fill_float_colorize with FIRE_PALETTE on flame output.

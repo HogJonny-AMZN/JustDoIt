@@ -1140,3 +1140,106 @@ def voronoi_stained_glass(
 
     for off in offsets:
         yield _make_frame(off)
+
+
+# -------------------------------------------------------------------------
+def plasma_lava_lamp(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 36,
+    preset: str = "default",
+    palette_name: str = "lava",
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Plasma Lava Lamp animation -- both chars and color driven by plasma float (A10c).
+
+    The plasma sin-field drives BOTH character density selection AND per-cell
+    24-bit color simultaneously using C11 infrastructure. High plasma values
+    produce dense chars (``@#S``) colored white/yellow; low values produce sparse
+    chars (``;:,.``) colored deep violet/purple. Both the character texture and
+    the color evolve from the same underlying float field each frame -- the
+    letterforms appear to contain slow-moving lava-lamp fluid.
+
+    Implementation: for each frame, the plasma float grid is assembled by calling
+    ``plasma_float_grid()`` per glyph (mirroring how the rasterizer assembles
+    glyph columns) then applying ``fill_float_colorize()`` over the rendered char
+    output. Both functions use the same normalized plasma field, ensuring char
+    density and color are always in correspondence -- the brightest, densest cells
+    are always the hottest color, and the sparsest cells are always the coolest.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Number of frames for one half-cycle (default 36). Full
+        animation is 2*n_frames when loop=True (forward + reverse).
+    :param preset: Plasma preset -- 'default', 'tight', 'slow', 'diagonal'.
+    :param palette_name: Palette from PALETTE_REGISTRY -- 'lava' (default),
+        'fire', 'spectral', or 'bio'.
+    :param loop: If True, yield forward then reverse for a seamless loop (default True).
+    :returns: Iterator of colored frame strings.
+    """
+    import math as _math
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.effects.generative import plasma_float_grid as _plasma_float_grid
+    from justdoit.effects.color import fill_float_colorize as _colorize, PALETTE_REGISTRY
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.fonts import FONTS as _FONTS
+
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["lava"])
+    TWO_PI = 2.0 * _math.pi
+
+    # Pre-compute glyph masks for each character (matches rasterizer assembly order)
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1  # rasterizer default gap
+
+    def _assemble_float_grid(t_val: float) -> list:
+        """Build the combined float grid for the full text at time t_val.
+
+        Mirrors the rasterizer's row assembly loop: for each char, compute its
+        glyph float grid and append it (+ gap columns of 0.0) to the row.
+        """
+        # Determine the height from the font
+        if not font_data:
+            return []
+        sample_glyph = next(iter(font_data.values()))
+        height = len(sample_glyph)
+
+        combined: list = [[] for _ in range(height)]
+
+        for i, ch in enumerate(text_upper):
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink)
+            fg = _plasma_float_grid(mask, t=t_val, preset=preset)
+
+            glyph_cols = max(len(row) for row in mask) if mask else 0
+
+            for r in range(height):
+                row_floats = fg[r] if r < len(fg) else []
+                # Pad/trim to glyph_cols
+                row_floats = row_floats[:glyph_cols]
+                while len(row_floats) < glyph_cols:
+                    row_floats.append(0.0)
+                combined[r].extend(row_floats)
+                # Add gap columns of 0.0 (space chars between glyphs)
+                combined[r].extend([0.0] * gap)
+
+        return combined
+
+    t_values = [TWO_PI * i / n_frames for i in range(n_frames)]
+    if loop:
+        t_values = t_values + list(reversed(t_values))
+
+    for t_val in t_values:
+        # Render chars using plasma fill (same t and preset)
+        char_frame = _render(
+            text_plain,
+            font=font,
+            fill="plasma",
+            fill_kwargs={"t": t_val, "preset": preset},
+        )
+        # Build combined float grid
+        float_grid = _assemble_float_grid(t_val)
+        # Apply C11 color: same float values drive char AND color
+        colored_frame = _colorize(char_frame, float_grid, palette)
+        yield colored_frame

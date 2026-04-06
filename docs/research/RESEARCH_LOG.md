@@ -527,3 +527,60 @@ No changes to the registry — all four topics confirm existing entries. Priorit
 | 4 | Wave Phase Animation | A_F09a | 3 | `idea` |
 | 5 | Transporter Materialize | A11 | 5 | `idea` |
 | 6 | SDF Font Generator | G04 | 5 | `idea` |
+
+## Session 2026-04-06 (Mode B — Cross-Breed, second session same day)
+
+**Cross-breed chosen:** A10c — Plasma Lava Lamp
+**Scores:** tension=4 emergence=4 distinctness=5 wow=5 → total=18/20
+**Why chosen over alternatives:**
+- A08c (flame gradient color, est. ~10): Low emergence — color and chars from independent sources (color from row position, chars from flame sim). "Flame but colored" doesn't earn a 4 in emergence.
+- A_F09a (wave phase animation, 12): Near-free warmup but visually similar to plasma_wave. Too low wow.
+- X_ISO_NEON (16): Strong candidate but requires new per-face fill routing infrastructure. More infra than A10c.
+- A10c earns 18 because both char density AND color come from the same float field — genuinely coupled, not independently colored.
+
+**Implementation path:** New `plasma_float_grid()` helper in generative.py + `plasma_lava_lamp()` preset in presets.py.
+- `plasma_float_grid()` computes only the normalized float grid (not chars) using the same plasma formula as `plasma_fill()`. This is the C11 data source.
+- `plasma_lava_lamp()` calls `render()` for chars + assembles the combined float grid per-glyph (mirroring rasterizer assembly) + applies `fill_float_colorize()` with LAVA_PALETTE.
+- Both char density and color track the same plasma float value — at peak (1.0): densest chars (`@#S`) + white/yellow; at trough (0.0 at exterior boundaries): sparsest chars (`;:,.`) + deep violet/purple.
+
+**Visual validation result:** ✅ Meets the bar.
+- 166 ink cells colored in "JUST DO IT" mid-cycle frame (t=π)
+- Color spectrum spans deep violet (10,0,20) → purple (80,0,80) → dark red → orange (202,50,0) → yellow → white-hot (255,255,200) — LAVA_PALETTE interpolated faithfully
+- Dense chars (`@#S`) co-locate with hottest colors; sparse chars (`;:,.`) co-locate with coolest — the coupling is visually legible
+- The animation reads as hot lava-lamp fluid moving in slow organic patterns within the letterforms
+- Structurally distinct from all gallery entries — no other technique uses per-cell 24-bit color from a generative float field
+
+**Key insight:** The float grid assembly pattern (per-glyph float grid + gap padding to match rasterizer layout) is a reusable infrastructure pattern for any future C11 consumer that needs to color chars by the fill's own float output. The `plasma_float_grid()` function establishes the precedent: fills can expose their float data separately from their char output, enabling cross-module composition without changing the fill API contract.
+
+**ATTRIBUTE_MODEL.md updates:**
+- A10c marked as `done 2026-04-06`
+- Priority order updated: C12 (bloom) is now #1 unimplemented
+- `plasma_float_grid()` noted as reusable pattern for future C11 consumers
+
+**Implementation notes:**
+- `plasma_float_grid(mask, t, freq1, freq2, freq3, freq4, preset)` in `justdoit/effects/generative.py`
+  - Returns 2D list[list[float]]: [0.0,1.0] for ink cells, 0.0 for exterior
+  - Same normalization as plasma_fill: v_min/v_max per-frame normalization
+  - Supports all 4 presets (default, tight, slow, diagonal)
+- `plasma_lava_lamp(text_plain, font, n_frames, preset, palette_name, loop)` in `justdoit/animate/presets.py`
+  - Default palette: "lava" (deep violet → white-hot)
+  - Supports all PALETTE_REGISTRY palettes: lava, fire, spectral, bio
+  - Float grid assembled by calling plasma_float_grid per glyph + gap-padding (mirrors rasterizer)
+  - 72 frames @ 12fps for default n_frames=36 + loop=True
+- 25 new tests in tests/test_plasma_lava_lamp.py — 10 for plasma_float_grid, 15 for plasma_lava_lamp
+- All 589 tests passing (was 564 before this session)
+- Gallery SVG: docs/gallery/2026-04-06-A10c.svg (mid-cycle static frame, 18KB)
+- Animation files: docs/anim_gallery/A10c-plasma-lava-lamp.{cast,apng} (393KB + 784KB, 72 frames @ 12fps)
+- Spectral variant: docs/anim_gallery/A10c-plasma-lava-spectral.{cast,apng} (390KB + 752KB)
+- Gallery README updated: 7 daily entries, 52 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Bloom / Exterior Glow (patent-flag before ship) | C12 | 5 | `idea` |
+| 2 | HDR Tone Mapping | C13 | 3 | `idea` |
+| 3 | Wave Chromatic Interference (next C11 consumer) | A_F09b | 3 | `idea` |
+| 4 | Turing Morphogenesis animation | A_N09a | 5 | `idea` |
+| 5 | Transporter Materialize | A11 | 5 | `idea` |
+| 6 | SDF Font Generator | G04 | 5 | `idea` |
