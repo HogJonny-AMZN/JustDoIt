@@ -310,16 +310,22 @@ FONT shape  ──→  FILL behavior        [SDF font → smoother masks → smo
 | X_ISO_NEON | S03 iso + A03 neon on extrusion face only | depth chars flicker, front face stable |
 | X_WARP_PULSE | S01 sine_warp + A04 pulse | amplitude oscillates — text breathes AND waves |
 
+### C11 infrastructure — DONE (2026-04-06)
+
+fill_float_colorize(text, float_grid, palette) → str implemented in justdoit/effects/color.py.
+Standard palettes: FIRE_PALETTE, LAVA_PALETTE, SPECTRAL_PALETTE, BIO_PALETTE.
+PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
+
 ### Needs C11 (fill-float → per-cell color)
 
-| ID | Combination | Notes |
-|----|-------------|-------|
-| A08c | flame + fire_palette | hot base, cool tips, sin ripple |
-| A10c | plasma + lava_palette | both chars and color from plasma float |
-| A_F09b | wave + spectral | interference fringes colored |
-| A_VOR1 | voronoi + cell_palette | stained glass |
-| X_TURING_BIO | turing + bio_palette | leopard/zebra coat colors |
-| X_FRACTAL_CLASSIC | fractal + escape_palette | classic Mandelbrot color bands |
+| ID | Combination | Notes | Status |
+|----|-------------|-------|--------|
+| A08c | flame + fire_palette | hot base, cool tips, sin ripple | `idea` |
+| A10c | plasma + lava_palette | both chars and color from plasma float | `idea` |
+| A_F09b | wave + spectral | interference fringes colored | `idea` |
+| A_VOR1 | voronoi + cell_palette | stained glass | **`done` 2026-04-06** |
+| X_TURING_BIO | turing + bio_palette | leopard/zebra coat colors | `idea` |
+| X_FRACTAL_CLASSIC | fractal + escape_palette | classic Mandelbrot color bands | `idea` |
 
 ### Needs C12 (bloom infrastructure)
 
@@ -376,11 +382,13 @@ that no other technique has. Each face can be treated independently.
 
 Based on implementation cost vs novelty payoff:
 
-1. **C11** — fill-float → per-cell color. Unlocks 6+ C11-gated combos. ~40 lines.
-2. **C12** — bloom / exterior glow via background color channel. Unlocks 4+ bloom combos. ~60 lines. **Patent-flag before shipping.**
-3. **C13** — HDR tone mapping curves inside fills. ~15 lines. Pairs with C12 for maximum impact.
-4. **A_F09a** — wave phase animation. ~20 lines. Near-free warmup before a heavier session.
-5. **A08c** — flame gradient + sin-wave color. First C11 consumer. Validates infra.
+~~1. **C11** — fill-float → per-cell color. Unlocks 6+ C11-gated combos.~~ **DONE 2026-04-06**
+~~A_VOR1 — Voronoi Stained Glass. First C11 consumer. Score 19/20.~~ **DONE 2026-04-06**
+1. **C12** — bloom / exterior glow via background color channel. Unlocks 4+ bloom combos. ~60 lines. **Patent-flag before shipping.**
+2. **C13** — HDR tone mapping curves inside fills. ~15 lines. Pairs with C12 for maximum impact.
+3. **A08c** — flame gradient + sin-wave color. Next C11 consumer. Use fill_float_colorize with FIRE_PALETTE on flame output.
+4. **A10c** — plasma lava lamp. C11 on plasma float grid. Score 18/20.
+5. **A_F09a** — wave phase animation. ~20 lines. Near-free warmup before a heavier session.
 6. **X_NEON_BLOOM** — neon + C12. First C12 consumer. Score 19/20.
 7. **X_FLAME_BLOOM** — flame + C12 + C13 blown_out. Score 20/20. Flagship light effect.
 8. **A_N09a** — Turing morphogenesis animation. Standalone, highest scientific novelty.

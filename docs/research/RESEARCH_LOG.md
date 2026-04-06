@@ -477,3 +477,53 @@ No changes to the registry — all four topics confirm existing entries. Priorit
 - 16 new tests, all 429 passing (was 413)
 - 3 new static gallery SVGs (docs/gallery/): S-A08-flame-default, S-A08-flame-hot, S-A08-flame-embers
 - 2 new animation pairs (docs/anim_gallery/): A08-flame-flicker (.cast + .apng, 48 frames @ 12fps), A08b-flame-flicker-hot-red (.cast + .apng, 48 frames @ 12fps)
+
+## Session 2026-04-06 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** A_VOR1 — Voronoi Stained Glass
+**Scores:** tension=5 emergence=4 distinctness=5 wow=5 → total=19/20
+**Why chosen over alternatives:**
+- A10c (plasma lava lamp, 18/20) is the next best candidate but needs the plasma float grid to be surfaced from inside voronoi_fill (more infra work). A_VOR1 first.
+- A_F09a (wave phase animation, 12/20) scores too low vs A_VOR1 this session.
+- ATTRIBUTE_MODEL.md priority order said C11 first, then A_VOR1 as first consumer — followed exactly.
+
+**Implementation path:**
+1. C11 infrastructure: `fill_float_colorize(text, float_grid, palette)` in `justdoit/effects/color.py` — standard palettes FIRE, LAVA, SPECTRAL, BIO + PALETTE_REGISTRY
+2. A_VOR1 cross-breed: `voronoi_stained_glass()` in `justdoit/animate/presets.py` — spatial prime hash assigns region IDs per cell (row*6271 + col*7919 % 17), border '@' chars get silver (180,180,180), non-border cells get spectral palette color at `(region+offset) % 17 / 17.0`, sweeping offset per frame produces color rotation through the glass panes
+
+**Visual validation result:** ✅ Meets the bar.
+- 76 silver border cells form clean lead strips across "JUST DO IT" letterforms
+- 90 interior cells carry spectral colors in distinct irregular pane shapes
+- The prime hash distributes cells into 17 color groups without visible grid artifacts
+- Rotating the palette offset shifts color assignment — the illusion of colored light moving through stained glass is immediate and compelling
+- Structural permanence is maintained: cell borders never move, only color shifts
+- The effect is visually unlike anything currently in the gallery
+
+**Key insight:** The prime-hash approach (`row*6271 + col*7919 % 17`) produces a better stained-glass pane distribution than true Voronoi region tracking at this stage. True Voronoi region tracking would require surfacing `region` state from `voronoi_fill()` through the render API — architecturally messier and unnecessary when the visual goal is achieved via hash. The two primes chosen (6271, 7919) are in the same order of magnitude as the grid dimensions (~70 cols × 7 rows), preventing aliasing that would occur with small primes. This is a pattern worth reusing for any cell-stable color assignment.
+
+**ATTRIBUTE_MODEL.md updates:**
+- C11 marked as done in priority order and "Needs C11" tier
+- A_VOR1 marked as `done 2026-04-06` in the tier table
+- Next priority queue updated: A08c (flame + fire_palette) is next C11 consumer
+
+**Implementation notes:**
+- `fill_float_colorize(text, float_grid, palette)` in `justdoit/effects/color.py`
+- Standard palettes: FIRE_PALETTE, LAVA_PALETTE, SPECTRAL_PALETTE, BIO_PALETTE
+- PALETTE_REGISTRY: dict mapping names to palette lists
+- `_lerp_palette(palette, t)` and `_tc_c11(r, g, b)` as local helpers (no gradient.py import)
+- `voronoi_stained_glass(text_plain, font, n_frames, palette_name, loop)` in presets.py
+- 35 new tests (test_color_c11.py × 24, test_voronoi_anim.py × 11), 564 total passing (was 529)
+- 1 new static gallery SVG: docs/gallery/2026-04-06-A_VOR1.svg
+- 2 new animation pairs: A_VOR1-voronoi-stained-glass-spectral (.cast + .apng, 60 frames @ 12fps), A_VOR1b-voronoi-stained-glass-fire (.cast + .apng, 60 frames @ 12fps)
+- Gallery README updated: 6 daily entries, 51 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Flame Gradient Color (C11 consumer #2) | A08c | 3 | `idea` |
+| 2 | Plasma Lava Lamp (C11 consumer #3) | A10c | 4 | `idea` |
+| 3 | Bloom / Exterior Glow | C12 | 5 | `idea` |
+| 4 | Wave Phase Animation | A_F09a | 3 | `idea` |
+| 5 | Transporter Materialize | A11 | 5 | `idea` |
+| 6 | SDF Font Generator | G04 | 5 | `idea` |

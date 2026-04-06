@@ -131,7 +131,7 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
@@ -323,6 +323,22 @@ def _build_showcase() -> list[dict]:
             "name": "flame-flicker",
             "label": "flame-flicker-hot-red",
             "frames": lambda: list(flame_flicker(text_plain, n_frames=24, preset="hot", color="red", loop=True)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A_VOR1",
+            "name": "voronoi-stained-glass",
+            "label": "voronoi-stained-glass-spectral",
+            "frames": lambda: list(voronoi_stained_glass(text_plain, n_frames=30, palette_name="spectral", loop=True)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A_VOR1b",
+            "name": "voronoi-stained-glass",
+            "label": "voronoi-stained-glass-fire",
+            "frames": lambda: list(voronoi_stained_glass(text_plain, n_frames=30, palette_name="fire", loop=True)),
             "fps": 12.0,
             "loop": True,
         },
