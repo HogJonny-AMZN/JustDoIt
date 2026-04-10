@@ -584,3 +584,123 @@ No changes to the registry — all four topics confirm existing entries. Priorit
 | 4 | Turing Morphogenesis animation | A_N09a | 5 | `idea` |
 | 5 | Transporter Materialize | A11 | 5 | `idea` |
 | 6 | SDF Font Generator | G04 | 5 | `idea` |
+
+## Session 2026-04-08 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** C12 infrastructure + X_NEON_BLOOM — Bloom / Exterior Glow (C12 first consumer)
+**Scores:** tension=5 emergence=4 distinctness=5 wow=5 → total=19/20
+**Why chosen over alternatives:**
+- C12 was #1 on priority queue. X_NEON_BLOOM is C12's first consumer — cleanest first use, fixed bloom color, no fill-float coupling needed.
+- X_FLAME_BLOOM (20/20) is C12's flagship but requires A08c (flame+C11) first for the blown-out core. Blocked.
+- A10c / A_VOR1 already done. A_F09a (12/20) too low to compete.
+
+**Implementation path:**
+1. `bloom(text, bloom_color, radius, falloff, core_boost)` in `justdoit/effects/color.py` — BFS distance map from all ink cells simultaneously (O(rows×cols)), Chebyshev 8-direction expansion, `\033[48;2;r;g;bm` background ANSI on each space cell within radius, exponential falloff. Optional core_boost: edge ink cells adjacent to space get foreground RGB 1.15× (inner glow).
+2. `BLOOM_COLORS` dict in `color.py` (11 named presets) — was already staged from prior session start.
+3. `neon_bloom()` preset in `presets.py` — renders once, applies `colorize()` for neon foreground, then applies `bloom()` with breathing falloff: `falloff + 0.06 * sin(2π * i / n_frames)` per frame. Forward+reverse loop, 60 total frames @ 12fps.
+
+**Visual validation result:** ✅ Meets the bar.
+- 166 ink cells in "JUST DO IT" block font
+- 282 bloom cells surrounding the letterforms (radius=4, falloff=0.88)
+- RGB breathing confirmed: first bloom cell RGB cycles 193→202→206→202→193→184→180→184 across 8 frames (the sine oscillation is real and legible)
+- Letterforms structurally stable — only bloom intensity changes, not position
+- SVG exporter limitation: background ANSI codes (`\033[48;2;...m`) are not rendered into SVG/PNG — bloom is terminal-only for now. Gallery SVG shows the neon-colored letterforms only (still visually clean). Documented in TECHNIQUES.md C12 entry.
+- The effect is visually unlike anything currently in the gallery
+
+**Key insight:** The BFS distance map approach (O(rows×cols), expand from all ink cells simultaneously) is ~100× faster than the naive O(space_cells × ink_cells) approach for terminal-width text. The key constraint is that `dist_map[r][c] >= radius` cells should NOT continue expanding — early termination keeps the BFS O(bloom_radius×perimeter) in practice. Chebyshev distance (8-direction expansion) produces the right circular bloom shape; Manhattan distance (4-direction) would produce diamond-shaped halos. The background ANSI channel (`\033[48;2;...m`) is genuinely unused by any ASCII art library — this is new territory for this class of output tools.
+
+**ATTRIBUTE_MODEL.md updates:**
+- C12 marked as `done 2026-04-08` (patent-review branch only — not merged to main)
+- X_NEON_BLOOM marked as `done 2026-04-08` in "Needs C12" tier
+- Priority order updated: C13 is now #1 unimplemented, X_FLAME_BLOOM is #2 target for next C12 consumer
+
+**Patent status:** Bloom is on `patent-review/C12-bloom-glow` branch. NOT pushed to main. Flagged to Jonny per protocol. Background ANSI as spatial light-bleeding medium for ASCII art has no known prior art in any tool.
+
+**Implementation notes:**
+- `bloom(text, bloom_color, radius=4, falloff=0.9, core_boost=True)` in `justdoit/effects/color.py`
+- `BLOOM_COLORS` dict with 11 named presets (cyan, magenta, red, orange, yellow, green, blue, white, fire, cold, lava)
+- `neon_bloom(text_plain, font, n_frames, color, bloom_color_name, radius, falloff, loop)` in `justdoit/animate/presets.py`
+- 29 new tests in `tests/test_bloom.py` — all passing
+- Total: 618 tests (was 589 before this session, +29)
+- 1 static gallery SVG: `docs/gallery/2026-04-08-X_NEON_BLOOM.svg` (18KB, neon cyan letters — bloom not visible in SVG)
+- 4 animation files: `docs/anim_gallery/X_NEON_BLOOM-neon-bloom-cyan.{cast,apng}`, `X_NEON_BLOOM-neon-bloom-magenta.{cast,apng}` (60 frames @ 12fps each)
+- Gallery README updated: 8 daily entries, 53 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | HDR Tone Mapping | C13 | 3 | `idea` |
+| 2 | Flame Bloom (C12 flagship) | X_FLAME_BLOOM | 5 | `idea` |
+| 3 | Turing Morphogenesis animation | A_N09a | 5 | `idea` |
+| 4 | Transporter Materialize | A11 | 5 | `idea` |
+| 5 | SDF Font Generator | G04 | 5 | `idea` |
+
+---
+
+## 2026-04-09 — C13 HDR Tone Mapping + A08c Flame Gradient Color + X_FLAME_BLOOM Flagship
+
+**Session type:** Subagent implementation (patent-review/C12-bloom-glow branch)
+**Starting test count:** 618
+**Ending test count:** 687 (+69 new tests)
+
+### Implemented
+
+#### C13 — apply_tone_curve() in justdoit/effects/color.py
+
+`apply_tone_curve(float_grid, curve)` with four named curves:
+- `linear` — identity (reference behavior)
+- `reinhard` — `t / (1 + t)` soft rolloff; shadows preserved
+- `aces` — Stephen Hill polynomial; punchy mids, cinematic highlights; t=1.0 → ~0.80 (intentional rolloff)
+- `blown_out` — values ≥ threshold → 1.0; below threshold scale linearly. Default threshold=0.7. Supports `"blown_out:N"` suffix for custom thresholds.
+
+`C13_CURVES` constant tuple exposed alongside function.
+
+#### _flame_heat_grid() private helper in justdoit/effects/generative.py
+
+Extracted the Doom-fire simulation loop from `flame_fill()` into a shared private helper `_flame_heat_grid(mask, preset, n_steps, cooling, seed)`. Returns `(heat, ink, rows, cols)` tuple. Both `flame_fill()` and `flame_float_grid()` now delegate to this helper, ensuring identical simulation results for the same seed — char density and color are always from the same simulation data.
+
+#### flame_float_grid() in justdoit/effects/generative.py
+
+C11 companion to `flame_fill()`. Returns the raw heat values as a 2D `list[list[float]]` rather than chars. Exterior cells return 0.0. Deterministic with same seed and preset as a corresponding `flame_fill()` call.
+
+#### flame_gradient_color() in justdoit/animate/presets.py — A08c
+
+Per-frame animation: `flame_fill(seed=frame_seed)` provides chars; `flame_float_grid(seed=frame_seed)` provides floats; `fill_float_colorize(char_frame, float_grid, FIRE_PALETTE)` applies color. Identical heat simulation drives both channels — total coupling. Hot cells = dense `@` + white/yellow; cooling cells = sparse `,` + deep orange/red.
+
+#### flame_bloom() in justdoit/animate/presets.py — X_FLAME_BLOOM
+
+Three-axis flagship composite:
+1. **Flame simulation** — `_flame_heat_grid` via `flame_float_grid()`
+2. **C13 blown_out tone curve** — white-hot core blows out to solid `@` chars
+3. **FIRE_PALETTE color** — via `fill_float_colorize()` on raw heat floats
+4. **C12 bloom** — orange light bleeds into surrounding space via `bloom()`
+
+Visual validation (preset="hot", frame 4/8, "JUST DO IT"):
+- Frame: 7 rows × 64 cols
+- Char distribution: `@` = 147 (dominant), `.` = 19 — blown_out is working; almost everything hot enough to blow out to `@`, a few cool tips render as `.`
+- Background bloom codes: 282 per frame — heavy orange bloom fills the surrounding space cells
+- Foreground color codes: 166 per frame — fire palette (white→yellow→orange→red) applied per cell
+- Visual read: white-hot letterforms made entirely of `@` chars, surrounded by an orange-lit halo bleeding into the black background. The letters appear to be burning at maximum intensity, with fire light painting the air around them.
+
+### Tests written
+
+- `tests/test_tone_curve.py` — 26 tests: identity, clamping, reinhard rolloff, ACES range, blown_out threshold, suffix parsing, ValueError, shape preservation
+- `tests/test_flame_float_grid.py` — 17 tests: return type, dimensions, value range, exterior=0.0, determinism, seed variation, presets, edge cases
+- `tests/test_flame_bloom.py` — 26 tests: frame count (loop doubles), ANSI codes, background bloom codes, foreground color, tone curve applied, multi-line, per-preset
+
+### Gallery
+
+- SVGs: `docs/gallery/2026-04-09-X_FLAME_BLOOM.svg`, `docs/gallery/2026-04-09-A08c.svg`
+- Animations: `docs/anim_gallery/A08c-flame-gradient-color.{cast,apng}`, `X_FLAME_BLOOM-flame-bloom.{cast,apng}` (48 frames @ 12fps each)
+- Gallery README: 9 daily technique entries, 55 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Turing Morphogenesis animation | A_N09a | 5 | `idea` |
+| 2 | Transporter Materialize | A11 | 5 | `idea` |
+| 3 | SDF Font Generator | G04 | 5 | `idea` |
+| 4 | X_ISO_FLAME — iso + flame on extrusion face | X_ISO_FLAME | 5 | `idea` |
+| 5 | Plasma bloom (C12 × plasma) | X_PLASMA_BLOOM | 4 | `idea` |

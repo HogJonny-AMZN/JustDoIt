@@ -1042,6 +1042,221 @@ def flame_flicker(
 
 
 # -------------------------------------------------------------------------
+def flame_gradient_color(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 24,
+    preset: str = "default",
+    palette_name: str = "fire",
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Flame Gradient Color animation — char and color both driven by flame heat (A08c).
+
+    Per frame, the flame heat simulation drives BOTH character density selection AND
+    per-cell 24-bit color simultaneously. Hot cells (heat ≈ 1.0) render as dense
+    ``@#`` chars colored white/yellow; cooling cells render as sparse ``;:,.`` chars
+    colored deep orange/red. Both the character texture and color evolve from the
+    same underlying flame float field each frame.
+
+    Implementation mirrors plasma_lava_lamp: for each frame, flame_fill() provides
+    chars while flame_float_grid() (with same seed) provides the float grid for
+    fill_float_colorize(). Total coupling: char density and color are always the
+    same simulation data.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Number of animation frames (default 24). Total = 2*n_frames
+        when loop=True.
+    :param preset: Flame preset — 'default', 'hot', 'cool', 'embers'.
+    :param palette_name: Palette from PALETTE_REGISTRY (default 'fire').
+    :param loop: If True, append reversed frames for seamless loop (default True).
+    :returns: Iterator of colored frame strings.
+    """
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.effects.generative import flame_float_grid as _flame_float_grid
+    from justdoit.effects.color import fill_float_colorize as _colorize, PALETTE_REGISTRY
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.fonts import FONTS as _FONTS
+
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["fire"])
+
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+
+    def _assemble_float_grid(frame_seed: int) -> list:
+        """Build combined float grid for the full text at given seed."""
+        if not font_data:
+            return []
+        sample_glyph = next(iter(font_data.values()))
+        height = len(sample_glyph)
+
+        combined: list = [[] for _ in range(height)]
+
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+            fg = _flame_float_grid(mask, preset=preset, seed=frame_seed)
+
+            glyph_cols = max(len(row) for row in mask) if mask else 0
+
+            for r in range(height):
+                row_floats = fg[r] if r < len(fg) else []
+                row_floats = row_floats[:glyph_cols]
+                while len(row_floats) < glyph_cols:
+                    row_floats.append(0.0)
+                combined[r].extend(row_floats)
+                combined[r].extend([0.0] * gap)
+
+        return combined
+
+    seeds = list(range(n_frames))
+    if loop:
+        seeds = seeds + list(reversed(seeds))
+
+    for frame_seed in seeds:
+        char_frame = _render(
+            text_plain,
+            font=font,
+            fill="flame",
+            fill_kwargs={"preset": preset, "seed": frame_seed},
+        )
+        float_grid = _assemble_float_grid(frame_seed)
+        colored_frame = _colorize(char_frame, float_grid, palette)
+        yield colored_frame
+
+
+# -------------------------------------------------------------------------
+_FLAME_CHARS_BLOOM = "@#S%?*+;:,."
+
+
+def flame_bloom(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 24,
+    preset: str = "default",
+    palette_name: str = "fire",
+    tone_curve: str = "blown_out",
+    bloom_color_name: str = "orange",
+    radius: int = 4,
+    falloff: float = 0.88,
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Flame Bloom animation — three-axis composite flagship (X_FLAME_BLOOM).
+
+    Three axes simultaneously:
+      1. Flame fill (A08) — Doom-fire heat simulation drives char density
+      2. Fire palette color (C11/A08c) — same heat drives 24-bit color
+      3. C13 blown_out tone curve — white-hot core blows out to solid ``@``
+      4. C12 bloom — orange light bleeds into surrounding space cells
+
+    White-hot core blows out to solid ``@``; orange light bleeds into
+    surrounding space. The project's 20/20 flagship composite visual.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Number of animation frames (default 24). Total = 2*n_frames
+        when loop=True.
+    :param preset: Flame preset — 'default', 'hot', 'cool', 'embers'.
+    :param palette_name: Palette from PALETTE_REGISTRY (default 'fire').
+    :param tone_curve: Tone curve to apply (default 'blown_out').
+    :param bloom_color_name: Bloom hue from BLOOM_COLORS (default 'orange').
+    :param radius: Bloom radius in cells (default 4).
+    :param falloff: Per-cell bloom falloff (default 0.88).
+    :param loop: If True, append reversed frames for seamless loop (default True).
+    :returns: Iterator of colored+bloomed frame strings.
+    """
+    from justdoit.effects.generative import flame_float_grid as _flame_float_grid
+    from justdoit.effects.color import (
+        fill_float_colorize as _colorize,
+        apply_tone_curve as _apply_tone_curve,
+        PALETTE_REGISTRY,
+        bloom as _bloom,
+        BLOOM_COLORS,
+    )
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.fonts import FONTS as _FONTS
+
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["fire"])
+    bc = BLOOM_COLORS.get(bloom_color_name, BLOOM_COLORS.get("orange", (255, 140, 0)))
+
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+    n_bloom_chars = len(_FLAME_CHARS_BLOOM)
+
+    def _assemble_frame(frame_seed: int) -> str:
+        """Build one flame_bloom frame from scratch."""
+        if not font_data:
+            return ""
+        sample_glyph = next(iter(font_data.values()))
+        height = len(sample_glyph)
+
+        # Assemble combined float grid + char lines simultaneously
+        float_grid: list = [[] for _ in range(height)]
+        char_lines: list = ["" for _ in range(height)]
+
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+            heat_grid = _flame_float_grid(mask, preset=preset, seed=frame_seed)
+
+            # Apply tone curve to get tone_mapped floats (used for char mapping)
+            tone_mapped = _apply_tone_curve(heat_grid, curve=tone_curve)
+
+            glyph_cols = max(len(row) for row in mask) if mask else 0
+            glyph_height = len(mask)
+
+            # Build ink mask for char mapping
+            ink = [
+                [
+                    bool(mask[r][c] >= 0.5) if c < len(mask[r]) else False
+                    for c in range(glyph_cols)
+                ]
+                for r in range(glyph_height)
+            ]
+
+            for r in range(height):
+                # Float grid row (use raw heat for color, not tone-mapped)
+                raw_row = heat_grid[r] if r < len(heat_grid) else []
+                raw_row = raw_row[:glyph_cols]
+                while len(raw_row) < glyph_cols:
+                    raw_row.append(0.0)
+                float_grid[r].extend(raw_row)
+                float_grid[r].extend([0.0] * gap)
+
+                # Char row from tone-mapped values
+                tone_row = tone_mapped[r] if r < len(tone_mapped) else []
+                line = ""
+                for c in range(glyph_cols):
+                    if r < glyph_height and c < len(ink[r]) and ink[r][c]:
+                        h = tone_row[c] if c < len(tone_row) else 0.0
+                        h = max(0.0, min(1.0, h))
+                        idx = int((1.0 - h) * (n_bloom_chars - 1) + 0.5)
+                        idx = max(0, min(n_bloom_chars - 1, idx))
+                        line += _FLAME_CHARS_BLOOM[idx]
+                    else:
+                        line += " "
+                # Add gap spaces
+                line += " " * gap
+                char_lines[r] += line
+
+        char_frame = "\n".join(char_lines)
+        colored_frame = _colorize(char_frame, float_grid, palette)
+        bloomed_frame = _bloom(colored_frame, bc, radius=radius, falloff=falloff)
+        return bloomed_frame
+
+    seeds = list(range(n_frames))
+    if loop:
+        seeds = seeds + list(reversed(seeds))
+
+    for frame_seed in seeds:
+        yield _assemble_frame(frame_seed)
+
+
+# -------------------------------------------------------------------------
 def voronoi_stained_glass(
     text_plain: str,
     font: str = "block",
@@ -1243,3 +1458,70 @@ def plasma_lava_lamp(
         # Apply C11 color: same float values drive char AND color
         colored_frame = _colorize(char_frame, float_grid, palette)
         yield colored_frame
+
+
+# -------------------------------------------------------------------------
+def neon_bloom(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 30,
+    color: str = "cyan",
+    bloom_color_name: str = "cyan",
+    radius: int = 4,
+    falloff: float = 0.88,
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Neon text with exterior bloom glow — C12 cross-breed (X_NEON_BLOOM).
+
+    Renders text with a neon color, then applies C12 bloom so surrounding
+    space cells glow with the neon hue. The bloom radius breathes (oscillates)
+    per frame via a sine-driven falloff variation, creating a pulsing halo
+    effect around the letterforms.
+
+    Each frame: render → neon colorize → bloom(breathing falloff)
+
+    The bloom color is spatially stable — only its intensity breathes. The
+    letterforms themselves never move. Structural permanence + fluid light
+    motion = neon sign that glows in the dark.
+
+    Cross-breed axes: C07 (24-bit color) × C12 (bloom) × A (falloff animation).
+    Visual interest scores: tension=5, emergence=4, distinctness=5, wow=5 → 19/20.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name (default 'block').
+    :param n_frames: Frames in one half-cycle (default 30). Total = 2*n_frames
+        if loop=True.
+    :param color: Neon foreground color name from COLORS dict (default 'cyan').
+    :param bloom_color_name: Bloom hue from BLOOM_COLORS (default 'cyan').
+    :param radius: Bloom radius in cells (default 4).
+    :param falloff: Base per-cell bloom falloff (default 0.88). Animated
+        ±0.06 per frame via sine to create a breathing halo.
+    :param loop: Yield forward + reverse for seamless loop (default True).
+    :returns: Iterator of colored+bloomed frame strings.
+    """
+    import math as _math
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.effects.color import (
+        bloom as _bloom,
+        BLOOM_COLORS,
+        colorize as _colorize,
+    )
+
+    bc = BLOOM_COLORS.get(bloom_color_name, BLOOM_COLORS["cyan"])
+    TWO_PI = 2.0 * _math.pi
+
+    # Render once — the letterforms never change between frames
+    base = _render(text_plain, font=font)
+    colored_base = _colorize(base, color)
+
+    # Build frame indices for one half-cycle
+    frame_indices = list(range(n_frames))
+    if loop:
+        frame_indices = frame_indices + list(reversed(frame_indices))
+
+    for i in frame_indices:
+        # Animate bloom falloff: gentle sine oscillation around base falloff
+        # This creates a breathing halo — the glow expands and contracts
+        frame_falloff = falloff + 0.06 * _math.sin(TWO_PI * i / n_frames)
+        frame_falloff = max(0.5, min(0.99, frame_falloff))  # keep in valid range
+        yield _bloom(colored_base, bc, radius=radius, falloff=frame_falloff)
