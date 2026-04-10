@@ -395,3 +395,64 @@ def bloom(
         result_lines.append(line_out)
 
     return "\n".join(result_lines)
+
+
+# -------------------------------------------------------------------------
+C13_CURVES = ("linear", "reinhard", "aces", "blown_out")
+
+
+def apply_tone_curve(float_grid: list, curve: str = "linear") -> list:
+    """Apply a named tone curve to a fill float grid (C13).
+
+    Transforms a 2D float grid through a named tone mapping curve before char
+    density selection. Most visually impactful on high-DR fills (flame, plasma).
+
+    Curves:
+
+    - ``linear``:     identity; current default behavior
+    - ``reinhard``:   ``t / (1 + t)`` — soft rolloff, shadow detail preserved
+    - ``aces``:       Stephen Hill polynomial approximation — punchy mids,
+                      cinematic highlights (industry standard filmic curve)
+    - ``blown_out``:  values >= threshold → 1.0; below threshold scale linearly
+                      to 0–1. Default threshold 0.7. Pass "blown_out:0.5" to
+                      override threshold.
+
+    :param float_grid: 2D list[list[float]] from any fill function.
+    :param curve: Tone curve name (default "linear"). "blown_out" accepts optional
+        threshold suffix: "blown_out:0.7" (default threshold=0.7).
+    :returns: New 2D float grid with same shape, values remapped to [0.0, 1.0].
+    :raises ValueError: If curve name is unrecognized.
+    """
+    threshold = 0.7
+    curve_name = curve
+    if ":" in curve:
+        parts = curve.split(":", 1)
+        curve_name = parts[0]
+        try:
+            threshold = float(parts[1])
+            threshold = max(0.001, min(1.0, threshold))
+        except ValueError:
+            threshold = 0.7
+
+    known = ("linear", "reinhard", "aces", "blown_out")
+    if curve_name not in known:
+        raise ValueError(
+            f"Unknown tone curve '{curve_name}'. Available: {', '.join(known)}"
+        )
+
+    def _apply(t: float) -> float:
+        t = max(0.0, min(1.0, t))
+        if curve_name == "linear":
+            return t
+        elif curve_name == "reinhard":
+            return t / (1.0 + t)
+        elif curve_name == "aces":
+            a, b_, c, d, e = 2.51, 0.03, 2.43, 0.59, 0.14
+            out = (t * (a * t + b_)) / (t * (c * t + d) + e)
+            return max(0.0, min(1.0, out))
+        else:  # blown_out
+            if t >= threshold:
+                return 1.0
+            return t / threshold
+
+    return [[_apply(v) for v in row] for row in float_grid]

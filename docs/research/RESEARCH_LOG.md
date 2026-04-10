@@ -635,3 +635,72 @@ No changes to the registry — all four topics confirm existing entries. Priorit
 | 3 | Turing Morphogenesis animation | A_N09a | 5 | `idea` |
 | 4 | Transporter Materialize | A11 | 5 | `idea` |
 | 5 | SDF Font Generator | G04 | 5 | `idea` |
+
+---
+
+## 2026-04-09 — C13 HDR Tone Mapping + A08c Flame Gradient Color + X_FLAME_BLOOM Flagship
+
+**Session type:** Subagent implementation (patent-review/C12-bloom-glow branch)
+**Starting test count:** 618
+**Ending test count:** 687 (+69 new tests)
+
+### Implemented
+
+#### C13 — apply_tone_curve() in justdoit/effects/color.py
+
+`apply_tone_curve(float_grid, curve)` with four named curves:
+- `linear` — identity (reference behavior)
+- `reinhard` — `t / (1 + t)` soft rolloff; shadows preserved
+- `aces` — Stephen Hill polynomial; punchy mids, cinematic highlights; t=1.0 → ~0.80 (intentional rolloff)
+- `blown_out` — values ≥ threshold → 1.0; below threshold scale linearly. Default threshold=0.7. Supports `"blown_out:N"` suffix for custom thresholds.
+
+`C13_CURVES` constant tuple exposed alongside function.
+
+#### _flame_heat_grid() private helper in justdoit/effects/generative.py
+
+Extracted the Doom-fire simulation loop from `flame_fill()` into a shared private helper `_flame_heat_grid(mask, preset, n_steps, cooling, seed)`. Returns `(heat, ink, rows, cols)` tuple. Both `flame_fill()` and `flame_float_grid()` now delegate to this helper, ensuring identical simulation results for the same seed — char density and color are always from the same simulation data.
+
+#### flame_float_grid() in justdoit/effects/generative.py
+
+C11 companion to `flame_fill()`. Returns the raw heat values as a 2D `list[list[float]]` rather than chars. Exterior cells return 0.0. Deterministic with same seed and preset as a corresponding `flame_fill()` call.
+
+#### flame_gradient_color() in justdoit/animate/presets.py — A08c
+
+Per-frame animation: `flame_fill(seed=frame_seed)` provides chars; `flame_float_grid(seed=frame_seed)` provides floats; `fill_float_colorize(char_frame, float_grid, FIRE_PALETTE)` applies color. Identical heat simulation drives both channels — total coupling. Hot cells = dense `@` + white/yellow; cooling cells = sparse `,` + deep orange/red.
+
+#### flame_bloom() in justdoit/animate/presets.py — X_FLAME_BLOOM
+
+Three-axis flagship composite:
+1. **Flame simulation** — `_flame_heat_grid` via `flame_float_grid()`
+2. **C13 blown_out tone curve** — white-hot core blows out to solid `@` chars
+3. **FIRE_PALETTE color** — via `fill_float_colorize()` on raw heat floats
+4. **C12 bloom** — orange light bleeds into surrounding space via `bloom()`
+
+Visual validation (preset="hot", frame 4/8, "JUST DO IT"):
+- Frame: 7 rows × 64 cols
+- Char distribution: `@` = 147 (dominant), `.` = 19 — blown_out is working; almost everything hot enough to blow out to `@`, a few cool tips render as `.`
+- Background bloom codes: 282 per frame — heavy orange bloom fills the surrounding space cells
+- Foreground color codes: 166 per frame — fire palette (white→yellow→orange→red) applied per cell
+- Visual read: white-hot letterforms made entirely of `@` chars, surrounded by an orange-lit halo bleeding into the black background. The letters appear to be burning at maximum intensity, with fire light painting the air around them.
+
+### Tests written
+
+- `tests/test_tone_curve.py` — 26 tests: identity, clamping, reinhard rolloff, ACES range, blown_out threshold, suffix parsing, ValueError, shape preservation
+- `tests/test_flame_float_grid.py` — 17 tests: return type, dimensions, value range, exterior=0.0, determinism, seed variation, presets, edge cases
+- `tests/test_flame_bloom.py` — 26 tests: frame count (loop doubles), ANSI codes, background bloom codes, foreground color, tone curve applied, multi-line, per-preset
+
+### Gallery
+
+- SVGs: `docs/gallery/2026-04-09-X_FLAME_BLOOM.svg`, `docs/gallery/2026-04-09-A08c.svg`
+- Animations: `docs/anim_gallery/A08c-flame-gradient-color.{cast,apng}`, `X_FLAME_BLOOM-flame-bloom.{cast,apng}` (48 frames @ 12fps each)
+- Gallery README: 9 daily technique entries, 55 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Turing Morphogenesis animation | A_N09a | 5 | `idea` |
+| 2 | Transporter Materialize | A11 | 5 | `idea` |
+| 3 | SDF Font Generator | G04 | 5 | `idea` |
+| 4 | X_ISO_FLAME — iso + flame on extrusion face | X_ISO_FLAME | 5 | `idea` |
+| 5 | Plasma bloom (C12 × plasma) | X_PLASMA_BLOOM | 4 | `idea` |
