@@ -1,6 +1,6 @@
 # Animation Gallery
 
-Auto-generated 2026-04-06 — do not edit manually.
+Auto-generated 2026-04-10 — do not edit manually.
 Run `uv run python scripts/generate_anim_gallery.py` to regenerate.
 
 Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
@@ -207,3 +207,35 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 | Variant | Preview | Terminal |
 |---------|---------|----------|
 | voronoi-stained-glass-fire | ![voronoi-stained-glass-fire](A_VOR1b-voronoi-stained-glass-fire.apng) | [▶ terminal](A_VOR1b-voronoi-stained-glass-fire.cast) |
+
+## A10c — Plasma-Lava-Lamp
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-lava-lamp | ![plasma-lava-lamp](A10c-plasma-lava-lamp.apng) | [▶ terminal](A10c-plasma-lava-lamp.cast) |
+
+## A10c — Plasma-Lava-Spectral
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-lava-spectral | ![plasma-lava-spectral](A10c-plasma-lava-spectral.apng) | [▶ terminal](A10c-plasma-lava-spectral.cast) |
+
+## A08c — Flame-Gradient-Color
+
+**48 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| flame-gradient-color | ![flame-gradient-color](A08c-flame-gradient-color.apng) | [▶ terminal](A08c-flame-gradient-color.cast) |
+
+## X_FLAME_BLOOM — Flame-Bloom
+
+**48 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| flame-bloom | ![flame-bloom](X_FLAME_BLOOM-flame-bloom.apng) | [▶ terminal](X_FLAME_BLOOM-flame-bloom.cast) |
