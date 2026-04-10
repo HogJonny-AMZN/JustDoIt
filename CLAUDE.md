@@ -119,8 +119,10 @@ There is also a legacy `justdoit.py` at the repo root for backwards compatibilit
 ### Dependencies
 
 - **Core:** zero — pure Python 3 stdlib
-- **TTF/OTF fonts:** requires `Pillow` (included in dev venv via `uv sync --dev`)
+- **TTF/OTF fonts:** requires `Pillow` — **Pillow IS available** in the project `.venv` (installed via `uv sync --dev`)
 - **Tests:** `pytest` + `Pillow` (installed via `uv sync --dev`)
+
+> ⚠️ **Pillow note:** Pillow is confirmed available in this project's `.venv`. Always use `uv run` (not bare `python`) to ensure Pillow imports correctly. Do NOT fall back to system fonts or skip PIL-gated paths — use `uv run` and Pillow will be present.
 
 ### Python Environment — IMPORTANT
 

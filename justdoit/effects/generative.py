@@ -2773,6 +2773,77 @@ _FLAME_CHARS: str = "@#S%?*+;:,."
 
 
 # -------------------------------------------------------------------------
+def _flame_heat_grid(
+    mask: list,
+    preset: str = "default",
+    n_steps: int = 25,
+    cooling: float = 0.12,
+    seed=None,
+):
+    """Run the Doom-fire simulation and return the raw heat grid.
+
+    Private helper shared by flame_fill() and flame_float_grid().
+
+    :returns: Tuple (heat, ink, rows, cols) where heat is list[list[float]],
+        ink is list[list[bool]], rows and cols are grid dimensions.
+    """
+    if preset not in _FLAME_PRESETS:
+        raise ValueError(
+            f"Unknown flame preset '{preset}'. "
+            f"Available: {', '.join(_FLAME_PRESETS.keys())}"
+        )
+    rows = len(mask)
+    if rows == 0:
+        return [], [], 0, 0
+    cols = max(len(row) for row in mask) if rows > 0 else 0
+    if cols == 0:
+        return [], [], rows, 0
+
+    p = _FLAME_PRESETS[preset]
+    n_steps = p["n_steps"]
+    cooling = p["cooling"]
+
+    rng = random.Random(seed)
+
+    ink = [
+        [bool(mask[r][c] >= 0.5) if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    ink_cells = [(r, c) for r in range(rows) for c in range(cols) if ink[r][c]]
+    if not ink_cells:
+        heat = [[0.0] * cols for _ in range(rows)]
+        return heat, ink, rows, cols
+
+    heat = [[0.0] * cols for _ in range(rows)]
+    max_ink_row = max(r for r, _ in ink_cells)
+    seed_rows = {max_ink_row, max_ink_row - 1}
+    for r, c in ink_cells:
+        if r in seed_rows:
+            heat[r][c] = 1.0
+
+    for _step in range(n_steps):
+        new_heat = [row[:] for row in heat]
+        for r, c in ink_cells:
+            if r in seed_rows:
+                new_heat[r][c] = 1.0
+                continue
+            below_r = r + 1
+            if below_r >= rows:
+                continue
+            drift = rng.randint(-1, 1)
+            below_c = c + drift
+            if below_c < 0 or below_c >= cols or not ink[below_r][below_c]:
+                below_c = c
+            if ink[below_r][below_c]:
+                raw = heat[below_r][below_c] - cooling * rng.random()
+                new_heat[r][c] = max(0.0, raw)
+        heat = new_heat
+
+    return heat, ink, rows, cols
+
+
+# -------------------------------------------------------------------------
 def flame_fill(
     mask: list,
     preset: str = "default",
@@ -2808,80 +2879,20 @@ def flame_fill(
     :returns: List of strings — one per row, same shape as input mask.
     :raises ValueError: If preset name is unknown.
     """
-    if preset not in _FLAME_PRESETS:
-        raise ValueError(
-            f"Unknown flame preset '{preset}'. "
-            f"Available: {', '.join(_FLAME_PRESETS.keys())}"
-        )
-
-    rows = len(mask)
-    if rows == 0:
-        return []
-    cols = max(len(row) for row in mask) if rows > 0 else 0
-    if cols == 0:
-        return []
-
-    # Apply preset — overrides individual params
-    p = _FLAME_PRESETS[preset]
-    n_steps = p["n_steps"]
-    cooling = p["cooling"]
-
     chars = (density_chars if density_chars is not None else _FLAME_CHARS)
     # Strip trailing space so minimum-intensity ink cells still render as visible chars
     chars = chars.rstrip(" ") or "."
     n_chars = len(chars)
 
-    rng = random.Random(seed)
+    heat, ink, rows, cols = _flame_heat_grid(
+        mask, preset=preset, n_steps=n_steps, cooling=cooling, seed=seed
+    )
 
-    # -------------------------------------------------------------------------
-    # Build ink mask (boolean grid)
-    ink: list = [
-        [bool(mask[r][c] >= 0.5) if c < len(mask[r]) else False for c in range(cols)]
-        for r in range(rows)
-    ]
+    if rows == 0 or cols == 0:
+        return []
 
-    # Identify all ink cells and find the bottom ink rows per column
-    ink_cells = [(r, c) for r in range(rows) for c in range(cols) if ink[r][c]]
-    if not ink_cells:
+    if not any(ink[r][c] for r in range(rows) for c in range(cols)):
         return [" " * cols for _ in range(rows)]
-
-    # -------------------------------------------------------------------------
-    # Initialize heat grid
-    heat: list = [[0.0] * cols for _ in range(rows)]
-
-    # Seed: bottom ink cells get full heat.  "Bottom" = highest row index that is ink.
-    max_ink_row = max(r for r, _ in ink_cells)
-    # Seed bottom 2 rows (max_ink_row and max_ink_row - 1) with full heat
-    seed_rows = {max_ink_row, max_ink_row - 1}
-    for r, c in ink_cells:
-        if r in seed_rows:
-            heat[r][c] = 1.0
-
-    # -------------------------------------------------------------------------
-    # Doom fire propagation — heat moves upward (lower row indices)
-    for _step in range(n_steps):
-        new_heat = [row[:] for row in heat]   # shallow copy each row
-        # Propagate: for each ink cell (except seed rows), compute heat from below
-        for r, c in ink_cells:
-            if r in seed_rows:
-                # Seed rows stay at full heat
-                new_heat[r][c] = 1.0
-                continue
-            # Look at the cell one row below
-            below_r = r + 1
-            if below_r >= rows:
-                continue
-            # Random lateral drift: -1, 0, or 1
-            drift = rng.randint(-1, 1)
-            below_c = c + drift
-            # Clamp drift to valid column and must be an ink cell
-            if below_c < 0 or below_c >= cols or not ink[below_r][below_c]:
-                below_c = c   # no drift if it would exit the glyph
-            if ink[below_r][below_c]:
-                raw = heat[below_r][below_c] - cooling * rng.random()
-                new_heat[r][c] = max(0.0, raw)
-            # else: cell below isn't ink — heat stays as is (preserve edge heat)
-        heat = new_heat
 
     # -------------------------------------------------------------------------
     # Map heat → density chars
@@ -2899,4 +2910,39 @@ def flame_fill(
             line += chars[idx]
         result.append(line)
 
+    return result
+
+
+# -------------------------------------------------------------------------
+def flame_float_grid(
+    mask: list,
+    preset: str = "default",
+    n_steps: int = 25,
+    cooling: float = 0.12,
+    seed=None,
+) -> list:
+    """Compute flame heat float grid for a glyph mask — C11 companion to flame_fill.
+
+    Returns the heat values from the same Doom-fire simulation as flame_fill()
+    as a 2D list of floats [0.0, 1.0] rather than characters. Use the same
+    seed and preset as a corresponding flame_fill() call to get a float grid
+    that matches the char output exactly.
+
+    :param mask: 2D list of floats from glyph_to_mask() -- values 0.0-1.0.
+    :param preset: Flame preset ('default', 'hot', 'cool', 'embers').
+    :param n_steps: Fire propagation iterations (overridden by preset).
+    :param cooling: Per-step cooling factor (overridden by preset).
+    :param seed: Random seed for deterministic output.
+    :returns: 2D list[list[float]] same shape as mask; [0.0,1.0] ink, 0.0 exterior.
+    :raises ValueError: If preset is unknown.
+    """
+    heat, ink, rows, cols = _flame_heat_grid(
+        mask, preset=preset, n_steps=n_steps, cooling=cooling, seed=seed
+    )
+    if rows == 0 or cols == 0:
+        return [[0.0] * (cols or 0) for _ in range(rows)]
+    result = []
+    for r in range(rows):
+        row_out = [heat[r][c] if ink[r][c] else 0.0 for c in range(cols)]
+        result.append(row_out)
     return result
