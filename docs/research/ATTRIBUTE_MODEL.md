@@ -333,7 +333,7 @@ PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
 
 | ID | Combination | Visual interest | Notes |
 |----|-------------|----------------|-------|
-| X_NEON_BLOOM | neon fill + C12 bloom | tension=5 emerge=4 distinct=5 wow=5 → 19 | Neon chars glow into surrounding space. Neon color defines bloom hue. Minimal exterior radius (2–3 cells). |
+| X_NEON_BLOOM | neon fill + C12 bloom | tension=5 emerge=4 distinct=5 wow=5 → 19 | Neon chars glow into surrounding space. Neon color defines bloom hue. Minimal exterior radius (2–3 cells). | **`done` 2026-04-08** (patent-review branch) |
 | X_FLAME_BLOOM | flame fill + C12 bloom + C13 blown_out | tension=5 emerge=5 distinct=5 wow=5 → 20 | Hot core blows out to solid chars; bloom bleeds orange light into surrounding space. Fire that lights the air. Highest-score combo in catalog. |
 | X_PLASMA_BLOOM | plasma fill + C12 bloom | tension=4 emerge=4 distinct=5 wow=4 → 17 | Bloom radius oscillates with plasma field value — exterior glow breathes with the wave. |
 | A_BLOOM1 | C12 bloom radius + sin animation | tension=4 emerge=4 distinct=5 wow=5 → 18 | Bloom breathes in/out around any fill. Combined with flame interior: pulsing fire halo. |
@@ -387,17 +387,15 @@ Based on implementation cost vs novelty payoff:
 ~~1. **C11** — fill-float → per-cell color. Unlocks 6+ C11-gated combos.~~ **DONE 2026-04-06**
 ~~A_VOR1 — Voronoi Stained Glass. First C11 consumer. Score 19/20.~~ **DONE 2026-04-06**
 ~~A10c — Plasma Lava Lamp. Second C11 consumer. Score 18/20.~~ **DONE 2026-04-06**
-1. **C12** — bloom / exterior glow via background color channel. Unlocks 4+ bloom combos. ~60 lines. **Patent-flag before shipping.**
-2. **C13** — HDR tone mapping curves inside fills. ~15 lines. Pairs with C12 for maximum impact.
-3. **A08c** — flame gradient + sin-wave color. Next C11 consumer. Use fill_float_colorize with FIRE_PALETTE on flame output.
-4. **A10c** — plasma lava lamp. C11 on plasma float grid. Score 18/20.
-5. **A_F09a** — wave phase animation. ~20 lines. Near-free warmup before a heavier session.
-6. **X_NEON_BLOOM** — neon + C12. First C12 consumer. Score 19/20.
-7. **X_FLAME_BLOOM** — flame + C12 + C13 blown_out. Score 20/20. Flagship light effect.
-8. **A_N09a** — Turing morphogenesis animation. Standalone, highest scientific novelty.
-9. **A_ISO1** — isometric depth animation. Short, makes S03 come alive.
-10. **A08d** — plasma-modulated flame. Fill-float→fill-param coupling. Most novel generative cross-breed.
-11. **X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project's flagship composite visual.
+~~1. **C12** — bloom / exterior glow via background color channel. Unlocks 4+ bloom combos. ~60 lines. **Patent-flag before shipping.**~~ **DONE 2026-04-08** (patent-review branch only)
+~~X_NEON_BLOOM — neon + C12. First C12 consumer. Score 19/20.~~ **DONE 2026-04-08** (patent-review branch only)
+1. **C13** — HDR tone mapping curves inside fills. ~15 lines. Pairs with C12 for maximum impact.
+2. **A08c** — flame gradient + sin-wave color. Next C11 consumer. Use fill_float_colorize with FIRE_PALETTE on flame output.
+3. **X_FLAME_BLOOM** — flame + C12 + C13 blown_out. Score 20/20. Flagship light effect. Needs C13 first.
+4. **A_N09a** — Turing morphogenesis animation. Standalone, highest scientific novelty.
+5. **A_ISO1** — isometric depth animation. Short, makes S03 come alive.
+6. **A08d** — plasma-modulated flame. Fill-float→fill-param coupling. Most novel generative cross-breed.
+7. **X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project's flagship composite visual.
 
 ---
 
