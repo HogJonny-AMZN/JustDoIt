@@ -1,0 +1,12 @@
+title: JustDoIt
+description: Terminal-first ASCII/ANSI text art with a serious rendering pipeline.
+baseurl: "/JustDoIt"
+url: "https://hogjonny-amzn.github.io"
+
+theme: minima
+
+# Serve SVG and APNG assets
+include:
+  - "*.svg"
+  - "*.apng"
+  - "*.cast"
