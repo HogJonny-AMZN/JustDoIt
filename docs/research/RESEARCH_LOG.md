@@ -704,3 +704,54 @@ Visual validation (preset="hot", frame 4/8, "JUST DO IT"):
 | 3 | SDF Font Generator | G04 | 5 | `idea` |
 | 4 | X_ISO_FLAME — iso + flame on extrusion face | X_ISO_FLAME | 5 | `idea` |
 | 5 | Plasma bloom (C12 × plasma) | X_PLASMA_BLOOM | 4 | `idea` |
+
+## Session 2026-04-10 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** A_BLOOM1 — Bloom Pulse
+**Scores:** tension=4 emergence=4 distinctness=5 wow=5 → total=18/20
+**Why chosen over alternatives:**
+- X_PLASMA_BLOOM (17/20): plasma lava lamp already in gallery; diminishing distinctness return.
+- X_ISO_NEON (16/20): requires per-face fill routing — more infra time than available.
+- A_ISO1 (15/20): lower wow; too simple relative to A_BLOOM1's ceiling.
+- A_N09a (novelty 5): Mode A candidate — high research value but needs dedicated session.
+- A_BLOOM1 chosen because C12 + C13 are both done (unlocked), score 18/20, and it introduces a dimension X_FLAME_BLOOM lacks: *animated bloom radius*. The breathing halo is genuinely new.
+
+**Implementation path:** New `bloom_pulse()` preset in `justdoit/animate/presets.py`.
+- Same frame assembly as `flame_bloom()`: `flame_float_grid()` + `apply_tone_curve()` + `fill_float_colorize()` + `bloom()`.
+- Key difference from X_FLAME_BLOOM: (1) tone_curve="aces" instead of "blown_out" — more char variety (S, %, .) vs pure @; (2) bloom radius oscillates via `sin(2π*i/total)` per frame rather than fixed.
+- `current_radius = max(1, int(round(base_radius + bloom_amplitude * sin(2π*i/total))))` — sweeps 2→3→4→5→6→5→4→3→2 over 48-frame loop.
+- Forward+reverse loop: seeds 0–23 forward then 23→0 reversed. Radius follows the sin phase of frame position, not seed.
+
+**Visual validation result:** ✅ Meets the bar.
+- Ink chars: S (dominant), % (mid-heat), . (cool tips) — 3 distinct chars from ACES soft rolloff. Richer than flame_bloom's near-total @ saturation.
+- 166 foreground-colored ink cells (fire palette: white/yellow hot → orange → deep red at edges).
+- Bloom oscillates 256→282 cells across 48 frames (radius 2→6 and back). Min is visually tight; max has clear halo.
+- Flame flickers stochastically (independent per-frame seed) while bloom breathes periodically (sin(t)). The two axes operate at different timescales and in different registers — the interplay reads as fire inhaling and exhaling.
+- Visually distinct from X_FLAME_BLOOM: softer, more varied chars; actively breathing perimeter vs static glow. Different emotional register: X_FLAME_BLOOM is explosive, A_BLOOM1 is rhythmic/living.
+
+**Key insight:** The critical design choice is decoupling the bloom radius animation index from the flame seed. The flame seed cycles 0→23 (stochastic, independent frames); the bloom radius cycles via total-frame sin phase (smooth, periodic). These two independent clocks on the same output create the "fire that breathes" illusion — neither signal alone produces it. This pattern (two clocks: one stochastic, one periodic) is worth reusing. `X_PLASMA_BLOOM` could extend it: use plasma's periodic `t` to modulate bloom, plasma's own stochastic noise as the second signal.
+
+**ATTRIBUTE_MODEL.md updates:**
+- A_BLOOM1 marked as `done 2026-04-10`
+- Priority order updated: A_N09a now #1 (highest novelty unimplemented), A_ISO1 next (easy win)
+- X_PLASMA_BLOOM remains unblocked (C12 done) — strong next candidate if Mode B session
+
+**Implementation notes:**
+- `bloom_pulse(text_plain, font, n_frames, preset, palette_name, tone_curve, bloom_color_name, base_radius, bloom_amplitude, falloff, loop)` in `justdoit/animate/presets.py`
+- Reuses `_FLAME_CHARS_BLOOM` constant from the same module
+- 27 new tests in `tests/test_bloom_pulse.py` — all passing
+- Total tests: 714 (was 687 before this session, +27)
+- Gallery SVG: `docs/gallery/2026-04-10-A_BLOOM1.svg` (18KB, peak-bloom static frame)
+- Animation: `docs/anim_gallery/A_BLOOM1-bloom-pulse-fire.{cast,apng}` (678KB cast, 480KB apng, 48 frames @ 12fps)
+- Gallery README updated: 10 daily entries, 56 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Turing Morphogenesis animation | A_N09a | 5 | `idea` |
+| 2 | Transporter Materialize | A11 | 5 | `idea` |
+| 3 | SDF Font Generator | G04 | 5 | `idea` |
+| 4 | Isometric depth animation | A_ISO1 | 3 | `idea` |
+| 5 | Plasma bloom (C12 × plasma) | X_PLASMA_BLOOM | 4 | `idea` |
+| 6 | Plasma-modulated flame | A08d | 5 | `idea` |

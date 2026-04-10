@@ -1525,3 +1525,145 @@ def neon_bloom(
         frame_falloff = falloff + 0.06 * _math.sin(TWO_PI * i / n_frames)
         frame_falloff = max(0.5, min(0.99, frame_falloff))  # keep in valid range
         yield _bloom(colored_base, bc, radius=radius, falloff=frame_falloff)
+
+
+# -------------------------------------------------------------------------
+def bloom_pulse(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 24,
+    preset: str = "hot",
+    palette_name: str = "fire",
+    tone_curve: str = "aces",
+    bloom_color_name: str = "orange",
+    base_radius: int = 4,
+    bloom_amplitude: int = 2,
+    falloff: float = 0.88,
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Bloom Pulse animation — breathing halo around burning letterforms (A_BLOOM1).
+
+    Three axes simultaneously:
+      1. Flame fill (A08) — Doom-fire heat simulation drives char density
+      2. Fire palette color (C11/A08c) — same heat drives 24-bit color
+      3. C13 ACES tone curve — punchy mids, more char variety than blown_out
+      4. C12 bloom — exterior glow with radius oscillating via sin(t)
+
+    The bloom radius breathes in and out on a sine cycle while the flame
+    flickers independently. The interplay between the periodic bloom breathing
+    (smooth, rhythmic) and the stochastic flame (chaotic, independent) creates
+    the illusion of a living fire that inhales and exhales.
+
+    Distinct from X_FLAME_BLOOM: that preset uses ``blown_out`` tone curve and
+    fixed bloom radius. This uses ``aces`` (more char variety in the hot zone,
+    softer rolloff) and an *animated* bloom radius — the glow itself breathes.
+
+    Cross-breed axes: A08 (flame) × C11 (fire_palette color) × C13 (ACES curve)
+    × C12 (bloom) × A (bloom radius animation).
+    Visual interest scores: tension=4, emergence=4, distinctness=5, wow=5 → 18/20.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Number of unique flame frames (default 24). Total = 2*n_frames
+        when loop=True.
+    :param preset: Flame preset — 'default', 'hot', 'cool', 'embers'.
+    :param palette_name: Palette from PALETTE_REGISTRY (default 'fire').
+    :param tone_curve: Tone curve applied to flame floats (default 'aces').
+    :param bloom_color_name: Bloom hue from BLOOM_COLORS (default 'orange').
+    :param base_radius: Base bloom radius in cells (default 4). Oscillates
+        ±bloom_amplitude around this value.
+    :param bloom_amplitude: Half-amplitude of radius oscillation in cells (default 2).
+        Radius sweeps from base_radius-amplitude to base_radius+amplitude.
+    :param falloff: Per-cell bloom falloff (default 0.88). Fixed across frames.
+    :param loop: If True, append reversed frames for seamless loop (default True).
+    :returns: Iterator of colored+bloomed frame strings.
+    """
+    import math as _math
+    from justdoit.effects.generative import flame_float_grid as _flame_float_grid
+    from justdoit.effects.color import (
+        fill_float_colorize as _colorize,
+        apply_tone_curve as _apply_tone_curve,
+        PALETTE_REGISTRY,
+        bloom as _bloom,
+        BLOOM_COLORS,
+    )
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.fonts import FONTS as _FONTS
+
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["fire"])
+    bc = BLOOM_COLORS.get(bloom_color_name, BLOOM_COLORS.get("orange", (255, 140, 0)))
+
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+    TWO_PI = 2.0 * _math.pi
+    n_bloom_chars = len(_FLAME_CHARS_BLOOM)
+
+    def _assemble_frame(frame_seed: int, current_radius: int) -> str:
+        """Build one bloom_pulse frame: flame chars + ACES tone + fire palette + bloom."""
+        if not font_data:
+            return ""
+        sample_glyph = next(iter(font_data.values()))
+        height = len(sample_glyph)
+
+        float_grid: list = [[] for _ in range(height)]
+        char_lines: list = ["" for _ in range(height)]
+
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+            heat_grid = _flame_float_grid(mask, preset=preset, seed=frame_seed)
+
+            # Apply ACES tone curve to derive char density mapping
+            tone_mapped = _apply_tone_curve(heat_grid, curve=tone_curve)
+
+            glyph_cols = max(len(row) for row in mask) if mask else 0
+            glyph_height = len(mask)
+
+            ink = [
+                [
+                    bool(mask[r][c] >= 0.5) if c < len(mask[r]) else False
+                    for c in range(glyph_cols)
+                ]
+                for r in range(glyph_height)
+            ]
+
+            for r in range(height):
+                raw_row = heat_grid[r] if r < len(heat_grid) else []
+                raw_row = raw_row[:glyph_cols]
+                while len(raw_row) < glyph_cols:
+                    raw_row.append(0.0)
+                float_grid[r].extend(raw_row)
+                float_grid[r].extend([0.0] * gap)
+
+                tone_row = tone_mapped[r] if r < len(tone_mapped) else []
+                line = ""
+                for c in range(glyph_cols):
+                    if r < glyph_height and c < len(ink[r]) and ink[r][c]:
+                        h = tone_row[c] if c < len(tone_row) else 0.0
+                        h = max(0.0, min(1.0, h))
+                        idx = int((1.0 - h) * (n_bloom_chars - 1) + 0.5)
+                        idx = max(0, min(n_bloom_chars - 1, idx))
+                        line += _FLAME_CHARS_BLOOM[idx]
+                    else:
+                        line += " "
+                line += " " * gap
+                char_lines[r] += line
+
+        char_frame = "\n".join(char_lines)
+        colored_frame = _colorize(char_frame, float_grid, palette)
+        bloomed_frame = _bloom(colored_frame, bc, radius=current_radius, falloff=falloff)
+        return bloomed_frame
+
+    seeds = list(range(n_frames))
+    if loop:
+        seeds = seeds + list(reversed(seeds))
+
+    total = len(seeds)
+    for i, frame_seed in enumerate(seeds):
+        # Bloom radius breathes: sine oscillation around base_radius
+        # Phase is tied to frame index (0..total-1), giving a full breath per loop
+        raw_radius = base_radius + bloom_amplitude * _math.sin(TWO_PI * i / total)
+        current_radius = max(1, int(round(raw_radius)))
+        yield _assemble_frame(frame_seed, current_radius)
