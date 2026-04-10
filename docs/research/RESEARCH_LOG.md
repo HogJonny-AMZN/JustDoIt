@@ -584,3 +584,54 @@ No changes to the registry — all four topics confirm existing entries. Priorit
 | 4 | Turing Morphogenesis animation | A_N09a | 5 | `idea` |
 | 5 | Transporter Materialize | A11 | 5 | `idea` |
 | 6 | SDF Font Generator | G04 | 5 | `idea` |
+
+## Session 2026-04-08 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** C12 infrastructure + X_NEON_BLOOM — Bloom / Exterior Glow (C12 first consumer)
+**Scores:** tension=5 emergence=4 distinctness=5 wow=5 → total=19/20
+**Why chosen over alternatives:**
+- C12 was #1 on priority queue. X_NEON_BLOOM is C12's first consumer — cleanest first use, fixed bloom color, no fill-float coupling needed.
+- X_FLAME_BLOOM (20/20) is C12's flagship but requires A08c (flame+C11) first for the blown-out core. Blocked.
+- A10c / A_VOR1 already done. A_F09a (12/20) too low to compete.
+
+**Implementation path:**
+1. `bloom(text, bloom_color, radius, falloff, core_boost)` in `justdoit/effects/color.py` — BFS distance map from all ink cells simultaneously (O(rows×cols)), Chebyshev 8-direction expansion, `\033[48;2;r;g;bm` background ANSI on each space cell within radius, exponential falloff. Optional core_boost: edge ink cells adjacent to space get foreground RGB 1.15× (inner glow).
+2. `BLOOM_COLORS` dict in `color.py` (11 named presets) — was already staged from prior session start.
+3. `neon_bloom()` preset in `presets.py` — renders once, applies `colorize()` for neon foreground, then applies `bloom()` with breathing falloff: `falloff + 0.06 * sin(2π * i / n_frames)` per frame. Forward+reverse loop, 60 total frames @ 12fps.
+
+**Visual validation result:** ✅ Meets the bar.
+- 166 ink cells in "JUST DO IT" block font
+- 282 bloom cells surrounding the letterforms (radius=4, falloff=0.88)
+- RGB breathing confirmed: first bloom cell RGB cycles 193→202→206→202→193→184→180→184 across 8 frames (the sine oscillation is real and legible)
+- Letterforms structurally stable — only bloom intensity changes, not position
+- SVG exporter limitation: background ANSI codes (`\033[48;2;...m`) are not rendered into SVG/PNG — bloom is terminal-only for now. Gallery SVG shows the neon-colored letterforms only (still visually clean). Documented in TECHNIQUES.md C12 entry.
+- The effect is visually unlike anything currently in the gallery
+
+**Key insight:** The BFS distance map approach (O(rows×cols), expand from all ink cells simultaneously) is ~100× faster than the naive O(space_cells × ink_cells) approach for terminal-width text. The key constraint is that `dist_map[r][c] >= radius` cells should NOT continue expanding — early termination keeps the BFS O(bloom_radius×perimeter) in practice. Chebyshev distance (8-direction expansion) produces the right circular bloom shape; Manhattan distance (4-direction) would produce diamond-shaped halos. The background ANSI channel (`\033[48;2;...m`) is genuinely unused by any ASCII art library — this is new territory for this class of output tools.
+
+**ATTRIBUTE_MODEL.md updates:**
+- C12 marked as `done 2026-04-08` (patent-review branch only — not merged to main)
+- X_NEON_BLOOM marked as `done 2026-04-08` in "Needs C12" tier
+- Priority order updated: C13 is now #1 unimplemented, X_FLAME_BLOOM is #2 target for next C12 consumer
+
+**Patent status:** Bloom is on `patent-review/C12-bloom-glow` branch. NOT pushed to main. Flagged to Jonny per protocol. Background ANSI as spatial light-bleeding medium for ASCII art has no known prior art in any tool.
+
+**Implementation notes:**
+- `bloom(text, bloom_color, radius=4, falloff=0.9, core_boost=True)` in `justdoit/effects/color.py`
+- `BLOOM_COLORS` dict with 11 named presets (cyan, magenta, red, orange, yellow, green, blue, white, fire, cold, lava)
+- `neon_bloom(text_plain, font, n_frames, color, bloom_color_name, radius, falloff, loop)` in `justdoit/animate/presets.py`
+- 29 new tests in `tests/test_bloom.py` — all passing
+- Total: 618 tests (was 589 before this session, +29)
+- 1 static gallery SVG: `docs/gallery/2026-04-08-X_NEON_BLOOM.svg` (18KB, neon cyan letters — bloom not visible in SVG)
+- 4 animation files: `docs/anim_gallery/X_NEON_BLOOM-neon-bloom-cyan.{cast,apng}`, `X_NEON_BLOOM-neon-bloom-magenta.{cast,apng}` (60 frames @ 12fps each)
+- Gallery README updated: 8 daily entries, 53 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | HDR Tone Mapping | C13 | 3 | `idea` |
+| 2 | Flame Bloom (C12 flagship) | X_FLAME_BLOOM | 5 | `idea` |
+| 3 | Turing Morphogenesis animation | A_N09a | 5 | `idea` |
+| 4 | Transporter Materialize | A11 | 5 | `idea` |
+| 5 | SDF Font Generator | G04 | 5 | `idea` |

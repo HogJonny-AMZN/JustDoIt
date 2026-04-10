@@ -1243,3 +1243,70 @@ def plasma_lava_lamp(
         # Apply C11 color: same float values drive char AND color
         colored_frame = _colorize(char_frame, float_grid, palette)
         yield colored_frame
+
+
+# -------------------------------------------------------------------------
+def neon_bloom(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 30,
+    color: str = "cyan",
+    bloom_color_name: str = "cyan",
+    radius: int = 4,
+    falloff: float = 0.88,
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Neon text with exterior bloom glow — C12 cross-breed (X_NEON_BLOOM).
+
+    Renders text with a neon color, then applies C12 bloom so surrounding
+    space cells glow with the neon hue. The bloom radius breathes (oscillates)
+    per frame via a sine-driven falloff variation, creating a pulsing halo
+    effect around the letterforms.
+
+    Each frame: render → neon colorize → bloom(breathing falloff)
+
+    The bloom color is spatially stable — only its intensity breathes. The
+    letterforms themselves never move. Structural permanence + fluid light
+    motion = neon sign that glows in the dark.
+
+    Cross-breed axes: C07 (24-bit color) × C12 (bloom) × A (falloff animation).
+    Visual interest scores: tension=5, emergence=4, distinctness=5, wow=5 → 19/20.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name (default 'block').
+    :param n_frames: Frames in one half-cycle (default 30). Total = 2*n_frames
+        if loop=True.
+    :param color: Neon foreground color name from COLORS dict (default 'cyan').
+    :param bloom_color_name: Bloom hue from BLOOM_COLORS (default 'cyan').
+    :param radius: Bloom radius in cells (default 4).
+    :param falloff: Base per-cell bloom falloff (default 0.88). Animated
+        ±0.06 per frame via sine to create a breathing halo.
+    :param loop: Yield forward + reverse for seamless loop (default True).
+    :returns: Iterator of colored+bloomed frame strings.
+    """
+    import math as _math
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.effects.color import (
+        bloom as _bloom,
+        BLOOM_COLORS,
+        colorize as _colorize,
+    )
+
+    bc = BLOOM_COLORS.get(bloom_color_name, BLOOM_COLORS["cyan"])
+    TWO_PI = 2.0 * _math.pi
+
+    # Render once — the letterforms never change between frames
+    base = _render(text_plain, font=font)
+    colored_base = _colorize(base, color)
+
+    # Build frame indices for one half-cycle
+    frame_indices = list(range(n_frames))
+    if loop:
+        frame_indices = frame_indices + list(reversed(frame_indices))
+
+    for i in frame_indices:
+        # Animate bloom falloff: gentle sine oscillation around base falloff
+        # This creates a breathing halo — the glow expands and contracts
+        frame_falloff = falloff + 0.06 * _math.sin(TWO_PI * i / n_frames)
+        frame_falloff = max(0.5, min(0.99, frame_falloff))  # keep in valid range
+        yield _bloom(colored_base, bc, radius=radius, falloff=frame_falloff)
