@@ -131,7 +131,7 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass, plasma_lava_lamp, flame_gradient_color, flame_bloom, bloom_pulse
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass, plasma_lava_lamp, flame_gradient_color, flame_bloom, bloom_pulse, plasma_bloom
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
@@ -379,6 +379,14 @@ def _build_showcase() -> list[dict]:
             "name": "bloom-pulse",
             "label": "bloom-pulse-fire",
             "frames": lambda: list(bloom_pulse(text_plain, n_frames=24, preset="hot", palette_name="fire", tone_curve="aces", bloom_color_name="orange", base_radius=4, bloom_amplitude=2, loop=True)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "X_PLASMA_BLOOM",
+            "name": "Plasma Bloom",
+            "label": "plasma-bloom-spectral",
+            "frames": lambda: list(plasma_bloom(text_plain, n_frames=36, preset="default", palette_name="spectral", radius=3, falloff=0.88, loop=True)),
             "fps": 12.0,
             "loop": True,
         },
