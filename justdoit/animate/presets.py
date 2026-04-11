@@ -1667,3 +1667,148 @@ def bloom_pulse(
         raw_radius = base_radius + bloom_amplitude * _math.sin(TWO_PI * i / total)
         current_radius = max(1, int(round(raw_radius)))
         yield _assemble_frame(frame_seed, current_radius)
+
+
+# -------------------------------------------------------------------------
+# X_PLASMA_BLOOM chromatic bloom color presets
+# Maps plasma intensity (0.0–1.0) through a visible spectrum shift.
+# Used to derive per-frame bloom color from mean plasma float.
+_PLASMA_BLOOM_SPECTRUM: list = [
+    (120, 0, 220),    # 0.0 — deep violet
+    (0, 60, 255),     # 0.2 — indigo-blue
+    (0, 200, 255),    # 0.4 — cyan
+    (0, 255, 100),    # 0.6 — green-cyan
+    (200, 255, 0),    # 0.8 — yellow-green
+    (255, 80, 0),     # 1.0 — orange-red
+]
+
+
+def plasma_bloom(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 36,
+    preset: str = "default",
+    palette_name: str = "spectral",
+    radius: int = 3,
+    falloff: float = 0.88,
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Plasma Bloom — chromatic bloom halo driven by plasma field intensity (X_PLASMA_BLOOM).
+
+    Two axes interact to produce behavior neither produces alone:
+      1. Plasma fill (A10) — demoscene sin-field drives char density inside glyphs
+      2. C11 spectral colorization — same plasma float drives per-cell 24-bit color
+      3. C12 chromatic bloom — *mean plasma intensity* for each frame is mapped
+         through the visible spectrum to derive the bloom halo color, so the
+         surrounding glow shifts hue (violet → cyan → orange) as the plasma wave
+         cycles.
+
+    The key structural tension: the plasma field is deterministic and periodic
+    (the letterforms morph on a fixed sin-field cycle), while the bloom color
+    shifts through the spectrum as the mean intensity rises and falls across
+    frames. The result: text that appears to be bathed in shifting colored light
+    emanating from within the letterforms themselves.
+
+    Chromatic bloom — bloom color derived from fill state — has no prior art in
+    ASCII art tooling (asciimatics, aalib, blessed, rich).
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Frames for one forward sweep (default 36). Total = 2×n_frames
+        when loop=True (forward+reverse seamless loop).
+    :param preset: Plasma fill preset — 'default', 'tight', 'slow', 'diagonal'.
+    :param palette_name: Palette for ink cell coloring via C11 (default 'spectral').
+    :param radius: Bloom radius in cells (default 3). Fixed — use A_BLOOM1 for
+        animated radius.
+    :param falloff: Per-cell bloom falloff (default 0.88).
+    :param loop: If True, yield forward then reverse frames for a seamless loop
+        (default True).
+    :returns: Iterator of colored+bloomed frame strings.
+    """
+    import math as _math
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.effects.generative import plasma_float_grid as _plasma_float_grid
+    from justdoit.effects.color import (
+        fill_float_colorize as _colorize,
+        PALETTE_REGISTRY,
+        bloom as _bloom,
+    )
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.fonts import FONTS as _FONTS
+
+    TWO_PI = 2.0 * _math.pi
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["spectral"])
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+
+    def _lerp_spectrum(t: float) -> tuple:
+        """Map float t in [0, 1] to an (r, g, b) bloom color via _PLASMA_BLOOM_SPECTRUM."""
+        n = len(_PLASMA_BLOOM_SPECTRUM)
+        t = max(0.0, min(1.0, t))
+        scaled = t * (n - 1)
+        lo = int(scaled)
+        hi = min(lo + 1, n - 1)
+        frac = scaled - lo
+        a = _PLASMA_BLOOM_SPECTRUM[lo]
+        b_ = _PLASMA_BLOOM_SPECTRUM[hi]
+        return (
+            int(a[0] + (b_[0] - a[0]) * frac),
+            int(a[1] + (b_[1] - a[1]) * frac),
+            int(a[2] + (b_[2] - a[2]) * frac),
+        )
+
+    def _assemble_frame(t_val: float) -> str:
+        """Build one plasma_bloom frame: plasma chars + spectral color + chromatic bloom."""
+        if not font_data:
+            return ""
+        sample_glyph = next(iter(font_data.values()))
+        height = len(sample_glyph)
+
+        float_grid: list = [[] for _ in range(height)]
+
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+            pg = _plasma_float_grid(mask, t=t_val, preset=preset)
+
+            glyph_cols = max(len(row) for row in mask) if mask else 0
+
+            for r in range(height):
+                raw_row = pg[r] if r < len(pg) else []
+                raw_row = raw_row[:glyph_cols]
+                while len(raw_row) < glyph_cols:
+                    raw_row.append(0.0)
+                float_grid[r].extend(raw_row)
+                float_grid[r].extend([0.0] * gap)
+
+        # Render char frame using plasma fill (same t as float grid)
+        char_frame = _render(
+            text_plain,
+            font=font,
+            fill="plasma",
+            fill_kwargs={"t": t_val, "preset": preset},
+        )
+
+        # Apply spectral C11 colorization
+        colored_frame = _colorize(char_frame, float_grid, palette)
+
+        # Derive bloom color from plasma phase t directly.
+        # t sweeps 0 → 2π (one full plasma cycle); map to [0, 1] for spectrum
+        # interpolation. This produces a full violet→cyan→orange→violet sweep
+        # synchronized with the plasma wave — truly chromatic bloom.
+        phase_norm = (t_val % TWO_PI) / TWO_PI  # 0.0–1.0, periodic
+        bloom_color = _lerp_spectrum(phase_norm)
+
+        # Apply C12 bloom with chromatic color
+        bloomed_frame = _bloom(colored_frame, bloom_color, radius=radius, falloff=falloff)
+        return bloomed_frame
+
+    # Generate t values: 0 → 2π forward sweep
+    t_values = [TWO_PI * i / n_frames for i in range(n_frames)]
+    if loop:
+        t_values = t_values + list(reversed(t_values))
+
+    for t_val in t_values:
+        yield _assemble_frame(t_val)

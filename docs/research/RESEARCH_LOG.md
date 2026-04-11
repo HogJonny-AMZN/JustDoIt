@@ -755,3 +755,54 @@ Visual validation (preset="hot", frame 4/8, "JUST DO IT"):
 | 4 | Isometric depth animation | A_ISO1 | 3 | `idea` |
 | 5 | Plasma bloom (C12 × plasma) | X_PLASMA_BLOOM | 4 | `idea` |
 | 6 | Plasma-modulated flame | A08d | 5 | `idea` |
+
+## Session 2026-04-11 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** X_PLASMA_BLOOM — Plasma Chromatic Bloom
+**Scores:** tension=4 emergence=4 distinctness=4 wow=4 → total=16/20
+**Why chosen over alternatives:**
+- A_ISO1 (13/20, lower emergence — iso depth breathing is visually pleasant but low novelty)
+- X_ISO_NEON (18/20 predicted but requires per-face fill routing — infra not present, would consume session)
+- X_PLASMA_BLOOM (16/20) was the highest-scoring "Ready to implement" candidate this session
+
+**Implementation path:** New `plasma_bloom()` preset in `justdoit/animate/presets.py`.
+- Frame assembly: `plasma_float_grid(mask, t=t_val)` + `render()` (plasma chars) + `fill_float_colorize()` (C11 spectral) + `bloom()` (C12 chromatic)
+- Chromatic innovation: plasma phase `t` (0→2π) mapped directly to `_PLASMA_BLOOM_SPECTRUM` color list via `_lerp_spectrum()`, producing bloom hue sweep from violet (t=0) → indigo → cyan → green → orange (t=2π) per frame
+- First implementation used mean plasma intensity per frame for bloom color; rejected because mean varied only 0.44–0.58 (not enough spectral range). Revised to phase-driven: `bloom_color = _lerp_spectrum(t_val / TWO_PI)`
+- 72 total frames (36 forward + 36 reversed) @ 12fps
+
+**Visual validation result:** ✅ Meets the bar.
+- 166 ink cells, 166 foreground color codes (spectral), 279 background bloom codes per frame
+- Char distribution: @, #, S, %, ?, *, +, ;, :, ,, . — full range from heavy to feathery, all plasma-driven
+- Chromatic bloom sweep confirmed: frame 0 = deep violet (105,0,193), frame 8 = indigo-blue (0,66,224), frame 16 = cyan (0,186,193), frame 24 = green (58,224,58), frame 32 = yellow-orange (197,155,0)
+- 5+ distinct bloom hue families per cycle — visually dramatic chromatic shift
+- The effect reads as text bathed in shifting colored light from within the letterforms
+- Foreground spectral colorization + chromatic exterior bloom: two independent spectral shifts on two channels simultaneously
+- Distinct from A10c (color inside only), A_VOR1 (structural borders, fixed cells), X_NEON_BLOOM (fixed hue bloom), A_BLOOM1 (fixed hue, animated radius)
+
+**Key insight:** The critical design choice is driving bloom color from plasma phase `t` rather than mean plasma intensity. Mean intensity varies too little across frames (0.44–0.58) to produce perceptible chromatic change. Phase `t`, sweeping 0→2π, gives a full 0→1 color spectrum traversal per cycle — synchronizing the halo color shift with the visual wave cycle. The result: the glow "reads" the wave, appearing to emanate from whatever frequency the plasma is currently at. This is the correct mental model for chromatic bloom: **bloom color tracks the underlying generative state, not just the intensity**.
+
+**ATTRIBUTE_MODEL.md updates:**
+- X_PLASMA_BLOOM marked as `done 2026-04-11` in "Needs C12" tier
+- Pre-implementation estimate (17/20) revised down to 16/20: distinctness dropped from 5→4 (close to A10c in concept, different in execution)
+
+**Implementation notes:**
+- `plasma_bloom()` in `justdoit/animate/presets.py` (~120 lines including inner functions)
+- `_PLASMA_BLOOM_SPECTRUM` constant: 6-stop visible spectrum from violet to orange
+- `_lerp_spectrum()` inner function for palette interpolation
+- 32 new tests in `tests/test_plasma_bloom.py` — all passing
+- Total tests: 746 (was 714 before this session, +32)
+- Gallery SVG: `docs/gallery/2026-04-11-X_PLASMA_BLOOM.svg` (green-cyan phase frame)
+- Animation: `docs/anim_gallery/X_PLASMA_BLOOM-plasma-bloom-spectral.{cast,apng}` (1MB cast, 790KB apng, 72 frames @ 12fps)
+- Gallery README updated: 12 daily entries, 57 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Turing Morphogenesis animation | A_N09a | 5 | `idea` |
+| 2 | Transporter Materialize | A11 | 5 | `idea` |
+| 3 | SDF Font Generator | G04 | 5 | `idea` |
+| 4 | Isometric depth animation | A_ISO1 | 3 | `idea` |
+| 5 | Plasma-modulated flame | A08d | 5 | `idea` |
+| 6 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
