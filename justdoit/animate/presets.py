@@ -1812,3 +1812,65 @@ def plasma_bloom(
 
     for t_val in t_values:
         yield _assemble_frame(t_val)
+
+
+# -------------------------------------------------------------------------
+def iso_depth_breathe(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 24,
+    fill: str = "plasma",
+    fill_kwargs: Optional[dict] = None,
+    base_depth: int = 4,
+    amplitude: int = 3,
+    direction: str = "right",
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Isometric Depth Breathing animation — S03 isometric + depth animation cross-breed (A_ISO1).
+
+    Block letters are rendered with a fill effect and extruded into isometric 3D.
+    The extrusion depth oscillates via a sine wave each frame, making the letters
+    appear to breathe in 3D — the chunky block forms grow thicker and thinner in
+    a rhythmic cycle.
+
+    Algorithm per-frame i:
+      depth = max(1, base_depth + round(amplitude * sin(2π * i / n_frames)))
+      rendered = render(text_plain, font=font, fill=fill, fill_kwargs=fill_kwargs)
+      frame = isometric_extrude(rendered, depth=depth, direction=direction)
+
+    The sine sweep means depth continuously moves from (base_depth - amplitude) to
+    (base_depth + amplitude) and back, clamped to a minimum of 1.
+
+    When loop=True the generator yields forward frames 0..n_frames-1, then reversed
+    frames n_frames-2..1 — a seamless ping-pong loop with no duplicate endpoints.
+    Total frames = 2*n_frames - 2 when loop=True, exactly n_frames when loop=False.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Number of unique depth frames in one forward sweep (default 24).
+    :param fill: Fill effect name applied to front face (default 'plasma').
+    :param fill_kwargs: Extra keyword arguments forwarded to the fill function (default None).
+    :param base_depth: Center extrusion depth around which the sine oscillates (default 4).
+    :param amplitude: Half-amplitude of the depth oscillation in cells (default 3).
+        Depth sweeps from max(1, base_depth-amplitude) to base_depth+amplitude.
+    :param direction: Isometric extrusion direction — 'right' (default) or 'left'.
+    :param loop: If True, append reversed frames for a seamless ping-pong loop (default True).
+        Total frames = 2*n_frames-2; if False, yields exactly n_frames frames.
+    :returns: Iterator of isometric-extruded multi-line frame strings.
+    """
+    import math as _math
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.effects.isometric import isometric_extrude as _isometric_extrude
+
+    TWO_PI = 2.0 * _math.pi
+    kw = fill_kwargs or {}
+
+    indices = list(range(n_frames))
+    if loop and n_frames > 1:
+        indices = indices + list(range(n_frames - 2, 0, -1))
+
+    for i in indices:
+        depth = max(1, base_depth + int(round(amplitude * _math.sin(TWO_PI * i / n_frames))))
+        rendered = _render(text_plain, font=font, fill=fill, fill_kwargs=kw)
+        frame = _isometric_extrude(rendered, depth=depth, direction=direction)
+        yield frame

@@ -806,3 +806,55 @@ Visual validation (preset="hot", frame 4/8, "JUST DO IT"):
 | 4 | Isometric depth animation | A_ISO1 | 3 | `idea` |
 | 5 | Plasma-modulated flame | A08d | 5 | `idea` |
 | 6 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
+
+## Session 2026-04-14 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** A_ISO1 — Isometric Depth Breathe
+**Scores:** tension=4 emergence=3 distinctness=4 wow=4 → total=15/20
+**Why chosen over alternatives:**
+- X_ISO_NEON (16/20 predicted): requires per-face fill routing — would consume entire session on infra.
+- A_N09a (novelty 5): Mode A candidate — high research value but needs dedicated research session.
+- A08d (novelty 5): fill-float→fill-param coupling not yet implemented.
+- A_ISO1 chosen as highest-scoring "Ready to implement" candidate (no new infrastructure required). S03 isometric is done; just need to sweep the depth param per frame via sine.
+
+**Implementation path:** New `iso_depth_breathe()` preset in `justdoit/animate/presets.py`.
+- Per-frame: `depth = max(1, base_depth + int(round(amplitude * sin(2π*i/n_frames))))`
+- Calls `render(text_plain, font=font, fill=fill)` then `isometric_extrude(rendered, depth=depth)`
+- Default: base_depth=4, amplitude=3 → depth sweeps 1→7→1 across one cycle
+- Seamless forward-reverse loop (same pattern as bloom_pulse, plasma_bloom): 2*n_frames-2 total frames
+- Fill for front face is caller-specified (default: 'plasma'); depth face uses _DEPTH_SHADES (▓▒░·) unchanged
+
+**CB6 Visual Validation Result:** ✅ Meets the bar.
+- 22 total frames @ 12fps (n_frames=12, loop=True) — appropriate loop duration
+- Depth char count oscillates: frame 0=323, frame 3 (peak)=512, frame 6=323, frame 9 (trough)=104
+- Variance confirmed: peak-to-trough is 4.9× change in depth char count — visually dramatic breathing
+- Isometric structure clearly visible in all frames; depth face shading (▓▒░·) confirms extrusion is working
+- Front face textured with plasma fill — demoscene sin-field chars inside letterforms
+- Different emotional register from all prior presets: structural/geometric breathing rather than fill-driven
+- No bloom, no color effects — pure geometric animation. The simplest combo, cleanest read.
+- Structurally distinct from: plasma_wave (fill animation), A_BLOOM1 (halo breathing), flame_bloom (color+bloom)
+
+**Key design note:** The beauty of A_ISO1 is its orthogonality to existing presets. Where bloom presets animate *light*, and fill presets animate *texture*, A_ISO1 animates *geometry*. The depth-breathing creates a sense of the letters having mass and physicality — like 3D objects in a scene exhaling. This is the pure S03 axis: spatial, not photometric. Combining A_ISO1 with fill animation (e.g. plasma_wave depth-breathing simultaneously with plasma t-sweep) would create a rich coupled-axis effect.
+
+**ATTRIBUTE_MODEL.md updates:**
+- A_ISO1 marked as `done 2026-04-14` in "Ready to implement" table
+- Priority list updated: A_ISO1 done; A_N09a remains #1 next target
+
+**Implementation notes:**
+- `iso_depth_breathe(text_plain, font, n_frames, fill, fill_kwargs, base_depth, amplitude, direction, loop)` in `justdoit/animate/presets.py`
+- Lazy imports inside function body (per project pattern): render, isometric_extrude, math
+- 25 new tests in `tests/test_iso_depth_breathe.py` — all passing
+- Total tests: 771 (was 746 before this session, +25)
+- Gallery SVG: `docs/gallery/2026-04-14-A_ISO1.svg` (74KB, peak-depth frame — frame 3/12, depth=7)
+- Gallery README updated: 13 daily entries, 58 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Turing Morphogenesis animation | A_N09a | 5 | `idea` |
+| 2 | Transporter Materialize | A11 | 5 | `idea` |
+| 3 | SDF Font Generator | G04 | 5 | `idea` |
+| 4 | Plasma-modulated flame | A08d | 5 | `idea` |
+| 5 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
+| 6 | Wave Interference Animation | A_F09a | 3 | `idea` |

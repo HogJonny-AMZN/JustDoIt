@@ -307,7 +307,7 @@ FONT shape  ──→  FILL behavior        [SDF font → smoother masks → smo
 | ID | Combination | Notes |
 |----|-------------|-------|
 | A_F09a | F09 wave + phase animation | 20 lines |
-| A_ISO1 | S03 iso + depth animation | iso depth swept per frame, letters breathe |
+| A_ISO1 | S03 iso + depth animation | iso depth swept per frame, letters breathe | **done 2026-04-14** |
 | X_ISO_NEON | S03 iso + A03 neon on extrusion face only | depth chars flicker, front face stable |
 | X_WARP_PULSE | S01 sine_warp + A04 pulse | amplitude oscillates - text breathes AND waves |
 
@@ -395,7 +395,7 @@ Based on implementation cost vs novelty payoff:
 3. ~~**X_FLAME_BLOOM** - flame + C12 + C13 blown_out. Score 20/20.~~ **`done` 2026-04-09** - `flame_bloom()` flagship 20/20 composite.
 ~~4. **A_BLOOM1** — bloom pulse. Breathing bloom radius around burning letterforms. Score 18/20.~~ **DONE 2026-04-10**
 4. **A_N09a** — Turing morphogenesis animation. Standalone, highest scientific novelty.
-5. **A_ISO1** — isometric depth animation. Short, makes S03 come alive.
+5. ~~**A_ISO1** — isometric depth animation. Short, makes S03 come alive.~~ **DONE 2026-04-14**
 6. **A08d** — plasma-modulated flame. Fill-float→fill-param coupling. Most novel generative cross-breed.
 7. **X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project’s flagship composite visual.
 
