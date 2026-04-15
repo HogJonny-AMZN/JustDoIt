@@ -394,7 +394,8 @@ Based on implementation cost vs novelty payoff:
 2. ~~**A08c** - flame gradient + sin-wave color.~~ **`done` 2026-04-09** - `flame_gradient_color()` in presets.py.
 3. ~~**X_FLAME_BLOOM** - flame + C12 + C13 blown_out. Score 20/20.~~ **`done` 2026-04-09** - `flame_bloom()` flagship 20/20 composite.
 ~~4. **A_BLOOM1** — bloom pulse. Breathing bloom radius around burning letterforms. Score 18/20.~~ **DONE 2026-04-10**
-4. **A_N09a** — Turing morphogenesis animation. Standalone, highest scientific novelty.
+~~4. **A_N09a** — Turing morphogenesis animation.~~ **DONE 2026-04-15** (single-pass FHN snapshots + bio palette; `turing_morphogenesis()` in presets.py)
+~~X_TURING_BIO — Turing biological coat colors.~~ **DONE 2026-04-15** (turing float grid + bio palette rotation; `turing_bio()` in presets.py)
 5. ~~**A_ISO1** — isometric depth animation. Short, makes S03 come alive.~~ **DONE 2026-04-14**
 6. **A08d** — plasma-modulated flame. Fill-float→fill-param coupling. Most novel generative cross-breed.
 7. **X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project’s flagship composite visual.

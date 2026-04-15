@@ -2946,3 +2946,302 @@ def flame_float_grid(
         row_out = [heat[r][c] if ink[r][c] else 0.0 for c in range(cols)]
         result.append(row_out)
     return result
+
+
+# -------------------------------------------------------------------------
+def turing_float_grid(
+    mask: list,
+    preset: str = "stripes",
+    steps: Optional[int] = None,
+    seed=None,
+    scale: int = 4,
+) -> list:
+    """Return the raw Turing activator U float grid (N09) without char mapping.
+
+    Runs the same FitzHugh-Nagumo activator-inhibitor simulation as turing_fill(),
+    but returns a 2D list[list[float]] of normalised activator concentrations
+    in [0.0, 1.0] rather than mapped characters.  Exterior cells are 0.0.
+
+    Use the same ``preset`` and ``seed`` as a corresponding ``turing_fill()`` call
+    to obtain a float grid that matches the char output exactly — this enables
+    C11 (fill_float_colorize) to colour each cell proportional to its activator
+    concentration, producing biological coat patterns in bio/spectral palettes.
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param preset: Named parameter preset (default: 'stripes').
+    :param steps: Simulation steps override (default: preset-dependent, 3000–3500).
+    :param seed: Integer seed for reproducible initialisation (default: None = random).
+    :param scale: Upscale factor for simulation resolution (default: 4).
+    :returns: 2D list[list[float]] — same shape as input mask.
+              Ink cells have values in [0.0, 1.0]; exterior cells are 0.0.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _TURING_PRESETS:
+        raise ValueError(
+            f"Unknown Turing preset '{preset}'. "
+            f"Available: {', '.join(_TURING_PRESETS.keys())}"
+        )
+
+    orig_rows = len(mask)
+    if orig_rows == 0:
+        return []
+    orig_cols = max(len(row) for row in mask)
+    if orig_cols == 0:
+        return [[] for _ in range(orig_rows)]
+
+    p = _TURING_PRESETS[preset]
+    alpha = p["alpha"]
+    beta = p["beta"]
+    gamma = p["gamma"]
+    Da = p["Da"]
+    Db = p["Db"]
+    epsilon = p["epsilon"]
+    n_steps = steps if steps is not None else p["steps"]
+
+    # Build original ink mask
+    orig_ink = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(orig_cols)]
+        for r in range(orig_rows)
+    ]
+
+    # Upscale by nearest-neighbour
+    sim_rows = orig_rows * scale
+    sim_cols = orig_cols * scale
+    ink = [
+        [orig_ink[r // scale][c // scale] for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+
+    # Initialise U and V with small random perturbation around (0, 0)
+    rng = random.Random(seed)
+    noise_amplitude = 0.02
+    U = [
+        [rng.gauss(0.0, noise_amplitude) if ink[r][c] else 0.0 for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+    V = [
+        [rng.gauss(0.0, noise_amplitude) if ink[r][c] else 0.0 for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+
+    active_cells = [(r, c) for r in range(sim_rows) for c in range(sim_cols) if ink[r][c]]
+
+    # Run Euler integration
+    dt = _TURING_dt
+    for _step in range(n_steps):
+        dU = [[0.0] * sim_cols for _ in range(sim_rows)]
+        dV = [[0.0] * sim_cols for _ in range(sim_rows)]
+        for r, c in active_cells:
+            u = U[r][c]
+            v = V[r][c]
+            lap_u = _turing_laplacian(U, r, c, sim_rows, sim_cols, ink)
+            lap_v = _turing_laplacian(V, r, c, sim_rows, sim_cols, ink)
+            dU[r][c] = Da * lap_u + alpha * u - u * u * u - v + beta
+            dV[r][c] = Db * lap_v + epsilon * (u - gamma * v)
+        for r, c in active_cells:
+            U[r][c] += dt * dU[r][c]
+            V[r][c] += dt * dV[r][c]
+            if U[r][c] > _TURING_CLAMP:
+                U[r][c] = _TURING_CLAMP
+            elif U[r][c] < -_TURING_CLAMP:
+                U[r][c] = -_TURING_CLAMP
+            if V[r][c] > _TURING_CLAMP:
+                V[r][c] = _TURING_CLAMP
+            elif V[r][c] < -_TURING_CLAMP:
+                V[r][c] = -_TURING_CLAMP
+
+    # Downsample U to original resolution by averaging scale×scale blocks
+    U_down = []
+    for r in range(orig_rows):
+        row_vals = []
+        for c in range(orig_cols):
+            total = 0.0
+            count = 0
+            for dr in range(scale):
+                for dc in range(scale):
+                    sr = r * scale + dr
+                    sc = c * scale + dc
+                    if sr < sim_rows and sc < sim_cols and ink[sr][sc]:
+                        total += U[sr][sc]
+                        count += 1
+            row_vals.append(total / count if count > 0 else 0.0)
+        U_down.append(row_vals)
+
+    # Normalise to [0, 1] across ink cells
+    ink_vals = [
+        U_down[r][c]
+        for r in range(orig_rows)
+        for c in range(orig_cols)
+        if orig_ink[r][c]
+    ]
+    if not ink_vals:
+        return [[0.0] * orig_cols for _ in range(orig_rows)]
+
+    u_min = min(ink_vals)
+    u_max = max(ink_vals)
+    u_range = u_max - u_min
+    if u_range < 1e-9:
+        u_range = 1.0
+
+    # Build result: ink cells normalised, exterior 0.0
+    result = []
+    for r in range(orig_rows):
+        row_out = []
+        for c in range(orig_cols):
+            if orig_ink[r][c]:
+                val = (U_down[r][c] - u_min) / u_range
+                row_out.append(max(0.0, min(1.0, val)))
+            else:
+                row_out.append(0.0)
+        result.append(row_out)
+    return result
+
+
+# -------------------------------------------------------------------------
+def _turing_morphogenesis_snapshots(
+    mask: list,
+    preset: str = "spots",
+    snapshot_steps: Optional[list] = None,
+    seed=None,
+    scale: int = 4,
+) -> list:
+    """Run FHN simulation once, capturing normalised U-grid at each snapshot step.
+
+    More efficient than calling turing_float_grid() multiple times independently.
+    Used by the turing_morphogenesis() animation preset to show pattern formation.
+
+    :param mask: 2D list of floats from glyph_to_mask().
+    :param preset: Named parameter preset (default: 'spots').
+    :param snapshot_steps: Sorted list of step counts at which to capture state.
+        Default: [50, 100, 200, 400, 800, 1500, 2500, 3500].
+    :param seed: Integer seed for reproducible initialisation.
+    :param scale: Upscale factor for simulation resolution (default: 4).
+    :returns: List of (step, orig_ink, float_grid) tuples, one per snapshot.
+        float_grid is a 2D list[list[float]] normalised to [0.0, 1.0] at that step.
+    """
+    if snapshot_steps is None:
+        snapshot_steps = [50, 100, 200, 400, 800, 1500, 2500, 3500]
+    snap_set = set(snapshot_steps)
+    max_step = max(snapshot_steps)
+
+    if preset not in _TURING_PRESETS:
+        raise ValueError(
+            f"Unknown Turing preset '{preset}'. "
+            f"Available: {', '.join(_TURING_PRESETS.keys())}"
+        )
+
+    orig_rows = len(mask)
+    if orig_rows == 0:
+        return [(s, [], []) for s in snapshot_steps]
+    orig_cols = max(len(row) for row in mask)
+    if orig_cols == 0:
+        return [(s, [], []) for s in snapshot_steps]
+
+    p = _TURING_PRESETS[preset]
+    alpha = p["alpha"]
+    beta = p["beta"]
+    gamma = p["gamma"]
+    Da = p["Da"]
+    Db = p["Db"]
+    epsilon = p["epsilon"]
+
+    orig_ink = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(orig_cols)]
+        for r in range(orig_rows)
+    ]
+
+    sim_rows = orig_rows * scale
+    sim_cols = orig_cols * scale
+    ink = [
+        [orig_ink[r // scale][c // scale] for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+
+    rng = random.Random(seed)
+    noise_amplitude = 0.02
+    U = [
+        [rng.gauss(0.0, noise_amplitude) if ink[r][c] else 0.0 for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+    V = [
+        [rng.gauss(0.0, noise_amplitude) if ink[r][c] else 0.0 for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+
+    active_cells = [(r, c) for r in range(sim_rows) for c in range(sim_cols) if ink[r][c]]
+    dt = _TURING_dt
+    snapshots = []
+
+    def _capture_snapshot(step_n):
+        """Downsample and normalise U at the current sim state."""
+        U_down = []
+        for r in range(orig_rows):
+            row_vals = []
+            for c in range(orig_cols):
+                total = 0.0
+                count = 0
+                for dr in range(scale):
+                    for dc in range(scale):
+                        sr = r * scale + dr
+                        sc = c * scale + dc
+                        if sr < sim_rows and sc < sim_cols and ink[sr][sc]:
+                            total += U[sr][sc]
+                            count += 1
+                row_vals.append(total / count if count > 0 else 0.0)
+            U_down.append(row_vals)
+
+        ink_vals = [
+            U_down[r][c]
+            for r in range(orig_rows)
+            for c in range(orig_cols)
+            if orig_ink[r][c]
+        ]
+        if not ink_vals:
+            float_grid = [[0.0] * orig_cols for _ in range(orig_rows)]
+        else:
+            u_min = min(ink_vals)
+            u_max = max(ink_vals)
+            u_range = u_max - u_min if (u_max - u_min) > 1e-9 else 1.0
+            float_grid = []
+            for r in range(orig_rows):
+                row_out = []
+                for c in range(orig_cols):
+                    if orig_ink[r][c]:
+                        val = (U_down[r][c] - u_min) / u_range
+                        row_out.append(max(0.0, min(1.0, val)))
+                    else:
+                        row_out.append(0.0)
+                float_grid.append(row_out)
+        snapshots.append((step_n, orig_ink, float_grid))
+
+    for step_n in range(1, max_step + 1):
+        dU = [[0.0] * sim_cols for _ in range(sim_rows)]
+        dV = [[0.0] * sim_cols for _ in range(sim_rows)]
+        for r, c in active_cells:
+            u = U[r][c]
+            v = V[r][c]
+            lap_u = _turing_laplacian(U, r, c, sim_rows, sim_cols, ink)
+            lap_v = _turing_laplacian(V, r, c, sim_rows, sim_cols, ink)
+            dU[r][c] = Da * lap_u + alpha * u - u * u * u - v + beta
+            dV[r][c] = Db * lap_v + epsilon * (u - gamma * v)
+        for r, c in active_cells:
+            U[r][c] += dt * dU[r][c]
+            V[r][c] += dt * dV[r][c]
+            if U[r][c] > _TURING_CLAMP:
+                U[r][c] = _TURING_CLAMP
+            elif U[r][c] < -_TURING_CLAMP:
+                U[r][c] = -_TURING_CLAMP
+            if V[r][c] > _TURING_CLAMP:
+                V[r][c] = _TURING_CLAMP
+            elif V[r][c] < -_TURING_CLAMP:
+                V[r][c] = -_TURING_CLAMP
+        if step_n in snap_set:
+            _capture_snapshot(step_n)
+
+    # Return in the order of snapshot_steps (may differ from insertion order)
+    snap_dict = {s: (oi, fg) for s, oi, fg in snapshots}
+    return [
+        (s, snap_dict[s][0], snap_dict[s][1])
+        for s in snapshot_steps
+        if s in snap_dict
+    ]
