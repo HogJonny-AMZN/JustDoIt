@@ -131,7 +131,7 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass, plasma_lava_lamp, flame_gradient_color, flame_bloom, bloom_pulse, plasma_bloom, iso_depth_breathe
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass, plasma_lava_lamp, flame_gradient_color, flame_bloom, bloom_pulse, plasma_bloom, iso_depth_breathe, turing_bio, turing_morphogenesis
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
@@ -396,6 +396,30 @@ def _build_showcase() -> list[dict]:
             "label": "iso-depth-breathe",
             "frames": lambda: list(iso_depth_breathe(text_plain, n_frames=24, fill="plasma", base_depth=4, amplitude=3, loop=True)),
             "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "X_TURING_BIO",
+            "name": "Turing Biological Coat Colors",
+            "label": "turing-bio-spots",
+            "frames": lambda: list(turing_bio(text_plain, preset="spots", seed=42, n_frames=36, palette_name="bio", loop=True)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "X_TURING_BIO",
+            "name": "Turing Biological Coat Stripes",
+            "label": "turing-bio-stripes",
+            "frames": lambda: list(turing_bio(text_plain, preset="stripes", seed=42, n_frames=36, palette_name="bio", loop=True)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A_N09a",
+            "name": "Turing Morphogenesis",
+            "label": "turing-morphogenesis-spots",
+            "frames": lambda: list(turing_morphogenesis(text_plain, preset="spots", seed=42, snapshot_steps=[50, 100, 200, 400, 800, 1500, 2500, 3500], palette_name="bio", loop=True)),
+            "fps": 4.0,
             "loop": True,
         },
     ]

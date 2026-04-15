@@ -1874,3 +1874,260 @@ def iso_depth_breathe(
         rendered = _render(text_plain, font=font, fill=fill, fill_kwargs=kw)
         frame = _isometric_extrude(rendered, depth=depth, direction=direction)
         yield frame
+
+
+# -------------------------------------------------------------------------
+def turing_bio(
+    text_plain: str,
+    font: str = "block",
+    preset: str = "spots",
+    seed=42,
+    n_frames: int = 36,
+    palette_name: str = "bio",
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Turing Biological Coat Colors -- FHN pattern + C11 BIO_PALETTE (X_TURING_BIO).
+
+    Runs the Turing FHN activator-inhibitor simulation to convergence for each
+    glyph, then animates by rotating the BIO_PALETTE phase across frames. The
+    pattern structure is FIXED (chars don't change between frames) -- only the
+    color walks through the biological spectrum each cycle.
+
+    High activator cells (dense chars) appear in pale lime at one phase, shift
+    through mid-green, dark-green, and bio-dark as the offset sweeps. Low
+    activator cells follow the same offset but from the opposite palette end.
+    The effect: letterforms wearing an animal coat (spots/stripes) whose coloring
+    shifts slowly as if viewed through changing light conditions.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param preset: Turing preset -- 'spots', 'stripes', 'maze', 'labyrinth'.
+    :param seed: Integer seed for reproducible pattern (default 42).
+    :param n_frames: Number of palette-rotation frames (default 36).
+    :param palette_name: Palette from PALETTE_REGISTRY (default 'bio').
+    :param loop: If True, forward+reverse loop (default True).
+    :returns: Iterator of colored frame strings.
+    """
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.effects.generative import turing_float_grid as _turing_float_grid
+    from justdoit.effects.color import PALETTE_REGISTRY
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.fonts import FONTS as _FONTS
+
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["bio"])
+
+    char_frame = _render(
+        text_plain,
+        font=font,
+        fill="turing",
+        fill_kwargs={"preset": preset, "seed": seed},
+    )
+
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+
+    def _assemble_float_grid() -> list:
+        if not font_data:
+            return []
+        sample_glyph = next(iter(font_data.values()))
+        height = len(sample_glyph)
+        combined: list = [[] for _ in range(height)]
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink)
+            fg = _turing_float_grid(mask, preset=preset, seed=seed)
+            glyph_cols = max(len(row) for row in mask) if mask else 0
+            for r in range(height):
+                row_floats = fg[r] if r < len(fg) else []
+                row_floats = list(row_floats[:glyph_cols])
+                while len(row_floats) < glyph_cols:
+                    row_floats.append(0.0)
+                combined[r].extend(row_floats)
+                combined[r].extend([0.0] * gap)
+        return combined
+
+    base_float_grid = _assemble_float_grid()
+
+    def _lerp_pal(pal: list, t: float):
+        if not pal:
+            return (255, 255, 255)
+        if len(pal) == 1:
+            return pal[0]
+        t = max(0.0, min(1.0, t))
+        scaled = t * (len(pal) - 1)
+        lo = int(scaled)
+        hi = min(lo + 1, len(pal) - 1)
+        frac = scaled - lo
+        r0, g0, b0 = pal[lo]
+        r1, g1, b1 = pal[hi]
+        return (
+            int(r0 + frac * (r1 - r0)),
+            int(g0 + frac * (g1 - g0)),
+            int(b0 + frac * (b1 - b0)),
+        )
+
+    def _phase_colorize(char_text: str, float_grid: list, pal: list, phase: float) -> str:
+        if not float_grid:
+            return char_text
+        rows = char_text.split("\n")
+        out_rows = []
+        for r_idx, row in enumerate(rows):
+            if r_idx >= len(float_grid):
+                out_rows.append(row)
+                continue
+            fg_row = float_grid[r_idx]
+            clean_row = _ANSI_RE.sub("", row)
+            out_row = ""
+            col_idx = 0
+            for ch in clean_row:
+                if ch == " " and col_idx < len(fg_row) and fg_row[col_idx] == 0.0:
+                    out_row += " "
+                else:
+                    if col_idx < len(fg_row):
+                        shifted = (fg_row[col_idx] + phase) % 1.0
+                        cr, cg, cb = _lerp_pal(pal, shifted)
+                        out_row += f"\033[38;2;{cr};{cg};{cb}m{ch}\033[0m"
+                    else:
+                        out_row += ch
+                col_idx += 1
+            out_rows.append(out_row)
+        return "\n".join(out_rows)
+
+    phases = [i / n_frames for i in range(n_frames)]
+    if loop and n_frames > 1:
+        phases = phases + list(reversed(phases))
+
+    for phase in phases:
+        yield _phase_colorize(char_frame, base_float_grid, palette, phase)
+
+
+# -------------------------------------------------------------------------
+def turing_morphogenesis(
+    text_plain: str,
+    font: str = "block",
+    preset: str = "spots",
+    seed=42,
+    snapshot_steps=None,
+    palette_name: str = "bio",
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Turing Morphogenesis -- FHN pattern formation from noise to structure (A_N09a).
+
+    Runs the FHN activator-inhibitor simulation once per glyph from random-noise
+    initial conditions, capturing the U-grid at snapshot steps:
+        [50, 100, 200, 400, 800, 1500, 2500, 3500]  (default)
+    Each snapshot becomes a frame showing the pattern at that stage of formation.
+
+    The animation shows Turing's 1952 morphogenesis theory playing out inside
+    ASCII letterforms: letters begin as noisy texture (frame 0) and progressively
+    grow spots or stripes as the activator-inhibitor system reaches its attractor
+    (final frame). Both chars and color evolve with the simulation.
+
+    Performance note: runs one FHN simulation per glyph per call (single-pass
+    snapshot approach). For 10-char text with default 3500-step run: ~30s on
+    a modern CPU. Consider short snapshot_steps for interactive use.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param preset: Turing preset -- 'spots' (default), 'stripes', 'maze', 'labyrinth'.
+    :param seed: Integer seed for reproducible pattern formation (default 42).
+    :param snapshot_steps: Sorted list of step counts to capture.
+        Default: [50, 100, 200, 400, 800, 1500, 2500, 3500].
+    :param palette_name: Palette from PALETTE_REGISTRY (default 'bio').
+    :param loop: If True, append reversed frames for forward-back loop (default True).
+    :returns: Iterator of frame strings showing pattern formation stages.
+    """
+    from justdoit.effects.generative import (
+        _turing_morphogenesis_snapshots as _snap,
+        turing_float_grid as _turing_float_grid,
+    )
+    from justdoit.effects.color import fill_float_colorize as _colorize, PALETTE_REGISTRY
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.fonts import FONTS as _FONTS
+
+    if snapshot_steps is None:
+        snapshot_steps = [50, 100, 200, 400, 800, 1500, 2500, 3500]
+
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["bio"])
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+
+    if not font_data:
+        for _ in snapshot_steps:
+            yield ""
+        return
+
+    sample_glyph = next(iter(font_data.values()))
+    height = len(sample_glyph)
+
+    _MORPH_CHARS = "@#S%?*+;:,."
+    n_chars = len(_MORPH_CHARS)
+
+    def _floats_to_chars_row(float_row: list, ink_row: list) -> str:
+        line = ""
+        for c_idx, val in enumerate(float_row):
+            if c_idx >= len(ink_row) or not ink_row[c_idx]:
+                line += " "
+            else:
+                idx = int(val * (n_chars - 1) + 0.5)
+                idx = max(0, min(n_chars - 1, idx))
+                line += _MORPH_CHARS[n_chars - 1 - idx]
+        return line
+
+    # Run one simulation per glyph and collect snapshots (single-pass efficient)
+    glyph_snaps = []
+    glyph_masks = []
+    for ch in text_upper:
+        glyph = font_data.get(ch, font_data.get(" "))
+        ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+        mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+        glyph_masks.append(mask)
+        snaps = _snap(mask, preset=preset, snapshot_steps=snapshot_steps, seed=seed)
+        glyph_snaps.append(snaps)
+
+    frames = []
+    for snap_idx in range(len(snapshot_steps)):
+        combined_floats: list = [[] for _ in range(height)]
+        combined_chars_rows: list = ["" for _ in range(height)]
+
+        for g_idx, mask in enumerate(glyph_masks):
+            snaps = glyph_snaps[g_idx]
+            if snap_idx < len(snaps):
+                _step, snap_ink, fg = snaps[snap_idx]
+            else:
+                fg = _turing_float_grid(mask, preset=preset, seed=seed)
+                snap_ink = [
+                    [mask[r][c] >= 0.5 if c < len(mask[r]) else False
+                     for c in range(max((len(row) for row in mask), default=0))]
+                    for r in range(len(mask))
+                ]
+
+            glyph_cols = max((len(row) for row in mask), default=0)
+
+            for r in range(height):
+                row_floats = list((fg[r] if r < len(fg) else [])[:glyph_cols])
+                while len(row_floats) < glyph_cols:
+                    row_floats.append(0.0)
+                combined_floats[r].extend(row_floats)
+                combined_floats[r].extend([0.0] * gap)
+
+                if r < len(snap_ink):
+                    ink_row = list(snap_ink[r][:glyph_cols])
+                    while len(ink_row) < glyph_cols:
+                        ink_row.append(False)
+                    char_row = _floats_to_chars_row(row_floats, ink_row)
+                else:
+                    char_row = " " * glyph_cols
+                combined_chars_rows[r] += char_row + " " * gap
+
+        char_frame = "\n".join(combined_chars_rows)
+        colored_frame = _colorize(char_frame, combined_floats, palette)
+        frames.append(colored_frame)
+
+    if loop and len(frames) > 1:
+        frames = frames + list(reversed(frames))
+
+    yield from frames
