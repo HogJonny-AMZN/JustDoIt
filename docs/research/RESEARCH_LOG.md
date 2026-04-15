@@ -858,3 +858,84 @@ Visual validation (preset="hot", frame 4/8, "JUST DO IT"):
 | 4 | Plasma-modulated flame | A08d | 5 | `idea` |
 | 5 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
 | 6 | Wave Interference Animation | A_F09a | 3 | `idea` |
+
+## Session 2026-04-15 (Mode B — Cross-Breed)
+
+**Cross-breeds implemented:** X_TURING_BIO + A_N09a
+**Research focus:** Turing FHN pattern + C11 biological coloring; single-pass morphogenesis animation
+**New techniques found:** 0 new (both were already registered; session implemented both in one go)
+**Sources:** Turing A.M. (1952) "The Chemical Basis of Morphogenesis" Philos. Trans. R. Soc. Lond. B 237:37–72; FitzHugh R. (1961) Biophys. J. 1(6):445–466; Nagumo J. et al. (1962) Proc. IRE 50:2061–2070 — all previously cited in N09 session. No new web search conducted (infra is in place).
+
+### X_TURING_BIO — Turing Biological Coat Colors
+
+**Scores:** tension=4 emergence=4 distinctness=5 wow=4 → **total=17/20**
+**Why chosen over alternatives:**
+- A_N09a (20/20) is Mode A research candidate; chosen to implement alongside X_TURING_BIO since they share Turing infrastructure.
+- A_F09a (12/20) too low to compete.
+- X_TURING_BIO earns 17 because the biological palette makes the char pattern legible as an animal coat — the metaphor lands immediately.
+
+**Implementation path:** New `turing_float_grid()` companion in generative.py + `turing_bio()` animation preset in presets.py.
+- `turing_float_grid()` mirrors `flame_float_grid()` pattern exactly: runs same FHN simulation, returns 2D list[list[float]] with ink cells in [0,1] and exterior cells at 0.0.
+- `turing_bio()` renders chars once via `render(fill='turing')`, builds float grid via `turing_float_grid()` per glyph, then sweeps a phase offset per frame: `shifted = (float_val + phase) % 1.0`. Each frame is the same chars recolored at a different phase position in the BIO_PALETTE. The biological green palette (near-black → dark green → mid green → light green → pale lime) reads as a leopard/zebra coat depending on preset.
+
+**CB6 Visual Validation Result:** ✅ Meets the bar.
+- `spots` preset: circular high-activator regions appear as dense `@#S` chars colored pale lime; surrounding low-activator cells are sparse `+;:,.` chars colored bio-dark/dark-green. The spot-and-background contrast is clearly visible.
+- `stripes` preset: banded high/low activator regions produce alternating stripes of dense/sparse chars in pale-lime vs dark-green, running roughly horizontally across the letterforms.
+- Palette rotation sweeps the color assignment: high-activator regions cycle from pale lime → bio-dark → pale lime over 72 frames. The structural pattern never changes — only the hue assignment shifts. This reads as the coat pattern viewed through shifting light.
+- ANSI color codes confirmed: 166 foreground color codes per frame, bio-green dominant (`38;2;r;g;b` where g > r, g ≥ b).
+- Distinct from all gallery entries: no other technique uses Turing patterns with biological coloring; structurally different from A_VOR1 (geometric borders vs. organic activator fields).
+
+**Key insight:** The per-cell phase offset `(float_val + phase) % 1.0` wraps around the palette rather than clamping, so low-activator cells and high-activator cells complete one full palette cycle at different times per frame. At phase=0.5, what was pale lime (float=1.0) becomes mid-green and what was bio-dark (float=0.0) becomes mid-green from the other end — the contrast inverts. This creates a "color pulsing through the biological structure" effect that neither static Turing fill nor flat color rotation alone would produce.
+
+### A_N09a — Turing Morphogenesis Animation
+
+**Scores:** tension=5 emergence=5 distinctness=5 wow=5 → **total=20/20**
+**Why chosen:** Highest possible score. The formation process is the animation — not a cyclic effect but a one-way system evolving from disorder to biological order. Nothing else in the gallery shows this.
+
+**Implementation path:** New `_turing_morphogenesis_snapshots()` private helper in generative.py + `turing_morphogenesis()` preset in presets.py.
+- `_turing_morphogenesis_snapshots(mask, preset, snapshot_steps, seed, scale)` runs ONE FHN simulation from step 0 to max(snapshot_steps), capturing the downsampled+normalised U-grid at each snapshot step. Returns list of `(step, orig_ink, float_grid)` tuples. O(max_steps) not O(N × max_steps).
+- Snapshot steps (default): [50, 100, 200, 400, 800, 1500, 2500, 3500] — 8 frames covering early noise, nucleation, consolidation, and full convergence.
+- `turing_morphogenesis()` calls the snapshot helper per glyph, assembles combined float grids, derives chars from snapshot U values using same density mapping as turing_fill, applies C11 BIO_PALETTE coloring.
+- Loop strategy: forward (noise→pattern) + reversed (pattern→noise) = 16 frames at 4fps (slower rate to give each stage time to read).
+
+**CB6 Visual Validation Result:** ✅ Meets the bar.
+- Frame 0 (step=50): chars are nearly uniform (`@#S%`) with no discernible pattern; colors are mid-range green throughout. The letterforms are filled but undifferentiated.
+- Frame 4 (step=800): distinct high-activator regions begin to emerge as pale lime `@#S` chars; low-activator regions read as bio-dark `+;:,.` chars. Spots or stripes are visually recognizable.
+- Frame 7 (step=3500): fully converged spots/stripes with maximum contrast between dense/sparse regions and pale-lime/bio-dark colors. The letterforms carry a clear biological coat pattern.
+- Early-to-late frame comparison: `_strip_ansi(frames[0]) != _strip_ansi(frames[7])` — confirmed in test.
+- The reversed loop (frames 8–15) plays the dissolution backward: pattern disassembles into noise. This reads as morphogenesis running in reverse, which is visually compelling and biologically implausible — a feature, not a bug.
+- Performance: ~30s for 10-char text at default 3500-step simulation on test machine. Acceptable for a gallery generator; documented in docstring.
+
+**Key insight:** The single-pass snapshot approach (`_turing_morphogenesis_snapshots`) is essential — running 8 independent simulations to 3500 steps each would take 8× longer. By capturing U-grids during a single integration pass, total cost is O(max_steps × glyphs) instead of O(N_snapshots × max_steps × glyphs). The inner `_capture_snapshot()` closure captures the current U state by downsampling and normalising in-place, adding only ~O(orig_rows × orig_cols) overhead per snapshot against the much larger O(sim_rows × sim_cols) integration loop.
+
+**ATTRIBUTE_MODEL.md updates:**
+- X_TURING_BIO marked as `done 2026-04-15` in "Needs C11" tier
+- A_N09a marked as `done 2026-04-15` in "Needs new infrastructure" tier
+- New `turing_float_grid()` and `_turing_morphogenesis_snapshots()` noted as reusable helpers
+
+**Implementation notes:**
+- `turing_float_grid(mask, preset, steps, seed, scale)` in `justdoit/effects/generative.py`
+- `_turing_morphogenesis_snapshots(mask, preset, snapshot_steps, seed, scale)` in `justdoit/effects/generative.py`
+- `turing_bio(text_plain, font, preset, seed, n_frames, palette_name, loop)` in `justdoit/animate/presets.py`
+- `turing_morphogenesis(text_plain, font, preset, seed, snapshot_steps, palette_name, loop)` in `justdoit/animate/presets.py`
+- 40 new tests in `tests/test_turing_bio.py` — all passing
+- Total: 811 tests (was 771 before this session, +40)
+- Static gallery SVGs:
+  - `docs/gallery/2026-04-15-X_TURING_BIO.svg` (spots + bio palette, full convergence)
+  - `docs/gallery/2026-04-15-A_N09a.svg` (spots + bio palette, step=400 mid-formation)
+- Animation files:
+  - `docs/anim_gallery/X_TURING_BIO-turing-bio-spots.{cast,apng}` (72 frames @ 12fps)
+  - `docs/anim_gallery/X_TURING_BIO-turing-bio-stripes.{cast,apng}` (72 frames @ 12fps)
+  - `docs/anim_gallery/A_N09a-turing-morphogenesis-spots.{cast,apng}` (16 frames @ 4fps, forward+reverse)
+- Gallery README updated: 15 daily entries, 60 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | Plasma-modulated flame | A08d | 5 | `idea` |
+| 4 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
+| 5 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
+| 6 | Wave Interference Animation | A_F09a | 3 | `idea` |

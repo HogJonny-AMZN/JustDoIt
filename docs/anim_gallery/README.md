@@ -1,6 +1,6 @@
 # Animation Gallery
 
-Auto-generated 2026-04-10 — do not edit manually.
+Auto-generated 2026-04-15 — do not edit manually.
 Run `uv run python scripts/generate_anim_gallery.py` to regenerate.
 
 Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
@@ -239,3 +239,51 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 | Variant | Preview | Terminal |
 |---------|---------|----------|
 | flame-bloom | ![flame-bloom](X_FLAME_BLOOM-flame-bloom.apng) | [▶ terminal](X_FLAME_BLOOM-flame-bloom.cast) |
+
+## A_BLOOM1 — Bloom-Pulse
+
+**48 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| bloom-pulse-fire | ![bloom-pulse-fire](A_BLOOM1-bloom-pulse-fire.apng) | [▶ terminal](A_BLOOM1-bloom-pulse-fire.cast) |
+
+## X_PLASMA_BLOOM — Plasma Bloom
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-bloom-spectral | ![plasma-bloom-spectral](X_PLASMA_BLOOM-plasma-bloom-spectral.apng) | [▶ terminal](X_PLASMA_BLOOM-plasma-bloom-spectral.cast) |
+
+## A_ISO1 — Isometric Depth Breathe
+
+**46 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| iso-depth-breathe | ![iso-depth-breathe](A_ISO1-iso-depth-breathe.apng) | [▶ terminal](A_ISO1-iso-depth-breathe.cast) |
+
+## X_TURING_BIO — Turing Biological Coat Colors
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| turing-bio-spots | ![turing-bio-spots](X_TURING_BIO-turing-bio-spots.apng) | [▶ terminal](X_TURING_BIO-turing-bio-spots.cast) |
+
+## X_TURING_BIO — Turing Biological Coat Stripes
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| turing-bio-stripes | ![turing-bio-stripes](X_TURING_BIO-turing-bio-stripes.apng) | [▶ terminal](X_TURING_BIO-turing-bio-stripes.cast) |
+
+## A_N09a — Turing Morphogenesis
+
+**16 frames** · **4.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| turing-morphogenesis-spots | ![turing-morphogenesis-spots](A_N09a-turing-morphogenesis-spots.apng) | [▶ terminal](A_N09a-turing-morphogenesis-spots.cast) |
