@@ -2131,3 +2131,176 @@ def turing_morphogenesis(
         frames = frames + list(reversed(frames))
 
     yield from frames
+
+
+# -------------------------------------------------------------------------
+def plasma_flame(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 36,
+    flame_preset: str = "hot",
+    plasma_preset: str = "default",
+    palette_name: str = "fire",
+    tone_curve: str = "aces",
+    bloom_color_name: str = "orange",
+    base_radius: int = 3,
+    bloom_amplitude: float = 1.5,
+    falloff: float = 0.8,
+    modulator_strength: float = 1.2,
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Plasma-Modulated Flame animation (A08d).
+
+    A plasma sin-field spatially modulates per-cell cooling rate inside the
+    Doom-fire simulation. High plasma value -> low cooling (tall hot flame
+    persists). Low plasma value -> high cooling (flame dies back). Animate by
+    sweeping plasma ``t`` while regenerating flame each frame: fire's hot zones
+    slowly migrate as the plasma field evolves underneath.
+
+    Two independent clocks: stochastic fire (random seed per frame) and periodic
+    plasma (smooth ``t`` sweep 0 -> 2*pi over ``n_frames``). Their coupling is
+    the per-cell cooling modulator. The result: fire behaves randomly
+    moment-to-moment, but the ZONES where tall fire can persist slowly rotate
+    with the plasma wave. Neither technique alone produces spatially structured
+    heat zones that evolve on this timescale.
+
+    Cross-breed axes: A08 (Doom-fire) x A10 (plasma sin-field) x C11 (fire
+    palette color) x C13 (ACES tone) x C12 (breathing bloom). The plasma-to-fire
+    coupling is the novel infra contribution (cooling_modulator param on
+    _flame_heat_grid).
+    Visual interest scores: tension=4, emergence=4, distinctness=4, wow=4 -> 16/20.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Frames per plasma cycle (default 36). Total = 2*n_frames
+        when loop=True (forward + reverse).
+    :param flame_preset: Flame simulation preset ('hot', 'default', 'cool', 'embers').
+    :param plasma_preset: Plasma sin-field preset ('default', 'lava', 'circuit', 'soft').
+    :param palette_name: C11 color palette name from PALETTE_REGISTRY (default 'fire').
+    :param tone_curve: HDR tone curve for char mapping (default 'aces').
+    :param bloom_color_name: Bloom hue key from BLOOM_COLORS (default 'orange').
+    :param base_radius: Base C12 bloom radius in cells (default 3).
+    :param bloom_amplitude: Bloom radius oscillation half-amplitude (default 1.5).
+        Radius sweeps from base_radius-amplitude to base_radius+amplitude.
+    :param falloff: Per-cell bloom intensity falloff factor 0-1 (default 0.8).
+    :param modulator_strength: Plasma-to-cooling coupling strength 0.0-2.0 (default 1.2).
+        0.0 = no modulation (plain flame); 1.2 = strong spatial structure.
+    :param loop: If True, yield forward then reverse for a seamless loop (default True).
+    :returns: Iterator of colored + bloomed frame strings.
+    """
+    import math as _math
+    from justdoit.effects.generative import (
+        _flame_heat_grid as _fhg,
+        plasma_float_grid as _plasma_float_grid,
+    )
+    from justdoit.effects.color import (
+        fill_float_colorize as _colorize,
+        apply_tone_curve as _apply_tone_curve,
+        PALETTE_REGISTRY,
+        bloom as _bloom,
+        BLOOM_COLORS,
+    )
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.fonts import FONTS as _FONTS
+
+    TWO_PI = 2.0 * _math.pi
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["fire"])
+    bc = BLOOM_COLORS.get(bloom_color_name, BLOOM_COLORS.get("orange", (255, 140, 0)))
+
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+    n_bloom_chars = len(_FLAME_CHARS_BLOOM)
+
+    if not font_data:
+        return
+
+    sample_glyph = next(iter(font_data.values()))
+    height = len(sample_glyph)
+
+    def _assemble_frame(frame_idx: int, frame_seed: int, current_radius: int) -> str:
+        """Build one plasma_flame frame: plasma-modulated fire + color + bloom."""
+        t_val = TWO_PI * frame_idx / max(n_frames, 1)
+
+        float_grid: list = [[] for _ in range(height)]
+        char_lines: list = ["" for _ in range(height)]
+
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+
+            # Compute plasma float grid for this glyph at this time phase
+            plasma_grid = _plasma_float_grid(mask, t=t_val, preset=plasma_preset)
+
+            # Run flame sim with plasma as per-cell cooling modulator
+            heat, ink, glyph_height, glyph_cols = _fhg(
+                mask,
+                preset=flame_preset,
+                seed=frame_seed,
+                cooling_modulator=plasma_grid,
+                modulator_strength=modulator_strength,
+            )
+
+            if glyph_height == 0 or glyph_cols == 0:
+                for r in range(height):
+                    char_lines[r] += " " * (1 + gap)
+                    float_grid[r].extend([0.0] * (1 + gap))
+                continue
+
+            # Build 2D heat_grid and ink mask for downstream processing
+            heat_grid_2d = [
+                [heat[r][c] if (r < glyph_height and c < glyph_cols) else 0.0
+                 for c in range(glyph_cols)]
+                for r in range(glyph_height)
+            ]
+            ink_mask = [
+                [ink[r][c] if (r < glyph_height and c < glyph_cols) else False
+                 for c in range(glyph_cols)]
+                for r in range(glyph_height)
+            ]
+
+            # Apply tone curve for char density mapping
+            tone_mapped = _apply_tone_curve(heat_grid_2d, curve=tone_curve)
+
+            for r in range(height):
+                # Raw heat floats for color (before tone mapping)
+                raw_row = heat_grid_2d[r] if r < glyph_height else []
+                raw_row = raw_row[:glyph_cols]
+                while len(raw_row) < glyph_cols:
+                    raw_row.append(0.0)
+                float_grid[r].extend(raw_row)
+                float_grid[r].extend([0.0] * gap)
+
+                # Tone-mapped chars
+                tone_row = tone_mapped[r] if r < len(tone_mapped) else []
+                line = ""
+                for c in range(glyph_cols):
+                    if (r < glyph_height and c < len(ink_mask[r]) and ink_mask[r][c]):
+                        h = tone_row[c] if c < len(tone_row) else 0.0
+                        h = max(0.0, min(1.0, h))
+                        idx = int((1.0 - h) * (n_bloom_chars - 1) + 0.5)
+                        idx = max(0, min(n_bloom_chars - 1, idx))
+                        line += _FLAME_CHARS_BLOOM[idx]
+                    else:
+                        line += " "
+                line += " " * gap
+                char_lines[r] += line
+
+        char_frame = "\n".join(char_lines)
+        colored_frame = _colorize(char_frame, float_grid, palette)
+        bloomed_frame = _bloom(colored_frame, bc, radius=current_radius, falloff=falloff)
+        return bloomed_frame
+
+    seeds = list(range(n_frames))
+    if loop:
+        seeds = seeds + list(reversed(seeds))
+
+    total = len(seeds)
+    for i, frame_seed in enumerate(seeds):
+        # Plasma phase: 0..n_frames-1 forward, n_frames-1..0 reverse
+        frame_idx = i if i < n_frames else (total - 1 - i)
+        # Bloom radius breathes with plasma phase
+        raw_radius = base_radius + bloom_amplitude * _math.sin(TWO_PI * frame_idx / max(n_frames, 1))
+        current_radius = max(1, int(round(raw_radius)))
+        yield _assemble_frame(frame_idx, frame_seed, current_radius)

@@ -1,6 +1,6 @@
 # Animation Gallery
 
-Auto-generated 2026-04-15 — do not edit manually.
+Auto-generated 2026-04-17 — do not edit manually.
 Run `uv run python scripts/generate_anim_gallery.py` to regenerate.
 
 Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
@@ -287,3 +287,11 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 | Variant | Preview | Terminal |
 |---------|---------|----------|
 | turing-morphogenesis-spots | ![turing-morphogenesis-spots](A_N09a-turing-morphogenesis-spots.apng) | [▶ terminal](A_N09a-turing-morphogenesis-spots.cast) |
+
+## A08d — Plasma-Modulated Flame
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-flame | ![plasma-flame](A08d-plasma-flame.apng) | [▶ terminal](A08d-plasma-flame.cast) |

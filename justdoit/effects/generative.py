@@ -2779,11 +2779,20 @@ def _flame_heat_grid(
     n_steps: int = 25,
     cooling: float = 0.12,
     seed=None,
+    cooling_modulator: Optional[list] = None,
+    modulator_strength: float = 1.0,
 ):
     """Run the Doom-fire simulation and return the raw heat grid.
 
     Private helper shared by flame_fill() and flame_float_grid().
 
+    :param cooling_modulator: Optional 2D list[list[float]] same shape as mask.
+        When provided, spatially modulates per-cell cooling:
+        high value (1.0) → reduced cooling (flame persists),
+        low value (0.0) → increased cooling (flame dies back).
+        This is the A08d cross-breed coupling point.
+    :param modulator_strength: Coupling strength 0.0-2.0 (default 1.0).
+        0.0 = no modulation; 1.0 = full range (cooling ×0 to ×2); 1.2 = strong.
     :returns: Tuple (heat, ink, rows, cols) where heat is list[list[float]],
         ink is list[list[bool]], rows and cols are grid dimensions.
     """
@@ -2836,7 +2845,16 @@ def _flame_heat_grid(
             if below_c < 0 or below_c >= cols or not ink[below_r][below_c]:
                 below_c = c
             if ink[below_r][below_c]:
-                raw = heat[below_r][below_c] - cooling * rng.random()
+                if cooling_modulator is not None:
+                    mod_r = min(r, len(cooling_modulator) - 1)
+                    mod_row = cooling_modulator[mod_r]
+                    mod_c = min(c, len(mod_row) - 1)
+                    m = mod_row[mod_c]
+                    cell_cooling = cooling * (1.0 + modulator_strength * (1.0 - 2.0 * m))
+                    cell_cooling = max(0.0, cell_cooling)
+                else:
+                    cell_cooling = cooling
+                raw = heat[below_r][below_c] - cell_cooling * rng.random()
                 new_heat[r][c] = max(0.0, raw)
         heat = new_heat
 
@@ -2851,6 +2869,8 @@ def flame_fill(
     cooling: float = 0.12,
     seed: Optional[int] = None,
     density_chars: Optional[str] = None,
+    cooling_modulator: Optional[list] = None,
+    modulator_strength: float = 1.0,
 ) -> list:
     """Fill glyph mask with a Doom-fire heat simulation (A08).
 
@@ -2876,6 +2896,10 @@ def flame_fill(
     :param cooling: Per-step random cooling factor; higher = cooler flame (default 0.12).
     :param seed: Random seed for deterministic output (default None — random).
     :param density_chars: Hottest-to-coolest character sequence (default: _FLAME_CHARS).
+    :param cooling_modulator: Optional 2D float grid (same shape as mask) for A08d
+        cross-breed. High value -> reduced cooling (flame persists); low value ->
+        increased cooling (flame dies back). Default: None (no modulation).
+    :param modulator_strength: Coupling strength 0.0-2.0 (default 1.0).
     :returns: List of strings — one per row, same shape as input mask.
     :raises ValueError: If preset name is unknown.
     """
@@ -2885,7 +2909,8 @@ def flame_fill(
     n_chars = len(chars)
 
     heat, ink, rows, cols = _flame_heat_grid(
-        mask, preset=preset, n_steps=n_steps, cooling=cooling, seed=seed
+        mask, preset=preset, n_steps=n_steps, cooling=cooling, seed=seed,
+        cooling_modulator=cooling_modulator, modulator_strength=modulator_strength,
     )
 
     if rows == 0 or cols == 0:
@@ -2920,6 +2945,8 @@ def flame_float_grid(
     n_steps: int = 25,
     cooling: float = 0.12,
     seed=None,
+    cooling_modulator: Optional[list] = None,
+    modulator_strength: float = 1.0,
 ) -> list:
     """Compute flame heat float grid for a glyph mask — C11 companion to flame_fill.
 
@@ -2933,11 +2960,14 @@ def flame_float_grid(
     :param n_steps: Fire propagation iterations (overridden by preset).
     :param cooling: Per-step cooling factor (overridden by preset).
     :param seed: Random seed for deterministic output.
+    :param cooling_modulator: Optional 2D float grid for A08d cross-breed.
+    :param modulator_strength: Coupling strength 0.0-2.0 (default 1.0).
     :returns: 2D list[list[float]] same shape as mask; [0.0,1.0] ink, 0.0 exterior.
     :raises ValueError: If preset is unknown.
     """
     heat, ink, rows, cols = _flame_heat_grid(
-        mask, preset=preset, n_steps=n_steps, cooling=cooling, seed=seed
+        mask, preset=preset, n_steps=n_steps, cooling=cooling, seed=seed,
+        cooling_modulator=cooling_modulator, modulator_strength=modulator_strength,
     )
     if rows == 0 or cols == 0:
         return [[0.0] * (cols or 0) for _ in range(rows)]
