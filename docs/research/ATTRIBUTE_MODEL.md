@@ -348,7 +348,7 @@ PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
 | X_ISO_FLAME | iso + flame on extrusion face | per-face fill routing |
 | X_ISO_DEPTH_COLOR | iso + Z-depth color | depth layer → color map |
 | X_NOISE_WARP | Perlin noise modulates sine_warp phase | fill-float → spatial param |
-| X_PLASMA_WARP | plasma field modulates sine_warp amplitude per row | fill-float → spatial param |
+| X_PLASMA_WARP | plasma field modulates sine_warp amplitude per row | fill-float → spatial param | **done 2026-04-17** — plasma per-row mean → amplitude_map param on sine_warp(). First FILL→SPATIAL coupling in codebase. |
 
 ### High novelty cross-breeds (multiple sessions)
 
@@ -398,7 +398,8 @@ Based on implementation cost vs novelty payoff:
 ~~X_TURING_BIO — Turing biological coat colors.~~ **DONE 2026-04-15** (turing float grid + bio palette rotation; `turing_bio()` in presets.py)
 5. ~~**A_ISO1** — isometric depth animation. Short, makes S03 come alive.~~ **DONE 2026-04-14**
 6. **A08d** — plasma-modulated flame. Fill-float→fill-param coupling. Most novel generative cross-breed. ~~done 2026-04-17~~
-7. **X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project’s flagship composite visual.
+7. **X_PLASMA_WARP** — plasma field modulates sine_warp per-row amplitude. First FILL→SPATIAL coupling. ~~done 2026-04-17~~
+8. **X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project’s flagship composite visual.
 
 ---
 
