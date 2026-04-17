@@ -9,7 +9,7 @@ Run `python scripts/demo.py --gallery` to regenerate.
 - [Fill Effects (15)](#fill-effects)
 - [Color Effects (8)](#color-effects)
 - [Spatial & 3D (8)](#spatial--3d)
-- [Daily Techniques (15)](#daily-techniques)
+- [Daily Techniques (16)](#daily-techniques)
 
 ## Fonts
 
@@ -116,6 +116,9 @@ Run `python scripts/demo.py --gallery` to regenerate.
 
 <table>
 <tr>
+<td align="center"><img src="2026-04-17-A08d.svg" width="480"><br><sub><b>2026-04-17 · A08d Plasma-Modulated Flame</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="2026-04-15-X_TURING_BIO.svg" width="480"><br><sub><b>2026-04-15 · X_TURING_BIO Biological Coat Colors</b></sub></td>
 <td align="center"><img src="2026-04-15-A_N09a.svg" width="480"><br><sub><b>2026-04-15 · A_N09a Turing Morphogenesis</b></sub></td>
 </tr>
@@ -150,4 +153,4 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 </table>
 
-*Last updated: 2026-04-15 — 60 techniques*
+*Last updated: 2026-04-17 — 61 techniques*
