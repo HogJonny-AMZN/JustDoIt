@@ -939,3 +939,57 @@ Visual validation (preset="hot", frame 4/8, "JUST DO IT"):
 | 4 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
 | 5 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
 | 6 | Wave Interference Animation | A_F09a | 3 | `idea` |
+
+## Session 2026-04-17 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** A08d — Plasma-Modulated Flame
+**Scores:** tension=4 emergence=4 distinctness=4 wow=4 → **total=16/20**
+**Why chosen over alternatives:**
+- A_F09a (12/20): below threshold; wave phase sweep is too trivially simple.
+- A_F09b (12/20): tied but needs wave_float_grid infrastructure first.
+- X_ISO_NEON (16/20): tied score but requires entire session on per-face fill routing infra — infra cost too high.
+- A08d chosen because it introduces the fill-float→fill-param coupling axis, which is new infrastructure unlocking future cross-breeds (A_N09a/plasma, slime+plasma, RD+plasma). Highest structural novelty of available candidates.
+
+**Implementation path:**
+- Extended `_flame_heat_grid()` with `cooling_modulator: Optional[list]` and `modulator_strength: float` params.
+- Formula: `cell_cooling = base_cooling * (1.0 + strength * (1.0 - 2.0 * modulator[r][c]))`.
+  - `modulator=1.0` (high plasma) → cooling × (1 - strength) → reduced → flame persists
+  - `modulator=0.0` (low plasma) → cooling × (1 + strength) → increased → flame dies back
+- Propagated params through `flame_fill()` and `flame_float_grid()` (backward-compatible, all default None/1.0).
+- New `plasma_flame()` preset in `presets.py`: per-frame, compute `plasma_float_grid(mask, t=TWO_PI*i/n_frames)`, pass as `cooling_modulator` to `_flame_heat_grid()`. Then C11 fire palette colorize + C13 ACES tone + C12 breathing bloom.
+- Two independent clocks: stochastic fire seed (per-frame random) and smooth plasma phase (periodic t sweep).
+
+**CB6 Visual Validation Result:** ✅ Meets the bar.
+- 166 ink cells, fire palette (white-hot → orange → deep red) applied via C11.
+- Bloom radius breathes: base_radius=3, amplitude=1.5 → radius 1→4→1 per cycle.
+- ACES tone curve gives full char range: `@#S%?*+;:,.` — richer than blown_out.
+- The plasma modulation is visible as spatial structure in heat distribution: certain zones maintain taller hot columns that persist across stochastic re-seeds while other zones consistently cool faster. This is the structural difference from plain `flame_bloom()`.
+- Structurally distinct from all gallery entries: no other technique couples two generative fields at a per-cell parameter level. The fire responds to the geometry of the underlying wave, not to its own simulation alone.
+- Honest verdict: the effect is subtle at 12fps — the plasma structure is most visible when you pause on a frame and compare to a plain flame. The cross-breed's novelty is more algorithmic than visually dramatic. Score stands at 16/20 (meets all dimension minimums).
+
+**Key insight:** The correct mental model is not "plasma-colored fire" — it's "fire whose per-cell physics are shaped by a wave field." The fire still looks like fire; the plasma is invisible but structurally present in *where* the fire can grow tall. This is a deeper coupling than C11 colorization (which routes floats to color) — this routes floats to a physical simulation parameter. The pattern generalizes: any fill with a float param (cooling, diffusion rate, agent sensor range, CA step count) can be spatially modulated by any other fill's float grid. A08d is the proof of concept for this coupling class.
+
+**ATTRIBUTE_MODEL.md updates:**
+- A08d marked as `done 2026-04-17` in "Needs new infrastructure" tier.
+- `cooling_modulator` param noted as reusable pattern for future couplings.
+
+**Implementation notes:**
+- `cooling_modulator` / `modulator_strength` params added to `_flame_heat_grid()`, `flame_fill()`, `flame_float_grid()` in `justdoit/effects/generative.py`.
+- `plasma_flame()` added to `justdoit/animate/presets.py` (~160 lines).
+- A08d entry added to `scripts/generate_anim_gallery.py` SHOWCASE list.
+- 25 new tests in `tests/test_plasma_flame.py` — all passing.
+- Total tests: 836 (was 811 before this session, +25).
+- Gallery SVG: `docs/gallery/2026-04-17-A08d.svg` (frame 8/24, ~1/3 plasma phase — mid-cycle).
+- Animation: `docs/anim_gallery/A08d-plasma-flame.{cast,apng}` (72 frames @ 12fps, forward+reverse).
+- Gallery README updated: 16 daily entries, 61 techniques total.
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
+| 4 | Wave Interference Animation | A_F09a | 3 | `idea` |
+| 5 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
+| 6 | Living Fill (CA animated) | A06 | 5 | `idea` |
