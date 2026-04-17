@@ -116,6 +116,9 @@ Run `python scripts/demo.py --gallery` to regenerate.
 
 <table>
 <tr>
+<td align="center"><img src="2026-04-17-X_PLASMA_WARP.svg" width="480"><br><sub><b>2026-04-17 · X_PLASMA_WARP Plasma-Modulated Sine Warp</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="2026-04-17-A08d.svg" width="480"><br><sub><b>2026-04-17 · A08d Plasma-Modulated Flame</b></sub></td>
 </tr>
 <tr>
@@ -153,4 +156,4 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 </table>
 
-*Last updated: 2026-04-17 — 61 techniques*
+*Last updated: 2026-04-17 — 62 techniques*
