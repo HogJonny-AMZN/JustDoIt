@@ -131,7 +131,7 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass, plasma_lava_lamp, flame_gradient_color, flame_bloom, bloom_pulse, plasma_bloom, iso_depth_breathe, turing_bio, turing_morphogenesis, plasma_flame
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass, plasma_lava_lamp, flame_gradient_color, flame_bloom, bloom_pulse, plasma_bloom, iso_depth_breathe, turing_bio, turing_morphogenesis, plasma_flame, plasma_warp
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
@@ -427,6 +427,14 @@ def _build_showcase() -> list[dict]:
             "name": "Plasma-Modulated Flame",
             "label": "plasma-flame",
             "frames": lambda: list(plasma_flame(text_plain, n_frames=36, flame_preset="hot", plasma_preset="default", palette_name="fire", tone_curve="aces", bloom_color_name="orange", base_radius=3, bloom_amplitude=1.5, modulator_strength=1.2, loop=True)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "X_PLASMA_WARP",
+            "name": "Plasma-Modulated Sine Warp",
+            "label": "plasma-warp-spectral",
+            "frames": lambda: list(plasma_warp(text_plain, n_frames=36, plasma_preset="default", fill="plasma", max_amplitude=6.0, frequency=1.0, palette_name="spectral", bloom_color_name="cyan", bloom_radius=2, bloom_falloff=0.75, loop=True)),
             "fps": 12.0,
             "loop": True,
         },

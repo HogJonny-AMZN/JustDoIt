@@ -2304,3 +2304,175 @@ def plasma_flame(
         raw_radius = base_radius + bloom_amplitude * _math.sin(TWO_PI * frame_idx / max(n_frames, 1))
         current_radius = max(1, int(round(raw_radius)))
         yield _assemble_frame(frame_idx, frame_seed, current_radius)
+
+
+# -------------------------------------------------------------------------
+def plasma_warp(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 36,
+    plasma_preset: str = "default",
+    fill: str = "plasma",
+    max_amplitude: float = 6.0,
+    frequency: float = 1.0,
+    palette_name: str = "spectral",
+    bloom_color_name: str = "cyan",
+    bloom_radius: int = 2,
+    bloom_falloff: float = 0.75,
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Plasma field drives per-row sine_warp amplitude (X_PLASMA_WARP).
+
+    A plasma sin-field is computed for the rendered text.  Each row's mean
+    plasma intensity modulates the *amplitude* passed to ``sine_warp()`` for
+    that row -- rows at plasma peaks warp dramatically, rows at plasma troughs
+    are nearly still.  As the plasma phase ``t`` sweeps over frames, the
+    amplitude topology slowly rotates: rows that were stationary now swing,
+    rows that were swinging settle.  The text appears to undulate organically,
+    as if different parts of the letters are made of different physical materials.
+
+    FILL float → SPATIAL param coupling: this is the first preset that routes
+    a generative fill's per-row float data directly into a spatial transform
+    parameter, demonstrating the fill→spatial axis of the cross-breed matrix.
+
+    Composite axes: A10 plasma float grid × S01 per-row amplitude × C11 spectral
+    color × C12 exterior bloom.  Visual interest: tension=5, emergence=4,
+    distinctness=5, wow=4 → 18/20.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Frames per plasma cycle (default 36). Total = 2*n_frames
+        when loop=True (forward + reverse seamless loop).
+    :param plasma_preset: Plasma sin-field preset used for amplitude modulation
+        ('default', 'tight', 'slow', 'diagonal').  Default 'default'.
+    :param fill: Fill key for glyph interior characters (default 'plasma').  Any
+        registered fill works; 'plasma' gives the most coupling (same field
+        drives both chars and warp).
+    :param max_amplitude: Maximum per-row horizontal warp amplitude in columns
+        when plasma value = 1.0 (default 6.0).  Rows at plasma minimum warp at
+        ~0.3 * max_amplitude so motion is always present at extremes.
+    :param frequency: Sine oscillation cycles across text height (default 1.0).
+    :param palette_name: C11 color palette for glyph chars (default 'spectral').
+    :param bloom_color_name: C12 bloom hue key from BLOOM_COLORS (default 'cyan').
+    :param bloom_radius: Exterior bloom radius in cells (default 2).
+    :param bloom_falloff: Per-cell bloom intensity falloff factor 0-1 (default 0.75).
+    :param loop: If True, append reversed frames for seamless forward-back loop
+        (default True).
+    :returns: Iterator of colored, warped, and bloomed frame strings.
+    """
+    import math as _math
+    from justdoit.effects.generative import plasma_float_grid as _plasma_float_grid
+    from justdoit.effects.color import (
+        fill_float_colorize as _colorize,
+        PALETTE_REGISTRY,
+        bloom as _bloom,
+        BLOOM_COLORS,
+    )
+    from justdoit.effects.spatial import sine_warp as _sine_warp
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.fonts import FONTS as _FONTS
+
+    TWO_PI = 2.0 * _math.pi
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["spectral"])
+    bc = BLOOM_COLORS.get(bloom_color_name, BLOOM_COLORS.get("cyan", (0, 220, 255)))
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+
+    if not font_data:
+        return
+
+    sample_glyph = next(iter(font_data.values()))
+    height = len(sample_glyph)
+
+    def _build_plasma_row_amplitudes(t_val: float) -> list:
+        """Compute per-row mean plasma intensity across all glyphs at time t.
+
+        Returns a list of floats (length = text height) where each value is the
+        mean plasma intensity across all ink cells in that row.  Values in [0,1].
+        Exterior rows (all exterior cells) yield 0.0.
+        """
+        row_sums = [0.0] * height
+        row_counts = [0] * height
+
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+            fg = _plasma_float_grid(mask, t=t_val, preset=plasma_preset)
+            glyph_cols = max((len(row) for row in mask), default=0)
+
+            for r in range(min(height, len(fg))):
+                for c in range(min(glyph_cols, len(fg[r]))):
+                    v = fg[r][c]
+                    if v > 0.0:  # ink cells only (exterior = 0.0)
+                        row_sums[r] += v
+                        row_counts[r] += 1
+
+        # Normalise: mean plasma per row; rows with no ink stay at 0.0
+        amplitudes = []
+        for r in range(height):
+            if row_counts[r] > 0:
+                mean_val = row_sums[r] / row_counts[r]
+            else:
+                mean_val = 0.0
+            # Map [0,1] -> [0.3, 1.0] * max_amplitude so even min-plasma rows still move
+            scaled = (0.3 + 0.7 * mean_val) * max_amplitude
+            amplitudes.append(scaled)
+        return amplitudes
+
+    def _assemble_float_grid(t_val: float) -> list:
+        """Assemble combined plasma float grid across all glyphs for C11 colorization."""
+        combined: list = [[] for _ in range(height)]
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+            fg = _plasma_float_grid(mask, t=t_val, preset=plasma_preset)
+            glyph_cols = max((len(row) for row in mask), default=0)
+            for r in range(height):
+                row_floats = list((fg[r] if r < len(fg) else [])[:glyph_cols])
+                while len(row_floats) < glyph_cols:
+                    row_floats.append(0.0)
+                combined[r].extend(row_floats)
+                combined[r].extend([0.0] * gap)
+        return combined
+
+    # Generate plasma phase values for one forward sweep
+    t_values = [TWO_PI * i / max(n_frames, 1) for i in range(n_frames)]
+    if loop:
+        t_values = t_values + list(reversed(t_values))
+
+    # Plasma-specific fill kwargs (t + preset) -- only pass to fills that accept them.
+    # wave_fill, noise_fill, etc. do not accept 't' or 'plasma_preset' kwargs, so we
+    # only forward plasma kwargs when using a plasma variant fill.
+    _PLASMA_FILLS = {"plasma", "plasma_tight", "plasma_slow", "plasma_diagonal"}
+
+    for t_val in t_values:
+        # 1. Render chars with fill kwargs appropriate for the chosen fill
+        if fill in _PLASMA_FILLS:
+            extra_kwargs: dict = {"t": t_val, "preset": plasma_preset}
+        else:
+            extra_kwargs = {}
+        char_frame = _render(
+            text_plain,
+            font=font,
+            fill=fill,
+            fill_kwargs=extra_kwargs if extra_kwargs else None,
+        )
+
+        # 2. Colorize with C11 spectral palette from plasma float grid
+        float_grid = _assemble_float_grid(t_val)
+        colored_frame = _colorize(char_frame, float_grid, palette)
+
+        # 3. Compute per-row amplitude map from plasma field topology
+        amplitude_map = _build_plasma_row_amplitudes(t_val)
+
+        # 4. Apply per-row sine_warp using plasma row amplitudes
+        warped_frame = _sine_warp(colored_frame, frequency=frequency, amplitude_map=amplitude_map)
+
+        # 5. Apply C12 exterior bloom
+        final_frame = _bloom(warped_frame, bc, radius=bloom_radius, falloff=bloom_falloff)
+
+        yield final_frame

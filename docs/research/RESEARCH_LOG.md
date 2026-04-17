@@ -993,3 +993,66 @@ Visual validation (preset="hot", frame 4/8, "JUST DO IT"):
 | 4 | Wave Interference Animation | A_F09a | 3 | `idea` |
 | 5 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
 | 6 | Living Fill (CA animated) | A06 | 5 | `idea` |
+
+## Session 2026-04-17 (Mode B — Cross-Breed, second session same day)
+
+**Cross-breed chosen:** X_PLASMA_WARP — Plasma-Modulated Sine Warp
+**Scores:** tension=5 emergence=4 distinctness=5 wow=4 → **total=18/20**
+**Why chosen over alternatives:**
+- A_F09a (12/20): below preference threshold; wave phase sweep too similar to plasma_wave in feel.
+- A_F09b (12/20): needs wave_float_grid infra first; tied score with A_F09a and blocked.
+- X_ISO_NEON (16/20): tied as next-best but entire session consumed by per-face fill routing infra.
+- X_PLASMA_WARP (18/20) chosen as highest-scoring candidate with no infra gap beyond extending `sine_warp()` with `amplitude_map`. Also introduces the FILL→SPATIAL coupling axis for the first time — structural novelty that unlocks future cross-breeds (X_NOISE_WARP, X_PLASMA_WARP_PHASE, etc.).
+
+**Implementation path:**
+1. Extended `sine_warp()` in `justdoit/effects/spatial.py` with `amplitude_map: Optional[list] = None` — per-row amplitude override (~18 lines, fully backward-compatible).
+2. New `plasma_warp()` animation preset in `justdoit/animate/presets.py` (~130 lines):
+   - Per frame: compute `plasma_float_grid()` per glyph, assemble combined float grid.
+   - `_build_plasma_row_amplitudes(t_val)`: per-row mean plasma intensity × `max_amplitude` → `amplitude_map`.
+   - `_assemble_float_grid(t_val)`: combined float grid for C11 colorization.
+   - Render chars → C11 spectral colorize → per-row `sine_warp(amplitude_map=...)` → C12 bloom.
+3. Added `plasma_warp` to `generate_anim_gallery.py` SHOWCASE list.
+4. 29 new tests in `tests/test_plasma_warp.py` (sine_warp amplitude_map extension + plasma_warp structural + amplitude variation + options + loop).
+
+**CB6 Visual Validation Result:** ✅ Meets the bar.
+- 7 rows with leading spaces: [0, 6, 7, 3, 0, 1, 68] at mid-cycle (t=2π) — dramatically non-uniform.
+- 166 foreground color codes per frame (spectral: violet→indigo→cyan→green→orange from plasma float).
+- 287 background bloom codes per frame (C12 cyan halo, radius=2, falloff=0.75).
+- Row amplitudes at t=2π/3: [3.75, 3.42, 3.48, 4.05, 4.29, 3.96, 1.80] — measurable variation.
+- Frame variance confirmed: all 36 forward frames have distinct plain-text content.
+- Row 4 (highest amplitude 4.29) swings furthest; Row 6 (lowest 1.80) swings least but its sine phase can still push it to extreme right offset at mid-cycle.
+- The cross-breed delivers: text rows undulate organically at different magnitudes and relative phases, as if each row's "material" has different compliance to the underlying wave force. The plasma topology's rotation over 36 frames causes rows that were nearly flat to suddenly swing hard as the amplitude topology evolves.
+
+**Key insight:** The correct data routing is per-row *mean* plasma intensity (aggregated across all ink cells in that row across all glyphs), not per-cell values. Per-cell routing would require restructuring `sine_warp()` to accept cell-level data, which breaks the function's conceptual contract (it operates on whole rows). Per-row mean is the natural aggregation that preserves `sine_warp()`'s row-as-unit model while still delivering spatial variation. The amplitude range [0.3, 1.0] × max_amplitude ensures no row is ever completely still — even minimum-intensity rows retain 30% of max_amplitude. This keeps the animation readable: the contrast between "nearly still" and "swinging hard" is never absolute zero vs max.
+
+**Architecture note:** The `amplitude_map` parameter on `sine_warp()` is the entry point for the entire FILL→SPATIAL coupling family. Future cross-breeds in this class:
+- X_NOISE_WARP: Perlin noise float → sine_warp phase (phase map, not amplitude map — different character to the motion)
+- X_FLAME_WARP: flame heat per-row → sine_warp amplitude (hotter rows warp more aggressively)
+- X_RD_WARP: reaction-diffusion V field per-row → sine_warp amplitude (chemical patterns shape the distortion)
+These are all immediate once `amplitude_map` exists. The infrastructure is now in place.
+
+**ATTRIBUTE_MODEL.md updates:**
+- X_PLASMA_WARP marked as `done 2026-04-17` in "Needs new infrastructure" tier.
+- `amplitude_map` param noted as reusable pattern for X_NOISE_WARP, X_FLAME_WARP, X_RD_WARP.
+- Priority order updated.
+
+**Implementation notes:**
+- `amplitude_map: Optional[list] = None` added to `sine_warp()` in `justdoit/effects/spatial.py` (backward-compatible).
+- `plasma_warp()` added to `justdoit/animate/presets.py` (~130 lines).
+- `X_PLASMA_WARP` entry added to `scripts/generate_anim_gallery.py` SHOWCASE list.
+- 29 new tests in `tests/test_plasma_warp.py` — all passing.
+- Total tests: 865 (was 836 before this session, +29).
+- Gallery SVG: `docs/gallery/2026-04-17-X_PLASMA_WARP.svg` (t=2π/3 static frame, spectral + per-row warp).
+- Animation: `docs/anim_gallery/X_PLASMA_WARP-plasma-warp-spectral.{cast,apng}` (72 frames @ 12fps, seamless loop).
+- Gallery README updated: 17 daily entries, 62 techniques total.
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
+| 4 | Wave Interference Animation | A_F09a | 3 | `idea` |
+| 5 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
+| 6 | Living Fill (CA animated) | A06 | 5 | `idea` |
