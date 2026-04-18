@@ -18,7 +18,7 @@ from justdoit.effects.color import (
 # -------------------------------------------------------------------------
 class TestPaletteConstants:
     def test_all_four_palettes_registered(self):
-        assert set(PALETTE_REGISTRY.keys()) == {"fire", "lava", "spectral", "bio"}
+        assert {"fire", "lava", "spectral", "bio"}.issubset(set(PALETTE_REGISTRY.keys()))
 
     def test_fire_palette_is_list_of_tuples(self):
         for entry in FIRE_PALETTE:

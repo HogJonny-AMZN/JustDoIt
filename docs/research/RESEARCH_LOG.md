@@ -1056,3 +1056,41 @@ These are all immediate once `amplitude_map` exists. The infrastructure is now i
 | 4 | Wave Interference Animation | A_F09a | 3 | `idea` |
 | 5 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
 | 6 | Living Fill (CA animated) | A06 | 5 | `idea` |
+
+---
+
+## Session 2026-04-18 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** X_FRACTAL_CLASSIC — Fractal Escape-Time + C11 Palette Cycling
+**Scores:** tension=4 emergence=3 distinctness=4 wow=4 → total=15/20
+**Why chosen over alternatives:**
+- A_F09a (12/20): below preference threshold; explicitly passed over in last two sessions.
+- X_ISO_NEON (16/20): blocked on per-face fill routing infra.
+- X_FRACTAL_CLASSIC chosen: highest-scoring unblocked candidate, small infra gap.
+**Implementation path:** fractal_float_grid() → ESCAPE_PALETTE → fractal_color_cycle() preset
+**Visual validation result:** Frame 18 shows the seahorse-valley Mandelbrot region mapped into the "JUST DO IT" block letterforms. Characters range from dense `@` glyphs (mid-escape-time bands) through `*` (lighter exterior zones) to `,` and `#` at the outermost fringe. 162 colored cells per frame. Color palette at frame 18 (phase offset=0.25): heavy blue-electric-blue spectrum — R range 0–255, G range 0–255, B range 9–251. The escape-time banding is clearly visible as concentric ring-shaped color shifts inside each letterform. Outer cells sweep through cyan→green→yellow as the phase advances; inner cells remain in the deep-blue violet. The effect reads as "crystalline" — each letter appears to be cut from a glowing mineral with internal color strata.
+**Key insight:** The fractal geometry is fixed per animation — only the palette phase offset changes. This creates a "frozen mathematics + flowing color" duality. The seahorse-valley zoom (cx=-0.745, cy=0.113) hits a region with particularly strong escape-time gradient variation, giving clearly separated color bands rather than monotone fill. Letterforms with more ink cells (J, U, S, T) show richer banding than narrower characters. The ASCII char density (@ vs * vs , hierarchy) reinforces the color gradient — denser chars at mid-band, lighter chars at the edges.
+**ATTRIBUTE_MODEL.md updates:** X_FRACTAL_CLASSIC marked done in "Needs C11" tier. X_TURING_BIO also corrected to done 2026-04-15 (was still showing `idea`).
+
+**Implementation notes:**
+- `fractal_float_grid()` added to `justdoit/effects/generative.py` (~100 lines) — mirrors fractal_fill() computation, returns float grid instead of char grid.
+- `ESCAPE_PALETTE` (12 stops: deep-purple → blue → cyan → green → yellow → orange → bright-pink) added to `justdoit/effects/color.py`.
+- `"escape"` key added to `PALETTE_REGISTRY`.
+- `fractal_color_cycle()` added to `justdoit/animate/presets.py` (~130 lines) — follows turing_bio() pattern exactly.
+- C13 status corrected from `idea` to `done` in TECHNIQUES.md (implemented 2026-04-09, never updated).
+- 24 new tests in `tests/test_fractal_classic.py` — all passing.
+- test_color_c11.py updated: `test_all_four_palettes_registered` changed from exact-set to subset check to accommodate new palettes.
+- Total tests: 889 (was 865 before this session, +24).
+- Gallery SVG: `docs/gallery/2026-04-18-X_FRACTAL_CLASSIC.svg` (frame 18, phase=0.25, ESCAPE_PALETTE blue-spectrum).
+- Gallery README updated: 17 daily technique entries, 63 techniques total.
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
+| 4 | Wave Interference Animation | A_F09a | 3 | `idea` |
+| 5 | Wave Chromatic Interference | A_F09b | 3 | `idea` |
+| 6 | Living Fill (CA animated) | A06 | 5 | `idea` |

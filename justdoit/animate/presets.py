@@ -2476,3 +2476,145 @@ def plasma_warp(
         final_frame = _bloom(warped_frame, bc, radius=bloom_radius, falloff=bloom_falloff)
 
         yield final_frame
+
+
+# -------------------------------------------------------------------------
+def fractal_color_cycle(
+    text_plain: str = "JUST DO IT",
+    font: str = "block",
+    cx: float = -0.745,
+    cy: float = 0.113,
+    zoom: float = 0.6,
+    max_iter: int = 80,
+    julia: bool = False,
+    julia_c: complex = None,
+    n_frames: int = 72,
+    palette_name: str = "escape",
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Fractal Escape-Time Color Cycle — Mandelbrot bands + C11 palette cycling (X_FRACTAL_CLASSIC).
+
+    Pre-computes the fractal escape-time float grid (deterministic, fixed per run),
+    then animates by sweeping a palette phase offset per frame. The letterform
+    geometry is constant; only the color mapping changes — escape-time bands
+    ripple through the ESCAPE_PALETTE across the animation.
+
+    Pattern: mathematical structural permanence + color flow. 72 frames @ 12fps.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param cx: Real-axis centre of the Mandelbrot view (default: -0.745).
+    :param cy: Imaginary-axis centre of the view (default: 0.113).
+    :param zoom: View half-width in the complex plane (default: 0.6).
+    :param max_iter: Maximum iteration count (default: 80).
+    :param julia: If True, compute Julia set instead of Mandelbrot (default: False).
+    :param julia_c: Complex constant for Julia set (default: None → -0.7+0.27j).
+    :param n_frames: Number of palette-rotation frames per direction (default: 72).
+    :param palette_name: Palette from PALETTE_REGISTRY (default 'escape').
+    :param loop: If True, forward+reverse loop (default True).
+    :returns: Iterator of colored frame strings.
+    """
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.effects.generative import fractal_float_grid as _fractal_float_grid
+    from justdoit.effects.color import PALETTE_REGISTRY
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.fonts import FONTS as _FONTS
+
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["escape"])
+
+    # Render character frame using fractal fill
+    char_frame = _render(
+        text_plain,
+        font=font,
+        fill="fractal",
+        fill_kwargs={"preset": "seahorse"},
+    )
+
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+
+    def _assemble_float_grid() -> list:
+        if not font_data:
+            return []
+        sample_glyph = next(iter(font_data.values()))
+        height = len(sample_glyph)
+        combined: list = [[] for _ in range(height)]
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            if glyph is None:
+                continue
+            ink = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink)
+            fg = _fractal_float_grid(
+                mask,
+                cx=cx,
+                cy=cy,
+                zoom=zoom,
+                max_iter=max_iter,
+                julia=julia,
+                julia_c=julia_c,
+            )
+            glyph_cols = max(len(row) for row in mask) if mask else 0
+            for r in range(height):
+                row_floats = fg[r] if r < len(fg) else []
+                row_floats = list(row_floats[:glyph_cols])
+                while len(row_floats) < glyph_cols:
+                    row_floats.append(0.0)
+                combined[r].extend(row_floats)
+                combined[r].extend([0.0] * gap)
+        return combined
+
+    base_float_grid = _assemble_float_grid()
+
+    def _lerp_pal(pal: list, t: float):
+        if not pal:
+            return (255, 255, 255)
+        if len(pal) == 1:
+            return pal[0]
+        t = max(0.0, min(1.0, t))
+        scaled = t * (len(pal) - 1)
+        lo = int(scaled)
+        hi = min(lo + 1, len(pal) - 1)
+        frac = scaled - lo
+        r0, g0, b0 = pal[lo]
+        r1, g1, b1 = pal[hi]
+        return (
+            int(r0 + frac * (r1 - r0)),
+            int(g0 + frac * (g1 - g0)),
+            int(b0 + frac * (b1 - b0)),
+        )
+
+    def _phase_colorize(char_text: str, float_grid: list, pal: list, phase: float) -> str:
+        if not float_grid:
+            return char_text
+        rows = char_text.split("\n")
+        out_rows = []
+        for r_idx, row in enumerate(rows):
+            if r_idx >= len(float_grid):
+                out_rows.append(row)
+                continue
+            fg_row = float_grid[r_idx]
+            clean_row = _ANSI_RE.sub("", row)
+            out_row = ""
+            col_idx = 0
+            for ch in clean_row:
+                if ch == " " and col_idx < len(fg_row) and fg_row[col_idx] == 0.0:
+                    out_row += " "
+                else:
+                    if col_idx < len(fg_row):
+                        shifted = (fg_row[col_idx] + phase) % 1.0
+                        cr, cg, cb = _lerp_pal(pal, shifted)
+                        out_row += f"\033[38;2;{cr};{cg};{cb}m{ch}\033[0m"
+                    else:
+                        out_row += ch
+                col_idx += 1
+            out_rows.append(out_row)
+        return "\n".join(out_rows)
+
+    phases = [i / n_frames for i in range(n_frames)]
+    if loop and n_frames > 1:
+        phases = phases + list(reversed(phases))
+
+    for phase in phases:
+        yield _phase_colorize(char_frame, base_float_grid, palette, phase)
