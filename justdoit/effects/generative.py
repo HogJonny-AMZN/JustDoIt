@@ -1265,6 +1265,126 @@ def fractal_fill(
     return result
 
 
+def fractal_float_grid(
+    mask: list,
+    cx: float = -0.5,
+    cy: float = 0.0,
+    zoom: float = 1.0,
+    max_iter: int = 80,
+    julia: bool = False,
+    julia_c: complex = None,
+) -> list:
+    """Return escape-time float grid [0,1] for the fractal fill.
+
+    Mirrors fractal_fill() computation. Cells outside mask return 0.0.
+    Value: (max_iter - iter_count) / max_iter → 0.0=near set, 1.0=far from set.
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param cx: Real-axis centre of the view window (default: -0.5).
+    :param cy: Imaginary-axis centre of the view window (default: 0.0).
+    :param zoom: View half-width in the complex plane (default: 1.0).
+    :param max_iter: Maximum iteration count before declaring interior (default: 80).
+    :param julia: If True, compute Julia set instead of Mandelbrot (default: False).
+    :param julia_c: Complex constant for Julia set (default: -0.7+0.27j).
+    :returns: 2D list of floats indexed [row][col]. Values in [0.0, 1.0].
+        0.0 = near/inside set; 1.0 = far from set.
+    """
+    if julia_c is None:
+        julia_c = complex(-0.7, 0.27)
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    ink_cells = [
+        (r, c)
+        for r in range(rows)
+        for c in range(len(mask[r]))
+        if mask[r][c] >= 0.5
+    ]
+    if not ink_cells:
+        return [[0.0] * cols for _ in range(rows)]
+
+    min_r = min(r for r, _ in ink_cells)
+    max_r = max(r for r, _ in ink_cells)
+    min_c = min(c for _, c in ink_cells)
+    max_c = max(c for _, c in ink_cells)
+
+    row_span = max(max_r - min_r, 1)
+    col_span = max(max_c - min_c, 1)
+    aspect_ratio = 2.0
+
+    # Compute raw escape values for ink cells
+    escape_grid = [[0.0] * cols for _ in range(rows)]
+    exterior_vals = []
+
+    for r, c in ink_cells:
+        nx = (c - min_c) / col_span * 2.0 - 1.0
+        ny = (r - min_r) / row_span * 2.0 - 1.0
+
+        re_val = cx + nx * zoom
+        im_val = cy + ny * zoom * aspect_ratio
+
+        if not julia:
+            z = complex(0.0, 0.0)
+            c_val = complex(re_val, im_val)
+        else:
+            z = complex(re_val, im_val)
+            c_val = julia_c
+
+        escaped = False
+        smooth_val = 0.0
+        for n in range(max_iter):
+            z = z * z + c_val
+            absq = z.real * z.real + z.imag * z.imag
+            if absq > 4.0:
+                smooth_val = n + 1.0 - math.log2(math.log2(absq))
+                escaped = True
+                break
+
+        if escaped:
+            escape_grid[r][c] = smooth_val
+            exterior_vals.append(smooth_val)
+        else:
+            escape_grid[r][c] = -1.0  # interior sentinel
+
+    # Normalise exterior values to [0, 1]
+    if exterior_vals:
+        e_min = min(exterior_vals)
+        e_max = max(exterior_vals)
+        e_span = e_max - e_min
+        if e_span < 1e-9:
+            e_span = 1.0
+    else:
+        e_min, e_span = 0.0, 1.0
+
+    # Build output float grid
+    result = []
+    for r in range(rows):
+        row_floats = []
+        in_mask = [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for c in range(cols):
+            if not in_mask[c]:
+                row_floats.append(0.0)
+            else:
+                val = escape_grid[r][c]
+                if val < 0.0:
+                    # Interior — densest → 0.0 (near set)
+                    row_floats.append(0.0)
+                else:
+                    norm = (val - e_min) / e_span
+                    norm = max(0.0, min(1.0, norm))
+                    # Invert: low norm (barely escaped) → near set → 0.0
+                    # high norm (far escaped) → far from set → 1.0
+                    row_floats.append(norm)
+        result.append(row_floats)
+
+    return result
+
+
 # -------------------------------------------------------------------------
 # Strange Attractor fill — N08
 #
