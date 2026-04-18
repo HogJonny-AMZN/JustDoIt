@@ -327,8 +327,8 @@ PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
 | A10c | plasma + lava_palette | both chars and color from plasma float | **`done` 2026-04-06** |
 | A_F09b | wave + spectral | interference fringes colored | `idea` |
 | A_VOR1 | voronoi + cell_palette | stained glass | **`done` 2026-04-06** |
-| X_TURING_BIO | turing + bio_palette | leopard/zebra coat colors | `idea` |
-| X_FRACTAL_CLASSIC | fractal + escape_palette | classic Mandelbrot color bands | `idea` |
+| X_TURING_BIO | turing + bio_palette | leopard/zebra coat colors | **`done` 2026-04-15** |
+| X_FRACTAL_CLASSIC | fractal + escape_palette | classic Mandelbrot color bands | **`done` 2026-04-18** |
 
 ### Needs C12 (bloom infrastructure)
 

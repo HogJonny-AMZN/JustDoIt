@@ -90,11 +90,27 @@ BIO_PALETTE: list = [
     (200, 240, 160),  # 1.0 — pale lime
 ]
 
+ESCAPE_PALETTE: list = [
+    (10, 0, 30),      # 0.0  — deep violet-black
+    (30, 0, 100),     # 0.09 — deep purple
+    (0, 20, 180),     # 0.18 — deep blue
+    (0, 80, 240),     # 0.27 — bright blue
+    (0, 160, 255),    # 0.36 — electric blue
+    (0, 230, 220),    # 0.45 — cyan
+    (60, 255, 120),   # 0.54 — bright green
+    (200, 255, 50),   # 0.63 — yellow-green
+    (255, 200, 0),    # 0.72 — golden yellow
+    (255, 100, 0),    # 0.81 — orange
+    (255, 30, 30),    # 0.90 — red
+    (255, 220, 230),  # 1.0  — near-white pink
+]
+
 PALETTE_REGISTRY: dict = {
     "fire":     FIRE_PALETTE,
     "lava":     LAVA_PALETTE,
     "spectral": SPECTRAL_PALETTE,
     "bio":      BIO_PALETTE,
+    "escape":   ESCAPE_PALETTE,
 }
 
 # C12 — Named bloom colors for presets
