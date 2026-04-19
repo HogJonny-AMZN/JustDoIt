@@ -336,7 +336,7 @@ PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
 |----|-------------|----------------|-------|
 | X_NEON_BLOOM | neon fill + C12 bloom | tension=5 emerge=4 distinct=5 wow=5 → 19 | Neon chars glow into surrounding space. Neon color defines bloom hue. Minimal exterior radius (2-3 cells). | **`done` 2026-04-08** (patent-review branch) |
 | X_FLAME_BLOOM | flame fill + C12 bloom + C13 blown_out | tension=5 emerge=5 distinct=5 wow=5 → 20 | Hot core blows out to solid chars; bloom bleeds orange light into surrounding space. Fire that lights the air. Highest-score combo in catalog. | **`done` 2026-04-09** |
-| X_PLASMA_BLOOM | plasma fill + C12 bloom | tension=4 emerge=4 distinct=5 wow=4 → 17 | Bloom radius oscillates with plasma field value — exterior glow breathes with the wave. |
+| X_PLASMA_BLOOM | plasma fill + C12 bloom | tension=4 emerge=4 distinct=5 wow=4 → 17 | Bloom radius oscillates with plasma field value - exterior glow breathes with the wave. |
 | A_BLOOM1 | C12 bloom radius + sin animation | tension=4 emerge=4 distinct=5 wow=5 → 18 | Bloom breathes in/out around any fill. Combined with flame interior: pulsing fire halo. | **`done` 2026-04-10** |
 
 ### Needs new infrastructure
@@ -348,7 +348,7 @@ PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
 | X_ISO_FLAME | iso + flame on extrusion face | per-face fill routing |
 | X_ISO_DEPTH_COLOR | iso + Z-depth color | depth layer → color map |
 | X_NOISE_WARP | Perlin noise modulates sine_warp phase | fill-float → spatial param |
-| X_PLASMA_WARP | plasma field modulates sine_warp amplitude per row | fill-float → spatial param | **done 2026-04-17** — plasma per-row mean → amplitude_map param on sine_warp(). First FILL→SPATIAL coupling in codebase. |
+| X_PLASMA_WARP | plasma field modulates sine_warp amplitude per row | fill-float → spatial param | **done 2026-04-17** - plasma per-row mean → amplitude_map param on sine_warp(). First FILL→SPATIAL coupling in codebase. |
 
 ### High novelty cross-breeds (multiple sessions)
 
@@ -357,7 +357,7 @@ PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
 | X_PLASMA_ISO | plasma fill + iso extrude + C11 | 3D block letters with lava-lamp interior AND Z-depth color on faces |
 | X_FLAME_ISO | flame fill + iso extrude + A08c color | burning 3D letters, hot base white, tips red, depth face ember-shaded |
 | X_FLAME_ISO_BLOOM | flame fill + iso extrude + C12 bloom | **flagship**: burning 3D letters that light the surrounding space. Depth face is ember-shaded; exterior cells glow orange from bloom falloff. Three axes: fill, spatial, light. |
-| X_TURING_WARP | turing spots/stripes modulate sine_warp phase per row | letters warp in the pattern of their own skin |
+| X_TURING_WARP | turing spots/stripes modulate sine_warp phase per row | letters warp in the pattern of their own skin | **done 2026-04-19** |
 | X_RD_PLASMA | reaction-diffusion fill spatially modulated by plasma field | two generative systems layered, plasma shapes where RD can grow |
 | X_FRACTAL_ZOOM_ANIM | fractal fill + zoom animation + C11 escape bands | zoom into Mandelbrot live inside letterforms, colored |
 | X_LIVING_COLOR | CA fill animated (A06) + C11 step-count color | cells age, older cells shift hue toward red/orange |
@@ -393,13 +393,14 @@ Based on implementation cost vs novelty payoff:
 1. ~~**C13** - HDR tone mapping curves inside fills.~~ **`done` 2026-04-09** - `apply_tone_curve()` with linear/reinhard/aces/blown_out.
 2. ~~**A08c** - flame gradient + sin-wave color.~~ **`done` 2026-04-09** - `flame_gradient_color()` in presets.py.
 3. ~~**X_FLAME_BLOOM** - flame + C12 + C13 blown_out. Score 20/20.~~ **`done` 2026-04-09** - `flame_bloom()` flagship 20/20 composite.
-~~4. **A_BLOOM1** — bloom pulse. Breathing bloom radius around burning letterforms. Score 18/20.~~ **DONE 2026-04-10**
-~~4. **A_N09a** — Turing morphogenesis animation.~~ **DONE 2026-04-15** (single-pass FHN snapshots + bio palette; `turing_morphogenesis()` in presets.py)
-~~X_TURING_BIO — Turing biological coat colors.~~ **DONE 2026-04-15** (turing float grid + bio palette rotation; `turing_bio()` in presets.py)
-5. ~~**A_ISO1** — isometric depth animation. Short, makes S03 come alive.~~ **DONE 2026-04-14**
-6. **A08d** — plasma-modulated flame. Fill-float→fill-param coupling. Most novel generative cross-breed. ~~done 2026-04-17~~
+~~4. **A_BLOOM1** - bloom pulse. Breathing bloom radius around burning letterforms. Score 18/20.~~ **DONE 2026-04-10**
+~~4. **A_N09a** - Turing morphogenesis animation.~~ **DONE 2026-04-15** (single-pass FHN snapshots + bio palette; `turing_morphogenesis()` in presets.py)
+~~X_TURING_BIO - Turing biological coat colors.~~ **DONE 2026-04-15** (turing float grid + bio palette rotation; `turing_bio()` in presets.py)
+5. ~~**A_ISO1** - isometric depth animation. Short, makes S03 come alive.~~ **DONE 2026-04-14**
+6. **A08d** - plasma-modulated flame. Fill-float→fill-param coupling. Most novel generative cross-breed. ~~done 2026-04-17~~
 7. **X_PLASMA_WARP** — plasma field modulates sine_warp per-row amplitude. First FILL→SPATIAL coupling. ~~done 2026-04-17~~
-8. **X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project’s flagship composite visual.
+8. **X_TURING_WARP** — Turing FHN activator field drives per-row sine_warp amplitude. Self-referential: letters deform in geometry of own biological skin. ~~done 2026-04-19~~
+9. **X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project's flagship composite visual.
 
 ---
 

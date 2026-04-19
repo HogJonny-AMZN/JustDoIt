@@ -9,7 +9,7 @@ Run `python scripts/demo.py --gallery` to regenerate.
 - [Fill Effects (15)](#fill-effects)
 - [Color Effects (8)](#color-effects)
 - [Spatial & 3D (8)](#spatial--3d)
-- [Daily Techniques (17)](#daily-techniques)
+- [Daily Techniques (18)](#daily-techniques)
 
 ## Fonts
 
@@ -116,6 +116,9 @@ Run `python scripts/demo.py --gallery` to regenerate.
 
 <table>
 <tr>
+<td align="center"><img src="2026-04-19-X_TURING_WARP.svg" width="480"><br><sub><b>2026-04-19 · X_TURING_WARP Turing Morphogenesis-Modulated Sine Warp</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="2026-04-18-X_FRACTAL_CLASSIC.svg" width="480"><br><sub><b>2026-04-18 · X_FRACTAL_CLASSIC</b></sub></td>
 </tr>
 <tr>
@@ -159,4 +162,4 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 </table>
 
-*Last updated: 2026-04-18 — 63 techniques*
+*Last updated: 2026-04-19 — 64 techniques*

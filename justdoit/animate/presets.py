@@ -2618,3 +2618,157 @@ def fractal_color_cycle(
 
     for phase in phases:
         yield _phase_colorize(char_frame, base_float_grid, palette, phase)
+
+
+# -------------------------------------------------------------------------
+def turing_warp(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 36,
+    turing_preset: str = "spots",
+    seed: int = 42,
+    max_amplitude: float = 5.0,
+    frequency: float = 1.0,
+    palette_name: str = "bio",
+    bloom_color_name: str = "green",
+    bloom_radius: int = 2,
+    bloom_falloff: float = 0.75,
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Turing pattern drives per-row sine_warp amplitude (X_TURING_WARP).
+
+    The Turing FHN activator-inhibitor field (spots or stripes preset) is
+    computed ONCE and drives two structurally coupled outputs:
+
+    1. **Per-row amplitude map** for ``sine_warp()`` -- rows with heavy
+       high-activator clusters warp dramatically; rows at inhibitor troughs are
+       nearly still.  The warp topology is *fixed* (it mirrors the biological
+       pattern, not a rotating plasma field).
+    2. **Per-cell BIO_PALETTE C11 color** via ``fill_float_colorize()`` -- the
+       color assignment is also static across frames.
+
+    The ONLY thing that changes per frame is ``phase_offset`` passed to
+    ``sine_warp()``, which sweeps 0->2pi and animates the deformation without
+    altering the amplitude topology.  The letters appear to deform in the
+    geometry of their own biological skin -- a self-referential spatial coupling.
+
+    Composite axes: N09 Turing float grid x S01 per-row amplitude x C11
+    BIO_PALETTE x C12 green bloom.  Visual interest: tension=5, emergence=5,
+    distinctness=5, wow=5 -> 20/20.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Frames per sine phase cycle (default 36). Total frames =
+        2 * n_frames when loop=True (forward + reverse seamless loop).
+    :param turing_preset: Turing FHN preset ('spots', 'stripes', 'maze',
+        'labyrinth'). Controls whether the activator forms circular blobs or
+        elongated bands, which in turn shapes the warp topology.
+    :param seed: Integer seed for reproducible Turing simulation (default 42).
+    :param max_amplitude: Maximum per-row warp amplitude when activator=1.0
+        (default 5.0). Rows at minimum activator warp at 0.3 * max_amplitude
+        so motion is always present.
+    :param frequency: Sine oscillation cycles across text height (default 1.0).
+    :param palette_name: C11 palette for glyph char coloring (default 'bio').
+    :param bloom_color_name: C12 bloom hue key from BLOOM_COLORS (default
+        'green'). Biological green theme.
+    :param bloom_radius: Exterior bloom radius in cells (default 2).
+    :param bloom_falloff: Per-cell bloom intensity falloff factor 0-1 (default
+        0.75).
+    :param loop: If True, append reversed frames for seamless forward-back loop
+        (default True).
+    :returns: Iterator of colored, warped, and bloomed frame strings.
+    """
+    import math as _math
+    from justdoit.effects.generative import turing_float_grid as _turing_float_grid
+    from justdoit.effects.color import (
+        fill_float_colorize as _colorize,
+        PALETTE_REGISTRY,
+        bloom as _bloom,
+        BLOOM_COLORS,
+    )
+    from justdoit.effects.spatial import sine_warp as _sine_warp
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.fonts import FONTS as _FONTS
+
+    TWO_PI = 2.0 * _math.pi
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["bio"])
+    bc = BLOOM_COLORS.get(bloom_color_name, (0, 180, 50))
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+
+    if not font_data:
+        return
+
+    sample_glyph = next(iter(font_data.values()))
+    height = len(sample_glyph)
+
+    # ---- COMPUTE STATIC TURING DATA ONCE (expensive: O(sim_steps * glyphs)) ----
+
+    def _assemble_turing_grid() -> list:
+        """Compute combined Turing float grid across all glyphs (ONCE)."""
+        combined: list = [[] for _ in range(height)]
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+            fg = _turing_float_grid(mask, preset=turing_preset, seed=seed)
+            glyph_cols = max((len(row) for row in mask), default=0)
+            for r in range(height):
+                row_floats = list((fg[r] if r < len(fg) else [])[:glyph_cols])
+                while len(row_floats) < glyph_cols:
+                    row_floats.append(0.0)
+                combined[r].extend(row_floats)
+                combined[r].extend([0.0] * gap)
+        return combined
+
+    def _build_row_amplitudes(combined_grid: list) -> list:
+        """Per-row mean activator intensity maps to per-row sine_warp amplitude."""
+        amplitudes = []
+        for r in range(height):
+            row = combined_grid[r] if r < len(combined_grid) else []
+            ink_vals = [v for v in row if v > 0.0]
+            if ink_vals:
+                mean_val = sum(ink_vals) / len(ink_vals)
+            else:
+                mean_val = 0.0
+            # Map [0,1] -> [0.3, 1.0] * max_amplitude so no row is ever completely still
+            scaled = (0.3 + 0.7 * mean_val) * max_amplitude
+            amplitudes.append(scaled)
+        return amplitudes
+
+    # Render char frame with turing fill (ONCE -- chars are static across frames)
+    char_frame = _render(
+        text_plain,
+        font=font,
+        fill="turing",
+        fill_kwargs={"preset": turing_preset, "seed": seed},
+    )
+
+    # Assemble Turing float grid (ONCE -- expensive simulation runs here)
+    turing_grid = _assemble_turing_grid()
+
+    # Apply C11 BIO_PALETTE colorization (ONCE -- color is static across all frames)
+    colored_frame = _colorize(char_frame, turing_grid, palette)
+
+    # Compute per-row amplitude map from Turing activator field (ONCE)
+    amplitude_map = _build_row_amplitudes(turing_grid)
+
+    # ---- PER-FRAME ANIMATION ----
+    # Only the sine phase_offset changes each frame -- warp sweeps, topology fixed.
+    phase_values = [TWO_PI * i / max(n_frames, 1) for i in range(n_frames)]
+    if loop:
+        phase_values = phase_values + list(reversed(phase_values))
+
+    for phase in phase_values:
+        # Apply per-row sine_warp with static amplitude topology + sweeping phase
+        warped_frame = _sine_warp(
+            colored_frame,
+            amplitude_map=amplitude_map,
+            frequency=frequency,
+            phase_offset=phase,
+        )
+        # Apply C12 green bloom (biological theme)
+        final_frame = _bloom(warped_frame, bc, radius=bloom_radius, falloff=bloom_falloff)
+        yield final_frame

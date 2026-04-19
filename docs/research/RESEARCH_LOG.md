@@ -1094,3 +1094,50 @@ These are all immediate once `amplitude_map` exists. The infrastructure is now i
 | 4 | Wave Interference Animation | A_F09a | 3 | `idea` |
 | 5 | Wave Chromatic Interference | A_F09b | 3 | `idea` |
 | 6 | Living Fill (CA animated) | A06 | 5 | `idea` |
+
+## Session 2026-04-19 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** X_TURING_WARP — Turing Morphogenesis-Modulated Sine Warp
+**Scores:** tension=5 emergence=5 distinctness=5 wow=5 → total=20/20
+**Why chosen over alternatives:**
+- A_F09a (12/20): wave phase animation score too low — skipped again.
+- A_F09b (12/20): needs wave_float_grid infra, tied-low.
+- X_ISO_NEON (16/20): blocked on per-face fill routing infra.
+- X_TURING_WARP chosen: perfect 20/20 — all infra present (turing_float_grid done 2026-04-15, amplitude_map on sine_warp done 2026-04-17). Self-referential: letters deform in the geometry of their own biological skin. No prior session has implemented this class of self-referential spatial coupling.
+
+**Implementation path:** New `phase_offset` param on `sine_warp()` (backward-compatible, ~5 lines) + `turing_warp()` preset in presets.py. Turing field computed ONCE (static); per-frame variation from sine phase sweep only. Color also static (BIO_PALETTE from same Turing float grid). Green bloom for biological theme.
+
+**Visual validation result:** ✅ Meets the bar.
+- 36 frames (72 with loop), 7-row "JUST DO IT" block font output
+- 166 foreground color codes per frame (BIO_PALETTE — bio-dark through pale lime greens) — **color count is identical across all 36 frames**, confirming static color behavior
+- 280-292 background bloom codes per frame (green bloom, slight variation from warp position)
+- Char distribution: `@#S%?*+;:,.` — full Turing density range. Dense `@` in high-activator spots, sparse `.,` in inhibitor regions; the biological pattern is visually legible in char density alone.
+- Warp variation: leading-space total ranges 82-85 across frames. Warp is subtle (not dramatic like plasma_warp) because glyph height is 7 rows and Turing per-row means cluster around 0.4-0.6, giving amplitudes of 2.5-4.5 rather than the full 1.5-5.0 range. This is biologically appropriate: organic skin deformation should be subtle, not violent.
+- The self-referential property is mechanically confirmed: the Turing pattern visible in char density (`@` spots vs `,` background) is the same data driving the amplitude topology. High-density rows warp more.
+
+**Key insight:** The critical distinction from X_PLASMA_WARP is structural stability. Plasma's amplitude topology rotates as t sweeps — rows that were nearly flat suddenly swing. Turing's topology is fixed — the rows that warp hard always warp hard (because the spot pattern is static). This creates a different visual metaphor: not "material compliance to a wave" (plasma) but "structural deformation in the shape of a skin" (Turing). The subtlety of the warp in a 7-row font is honest — a single biological skin layer doesn't produce violent distortion. The effect rewards attention: look at where the chars are dense, look at which rows swing hardest. They're the same rows.
+
+**ATTRIBUTE_MODEL.md updates:**
+- X_TURING_WARP marked as `done 2026-04-19` in "High novelty cross-breeds" table
+- Priority order updated: X_TURING_WARP struck through after X_PLASMA_WARP
+
+**Implementation notes:**
+- `phase_offset: float = 0.0` param added to `sine_warp()` in `justdoit/effects/spatial.py` (backward-compatible)
+- `turing_warp()` added to `justdoit/animate/presets.py`
+- X_TURING_WARP entry added to `scripts/generate_anim_gallery.py` SHOWCASE list
+- 25 new tests in `tests/test_turing_warp.py` — all passing (151s)
+- Total tests: 914 (was 889 before this session, +25)
+- Gallery SVG: `docs/gallery/2026-04-19-X_TURING_WARP.svg` (frame 18/36, phase=180°)
+- Animation: `docs/anim_gallery/X_TURING_WARP-turing-warp-spots.{cast,apng}` (999KB cast, 348KB apng, 72 frames @ 12fps)
+- Gallery README updated: 18 daily entries, 64 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
+| 4 | Wave Interference Animation | A_F09a | 3 | `idea` |
+| 5 | Wave Chromatic Interference | A_F09b | 3 | `idea` |
+| 6 | Living Fill (CA animated) | A06 | 5 | `idea` |
