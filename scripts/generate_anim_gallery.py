@@ -42,7 +42,7 @@ def _neon_multi_frames(text_plain: str) -> list[str]:
     import re
     import random
     from justdoit.core.rasterizer import render
-    from justdoit.animate.presets import neon_glitch, _NEON_COLORS, _ANSI_RE, _RESET
+    from justdoit.animate.presets import neon_glitch, _NEON_COLORS, _ANSI_RE, _RESET  # noqa: F401
 
     words = text_plain.upper().split()
     colors = ["cyan", "magenta", "yellow"]
@@ -131,7 +131,7 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass, plasma_lava_lamp, flame_gradient_color, flame_bloom, bloom_pulse, plasma_bloom, iso_depth_breathe, turing_bio, turing_morphogenesis, plasma_flame, plasma_warp, fractal_color_cycle
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass, plasma_lava_lamp, flame_gradient_color, flame_bloom, bloom_pulse, plasma_bloom, iso_depth_breathe, turing_bio, turing_morphogenesis, plasma_flame, plasma_warp, fractal_color_cycle, turing_warp
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
@@ -443,6 +443,14 @@ def _build_showcase() -> list[dict]:
             "name": "fractal-color-cycle",
             "label": "fractal-escape-escape",
             "frames": lambda: list(fractal_color_cycle(text_plain, n_frames=72, loop=True)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "X_TURING_WARP",
+            "name": "Turing Morphogenesis-Modulated Sine Warp",
+            "label": "turing-warp-spots",
+            "frames": lambda: list(turing_warp(text_plain, n_frames=36, turing_preset="spots", seed=42, max_amplitude=5.0, frequency=1.0, palette_name="bio", bloom_color_name="green", bloom_radius=2, bloom_falloff=0.75, loop=True)),
             "fps": 12.0,
             "loop": True,
         },
