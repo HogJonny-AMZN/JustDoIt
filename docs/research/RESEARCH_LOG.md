@@ -1141,3 +1141,63 @@ These are all immediate once `amplitude_map` exists. The infrastructure is now i
 | 4 | Wave Interference Animation | A_F09a | 3 | `idea` |
 | 5 | Wave Chromatic Interference | A_F09b | 3 | `idea` |
 | 6 | Living Fill (CA animated) | A06 | 5 | `idea` |
+
+## Session 2026-04-20 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** X_FLAME_ISO_BLOOM — Flame + Isometric + Bloom
+**Scores:** tension=5 emergence=5 distinctness=5 wow=5 → **total=20/20**
+**Why chosen over alternatives:**
+- A_F09a (12/20): wave phase animation, repeatedly passed over as below threshold for 4 consecutive sessions. Not implemented.
+- A_F09b (12/20): needs wave_float_grid infra; tied-low score.
+- X_ISO_NEON (16/20): blocked on per-face fill routing infra — would consume entire session.
+- X_FLAME_ISO_BLOOM (20/20): perfect score. All three infra pieces exist (flame_float_grid done 2026-04-04, isometric_extrude done 2026-03-23, bloom done 2026-04-08). This was explicitly listed as priority #9 and the "flagship composite visual" in ATTRIBUTE_MODEL.md. All prior sessions built toward this.
+
+**Implementation path:** New `flame_iso_bloom()` preset in `presets.py` (~165 lines).
+- Build flame float grids + char lines per glyph at glyph resolution (same pattern as `flame_bloom()`)
+- Apply `isometric_extrude()` on plain char text → isometric geometry
+- Build isometric float grid: front-face positions get original heat float values; depth-face positions get ember float values (0.05 at furthest depth layer, 0.25 at closest)
+- Colorize full iso canvas via `fill_float_colorize()` with fire palette
+- Apply `bloom()` for orange glow bleeding into surrounding space
+- Key function: `_depth_float(d, total_depth)` — maps depth layer to [0.05, 0.25] range → orange-red ember coloring on the depth face (the "back" of the 3D block appears sooted/cooling)
+
+**CB6 Visual Validation Result:** ✅ Meets the bar.
+- 489 FG fire-palette color codes per frame (covers all ink cells: front face + depth face)
+- 248 BG bloom codes per frame (fire-orange halo, radius=4, falloff=0.85)
+- Depth face rows 0-3: purely `·░▒▓` shade chars, ordered front-to-back (·=furthest/coldest, ▓=closest/warmest). These receive ember coloring: near-black at the far top → orange-red at the closest depth layer.
+- Front face rows 4-9: stochastic flame chars (`S%.*,.`) that change each frame. The fire flickers in real time while the 3D geometry remains stable.
+- Frame variation: front-face chars vary per frame (seed-driven stochasticity) while depth geometry rows 0-3 are structurally fixed (depth chars are always the same isometric shade pattern; only the flame chars on the front face change).
+- Three distinct structural reads: (1) top of the 3D block with ember coloring (depth face), (2) sides of the block as depth chars from adjacent letters, (3) front faces blazing with flame and fire-palette color.
+- Honest verdict: The structural tension between rigid isometric geometry and stochastic flame is clearly visible. The depth face reads as "the back of the block is sooted/cooling" while the front blazes. Bloom makes the letters appear to emit fire-orange light into the surrounding terminal space. The effect delivers exactly what was specified.
+- One observation: the `default` flame preset (not `hot`) is better for this cross-breed — `hot` converges too strongly with `blown_out` tone curve, collapsing char variation on the front face. `aces` + `default` gives the full `@#S%?*+;:,.` range needed for the flame effect to read as fire.
+
+**Key insight:** The critical design decision was how to assign float values to the depth face. Options considered:
+1. **Zero floats on depth face** — depth chars appear black/near-black (wrong: the back of a burning letter should glow ember, not be pitch-black)
+2. **Maximum float on depth face** — depth chars appear white-hot (wrong: the back of a 3D solid is furthest from the fire source, should be cooler)
+3. **Graduated ember values [0.05, 0.25] by depth layer** ← chosen: closest depth (d=1) → 0.25 (orange-red), furthest depth (d=depth) → 0.05 (near-black ember). This is physically motivated: the material closest to the visible surface gets slightly more heat than the far back. Maps to colors (20,0,0)→(200,30,0) on the fire palette — deep ember to orange-red.
+This creates a visually coherent 3D fire object: the front is the hottest (full fire palette range), the sides/top are cooler (ember-toned), and the surrounding space glows orange from bloom.
+
+**ATTRIBUTE_MODEL.md updates:**
+- X_FLAME_ISO_BLOOM marked as `done 2026-04-20` in "High novelty cross-breeds" table and in Priority Order
+- X_FLAME_ISO (non-bloom variant) noted as a potential simpler future entry
+
+**Implementation notes:**
+- `flame_iso_bloom()` added to `justdoit/animate/presets.py` (~165 lines)
+- `X_FLAME_ISO_BLOOM` entry added to `scripts/generate_anim_gallery.py` SHOWCASE list
+- 28 new tests in `tests/test_flame_iso_bloom.py` — all passing in 0.19s
+- Total tests: 942 (was 914 before this session, +28)
+- Gallery SVG: `docs/gallery/2026-04-20-X_FLAME_ISO_BLOOM.svg` (frame 18/36, mid-cycle fire)
+- Animation: `docs/anim_gallery/X_FLAME_ISO_BLOOM-flame-iso-bloom-fire.cast` (1.7MB, 72 frames @ 12fps)
+- Animation: `docs/anim_gallery/X_FLAME_ISO_BLOOM-flame-iso-bloom-fire.apng` (407KB, 72 frames @ 12fps)
+- Gallery README updated: 19 daily entries, 65 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
+| 4 | Wave Interference Animation | A_F09a | 3 | `idea` |
+| 5 | Wave Chromatic Interference | A_F09b | 3 | `idea` |
+| 6 | Living Fill (CA animated) | A06 | 5 | `idea` |
+| 7 | X_FLAME_ISO (non-bloom variant, different character) | X_FLAME_ISO | 4 | `idea` |

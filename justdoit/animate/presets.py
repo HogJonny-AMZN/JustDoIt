@@ -2772,3 +2772,206 @@ def turing_warp(
         # Apply C12 green bloom (biological theme)
         final_frame = _bloom(warped_frame, bc, radius=bloom_radius, falloff=bloom_falloff)
         yield final_frame
+
+
+# -------------------------------------------------------------------------
+def flame_iso_bloom(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 36,
+    depth: int = 4,
+    direction: str = "right",
+    flame_preset: str = "default",
+    palette_name: str = "fire",
+    tone_curve: str = "aces",
+    bloom_color_name: str = "fire",
+    bloom_radius: int = 4,
+    bloom_falloff: float = 0.85,
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Flame Isometric Bloom animation — three-axis flagship composite (X_FLAME_ISO_BLOOM).
+
+    Three axes simultaneously:
+
+    1. Flame fill (A08) — Doom-fire heat simulation drives char density and
+       color inside each letterform. White-hot core, orange mid-flame, dark
+       red base.
+    2. Isometric extrusion (S03) — 3D block letters; the front face blazes
+       with fire, the depth face (▓▒░·) receives ember coloring (low heat
+       values: orange-red, as if the back of the block is cooling or soot).
+    3. C12 Bloom — orange-fire light bleeds from ink cells into surrounding
+       space cells. The 3D structure plus fire means the bloom appears to
+       emanate from a solid burning object.
+
+    Per-frame: flame is re-stochastically re-seeded (different fire each
+    frame). Isometric geometry is computed once per frame from the new flame
+    chars. Float grid is built for the full iso canvas — front-face positions
+    carry the original heat float, depth-face positions carry ember float
+    values (0.05–0.25 from furthest to closest depth layer).
+
+    Visual interest scores: tension=5, emergence=5, distinctness=5, wow=5 → 20/20.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Frames per cycle (default 36). Total = 2*n_frames if loop=True.
+    :param depth: Isometric extrusion depth (default 4).
+    :param direction: Extrusion direction 'right' or 'left' (default 'right').
+    :param flame_preset: Flame simulation preset ('hot', 'default', 'cool', 'embers').
+    :param palette_name: C11 color palette name from PALETTE_REGISTRY (default 'fire').
+    :param tone_curve: HDR tone curve for front-face char mapping (default 'blown_out').
+    :param bloom_color_name: Bloom hue key from BLOOM_COLORS (default 'fire').
+    :param bloom_radius: C12 bloom radius in cells (default 4).
+    :param bloom_falloff: Per-cell bloom intensity falloff 0-1 (default 0.85).
+    :param loop: If True, yield forward then reverse for seamless loop (default True).
+    :returns: Iterator of colored + isometrically extruded + bloomed frame strings.
+    """
+    import re as _re
+    from justdoit.effects.generative import (
+        _flame_heat_grid as _fhg,
+    )
+    from justdoit.effects.isometric import isometric_extrude as _iso_extrude
+    from justdoit.effects.color import (
+        fill_float_colorize as _colorize,
+        apply_tone_curve as _apply_tone_curve,
+        PALETTE_REGISTRY,
+        bloom as _bloom,
+        BLOOM_COLORS,
+    )
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.fonts import FONTS as _FONTS
+
+    _ANSI_STRIP = _re.compile(r"\033\[[0-9;]*m")
+
+    # The depth face shade chars used by isometric_extrude (back to front order)
+    _DEPTH_CHARS = {"▓", "▒", "░", "·"}
+
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["fire"])
+    bc = BLOOM_COLORS.get(bloom_color_name, BLOOM_COLORS.get("fire", (255, 80, 0)))
+
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+
+    if not font_data:
+        return
+
+    sample_glyph = next(iter(font_data.values()))
+    glyph_height = len(sample_glyph)
+
+    # Depth face float values: closest depth (d=1) → 0.25, furthest (d=depth) → 0.05
+    # These map to ember/cooling colors on the fire palette.
+    def _depth_float(d: int, total_depth: int) -> float:
+        """Float value for a depth face cell at layer d (1=closest, depth=furthest).
+
+        Closest layer gets 0.25 (orange), furthest gets 0.05 (near-black ember).
+        """
+        if total_depth <= 1:
+            return 0.15
+        # t=0 at furthest (d=total_depth), t=1 at closest (d=1)
+        t = (total_depth - d) / (total_depth - 1)
+        return 0.05 + 0.20 * t  # range [0.05, 0.25]
+
+    def _assemble_frame(frame_seed: int) -> str:
+        """Build one flame_iso_bloom frame: fire + isometric geometry + bloom."""
+        # Step 1: build flame float grids and char lines at glyph resolution
+        float_grid: list = [[] for _ in range(glyph_height)]
+        char_lines: list = ["" for _ in range(glyph_height)]
+
+        n_bloom_chars = len(_FLAME_CHARS_BLOOM)
+
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+
+            heat, ink, gh, gc = _fhg(mask, preset=flame_preset, seed=frame_seed)
+
+            heat_grid_2d = [
+                [heat[r][c] if (r < gh and c < gc) else 0.0 for c in range(gc)]
+                for r in range(gh)
+            ]
+            ink_mask = [
+                [ink[r][c] if (r < gh and c < gc) else False for c in range(gc)]
+                for r in range(gh)
+            ]
+
+            # Apply tone curve for char density mapping (front face chars)
+            tone_mapped = _apply_tone_curve(heat_grid_2d, curve=tone_curve)
+
+            for r in range(glyph_height):
+                raw_row = heat_grid_2d[r] if r < gh else []
+                raw_row = list(raw_row[:gc])
+                while len(raw_row) < gc:
+                    raw_row.append(0.0)
+                float_grid[r].extend(raw_row)
+                float_grid[r].extend([0.0] * gap)
+
+                tone_row = tone_mapped[r] if r < len(tone_mapped) else []
+                line = ""
+                for c in range(gc):
+                    if r < gh and c < len(ink_mask[r]) and ink_mask[r][c]:
+                        h = tone_row[c] if c < len(tone_row) else 0.0
+                        h = max(0.0, min(1.0, h))
+                        idx = int((1.0 - h) * (n_bloom_chars - 1) + 0.5)
+                        idx = max(0, min(n_bloom_chars - 1, idx))
+                        line += _FLAME_CHARS_BLOOM[idx]
+                    else:
+                        line += " "
+                line += " " * gap
+                char_lines[r] += line
+
+        plain_frame = "\n".join(char_lines)
+        plain_cols = max(len(line) for line in char_lines) if char_lines else 0
+
+        # Step 2: isometric extrude the plain char frame
+        iso_text = _iso_extrude(plain_frame, depth=depth, direction=direction)
+        iso_lines = iso_text.split("\n")
+        iso_rows = len(iso_lines)
+        iso_cols = max(len(line) for line in iso_lines) if iso_lines else 0
+
+        # Step 3: build isometric float grid
+        # Mapping: iso canvas row/col → flame float value or depth ember value
+        #
+        # isometric_extrude direction="right" layout:
+        #   front face at iso position (r + depth, c) [c in 0..plain_cols-1]
+        #   depth layer d at (r + depth - d, c + d)  [d in 1..depth]
+        #
+        # Build a lookup: (iso_r, iso_c) → float
+        iso_float_grid = [[0.0] * (iso_cols + 1) for _ in range(iso_rows + 1)]
+
+        # Front face: (r + depth, c) for r in 0..glyph_height-1, c in 0..plain_cols-1
+        for r in range(glyph_height):
+            for c in range(plain_cols):
+                fr = r + depth
+                fc = c
+                if 0 <= fr < iso_rows and 0 <= fc < iso_cols:
+                    fval = float_grid[r][c] if r < len(float_grid) and c < len(float_grid[r]) else 0.0
+                    iso_float_grid[fr][fc] = fval
+
+        # Depth face: (r + depth - d, c + d) for each depth layer d
+        for d in range(1, depth + 1):
+            ember_val = _depth_float(d, depth)
+            for r in range(glyph_height):
+                for c in range(plain_cols):
+                    dr = r + depth - d
+                    dc = c + d
+                    if 0 <= dr < iso_rows and 0 <= dc < iso_cols:
+                        iso_float_grid[dr][dc] = ember_val
+
+        # Step 4: colorize the iso frame using the float grid
+        # Trim iso_float_grid to iso_rows x iso_cols
+        iso_float_trimmed = [
+            row[:iso_cols] for row in iso_float_grid[:iso_rows]
+        ]
+        colored_frame = _colorize(iso_text, iso_float_trimmed, palette)
+
+        # Step 5: bloom
+        bloomed_frame = _bloom(colored_frame, bc, radius=bloom_radius, falloff=bloom_falloff)
+        return bloomed_frame
+
+    seeds = list(range(n_frames))
+    if loop:
+        seeds = seeds + list(reversed(seeds))
+
+    for frame_seed in seeds:
+        yield _assemble_frame(frame_seed)

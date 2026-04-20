@@ -356,7 +356,7 @@ PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
 |----|-------------|-------------|
 | X_PLASMA_ISO | plasma fill + iso extrude + C11 | 3D block letters with lava-lamp interior AND Z-depth color on faces |
 | X_FLAME_ISO | flame fill + iso extrude + A08c color | burning 3D letters, hot base white, tips red, depth face ember-shaded |
-| X_FLAME_ISO_BLOOM | flame fill + iso extrude + C12 bloom | **flagship**: burning 3D letters that light the surrounding space. Depth face is ember-shaded; exterior cells glow orange from bloom falloff. Three axes: fill, spatial, light. |
+| X_FLAME_ISO_BLOOM | flame fill + iso extrude + C12 bloom | **flagship**: burning 3D letters that light the surrounding space. Depth face is ember-shaded; exterior cells glow orange from bloom falloff. Three axes: fill, spatial, light. | **done 2026-04-20** |
 | X_TURING_WARP | turing spots/stripes modulate sine_warp phase per row | letters warp in the pattern of their own skin | **done 2026-04-19** |
 | X_RD_PLASMA | reaction-diffusion fill spatially modulated by plasma field | two generative systems layered, plasma shapes where RD can grow |
 | X_FRACTAL_ZOOM_ANIM | fractal fill + zoom animation + C11 escape bands | zoom into Mandelbrot live inside letterforms, colored |
@@ -400,7 +400,7 @@ Based on implementation cost vs novelty payoff:
 6. **A08d** - plasma-modulated flame. Fill-float→fill-param coupling. Most novel generative cross-breed. ~~done 2026-04-17~~
 7. **X_PLASMA_WARP** — plasma field modulates sine_warp per-row amplitude. First FILL→SPATIAL coupling. ~~done 2026-04-17~~
 8. **X_TURING_WARP** — Turing FHN activator field drives per-row sine_warp amplitude. Self-referential: letters deform in geometry of own biological skin. ~~done 2026-04-19~~
-9. **X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project's flagship composite visual.
+9. ~~**X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project's flagship composite visual.~~ **done 2026-04-20**
 
 ---
 
