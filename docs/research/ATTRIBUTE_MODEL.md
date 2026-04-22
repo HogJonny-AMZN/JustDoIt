@@ -347,7 +347,7 @@ PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
 | A_N09a | Turing step animation | precompute snapshot series |
 | X_ISO_FLAME | iso + flame on extrusion face | per-face fill routing |
 | X_ISO_DEPTH_COLOR | iso + Z-depth color | depth layer → color map |
-| X_NOISE_WARP | Perlin noise modulates sine_warp phase | fill-float → spatial param |
+| X_NOISE_WARP | Perlin noise modulates sine_warp phase per row | fill-float → spatial param | **done 2026-04-21** - noise per-row mean → phase_map param on sine_warp(). New ``phase_map`` param (parallel to amplitude_map but controls timing, not magnitude). Second FILL→SPATIAL coupling axis: phase vs amplitude produces qualitatively different warp character. |
 | X_PLASMA_WARP | plasma field modulates sine_warp amplitude per row | fill-float → spatial param | **done 2026-04-17** - plasma per-row mean → amplitude_map param on sine_warp(). First FILL→SPATIAL coupling in codebase. |
 
 ### High novelty cross-breeds (multiple sessions)
@@ -358,6 +358,8 @@ PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
 | X_FLAME_ISO | flame fill + iso extrude + A08c color | burning 3D letters, hot base white, tips red, depth face ember-shaded |
 | X_FLAME_ISO_BLOOM | flame fill + iso extrude + C12 bloom | **flagship**: burning 3D letters that light the surrounding space. Depth face is ember-shaded; exterior cells glow orange from bloom falloff. Three axes: fill, spatial, light. | **done 2026-04-20** |
 | X_TURING_WARP | turing spots/stripes modulate sine_warp phase per row | letters warp in the pattern of their own skin | **done 2026-04-19** |
+| X_NOISE_WARP | Perlin noise float → per-row phase_map → sine_warp | rippled-glass / crinkled-cellophane distortion; static noise topology flows as global phase sweeps | **done 2026-04-21** |
+| X_PLASMA_NOISE_WARP | plasma amplitude_map + noise phase_map → sine_warp simultaneously | two independent float fields on two independent warp params: rows swing different distances (plasma) AND peak at different moments (noise). Maximum FILL→SPATIAL coupling on a single transform. | `idea` |
 | X_RD_PLASMA | reaction-diffusion fill spatially modulated by plasma field | two generative systems layered, plasma shapes where RD can grow |
 | X_FRACTAL_ZOOM_ANIM | fractal fill + zoom animation + C11 escape bands | zoom into Mandelbrot live inside letterforms, colored |
 | X_LIVING_COLOR | CA fill animated (A06) + C11 step-count color | cells age, older cells shift hue toward red/orange |
@@ -401,6 +403,7 @@ Based on implementation cost vs novelty payoff:
 7. **X_PLASMA_WARP** — plasma field modulates sine_warp per-row amplitude. First FILL→SPATIAL coupling. ~~done 2026-04-17~~
 8. **X_TURING_WARP** — Turing FHN activator field drives per-row sine_warp amplitude. Self-referential: letters deform in geometry of own biological skin. ~~done 2026-04-19~~
 9. ~~**X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project's flagship composite visual.~~ **done 2026-04-20**
+10. ~~**X_NOISE_WARP** — Perlin noise per-row means → new phase_map param on sine_warp(). Phase vs amplitude: categorically different spatial warp character.~~ **done 2026-04-21**
 
 ---
 

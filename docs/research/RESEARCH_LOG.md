@@ -1201,3 +1201,64 @@ This creates a visually coherent 3D fire object: the front is the hottest (full 
 | 5 | Wave Chromatic Interference | A_F09b | 3 | `idea` |
 | 6 | Living Fill (CA animated) | A06 | 5 | `idea` |
 | 7 | X_FLAME_ISO (non-bloom variant, different character) | X_FLAME_ISO | 4 | `idea` |
+
+## Session 2026-04-21 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** X_NOISE_WARP — Perlin Noise Phase-Map Sine Warp
+**Scores:** tension=4 emergence=4 distinctness=5 wow=3 → **total=16/20** (wow revised from predicted 4 to honest 3 after CB6)
+**Why chosen over alternatives:**
+- A_F09a (12/20): wave phase animation, passed over for 5 consecutive sessions. Below threshold.
+- A_F09b (12/20): needs wave_float_grid infra; tied-low.
+- X_ISO_NEON (16/20): blocked on per-face fill routing infra — would consume entire session.
+- X_NOISE_WARP chosen: introduces `phase_map` parameter on `sine_warp()` — categorically different from `amplitude_map` (X_PLASMA_WARP, X_TURING_WARP). Phase modulation controls WHEN a row peaks; amplitude modulation controls HOW FAR it moves. This produces a qualitatively different visual: rippled-glass / crinkled-cellophane distortion vs. differential compliance. The new infrastructure (phase_map) opens the FILL→SPATIAL phase-coupling axis which no prior session has explored.
+
+**Implementation path:** New `phase_map: Optional[list] = None` param on `sine_warp()` (backward-compatible, ~10 lines) + `noise_float_grid()` companion function in `generative.py` (~40 lines) + `noise_warp()` preset in `presets.py` (~160 lines). Static noise topology: computed once per animation call, reused every frame. Per-frame variation comes only from sweeping the global `phase_offset`. C11 spectral colorization from same static noise float grid; C12 cyan bloom.
+
+**CB6 Visual Validation Result:** ✅ Meets the bar.
+- 72 frames total (36 forward + 36 reverse palindrome) at 12fps
+- 166 foreground spectral color codes per frame (all ink cells) — count identical across frames (static noise chars)
+- 292 background bloom codes per frame (cyan halo, radius=2, falloff=0.75)
+- Frame 0 row leads: [5, 5, 3, 3, 0, 3] — Frame 9: [1, 3, 3, 3, 4, 6] — Frame 18: [0, 3, 6, 8, 3, 1] — Frame 27: [0, 7, 7, 4, 0, 1]
+- Row 2 sweeps min=3 to max=8 leading spaces, 6 unique values across 36 frames — confirmed per-row phase timing variation
+- Noise row means: [0.44, 0.50, 0.58, 0.42, 0.50, 0.44, 0.50] — phase spread of ~0.5 rad (modest but non-trivial)
+- Phase_map values: [1.38, 1.58, 1.82, 1.33, 1.56, 1.37, 1.57] (all within π/2 of each other for seed=42, scale=0.4)
+- Char distribution: `*+;:?%` — lighter mid-range chars (noise values cluster near 0.5 for this seed/scale)
+- 32/36 forward frames have unique plain-text content (2 frames at symmetry points produce identical leading-space patterns — expected for a sine function)
+- Honest revision: wow=3 (not 4). The phase clustering from seed=42 (noise means all between 0.42-0.58) yields a moderate phase spread (~0.5 rad). The effect is a genuinely pleasant organic ripple, but not immediately eye-catching. Using `max_phase_spread=2π` or a different seed with more variance in row means produces a more dramatic result. Documented in docstring.
+
+**Key insight:** The critical architectural distinction is phase_map vs amplitude_map:
+- `amplitude_map`: row i has offset = amplitude_i × sin(t_i + global_phase) — the ROW MOVES differently from others (some rows swing hard, others are nearly still). Visual: differential compliance to a wave force.
+- `phase_map`: row i has offset = amplitude × sin(t_i + row_phase_i + global_phase) — the row moves the SAME DISTANCE as others but at a different MOMENT. Visual: rippled texture, like all rows are the same spring with different initial conditions.
+These two axis parameters on sine_warp() are now fully independent. A cross-breed combining both (e.g. plasma amplitude × noise phase) would produce an effect neither can produce alone: rows that swing with different magnitudes AND peak at different moments.
+
+**Future cross-breed unlocked:** X_PLASMA_NOISE_WARP — plasma amplitude_map × noise phase_map on sine_warp simultaneously. Two independent float fields modulating two independent warp parameters. This is the natural next step on the FILL→SPATIAL axis.
+
+**ATTRIBUTE_MODEL.md updates:**
+- X_NOISE_WARP marked as `done 2026-04-21` in "Needs new infrastructure" tier.
+- X_NOISE_WARP added to "High novelty cross-breeds" table with done status.
+- Priority order: X_NOISE_WARP struck through at position 10.
+- New cross-breed noted: X_PLASMA_NOISE_WARP (plasma amplitude × noise phase) — maximum FILL→SPATIAL coupling.
+
+**Implementation notes:**
+- `phase_map: Optional[list] = None` param added to `sine_warp()` in `justdoit/effects/spatial.py` (backward-compatible; rows beyond list length use 0.0 additional phase).
+- `noise_float_grid(mask, scale, seed)` added to `justdoit/effects/generative.py` (~40 lines) — mirrors `plasma_float_grid()` pattern, returns 2D list[list[float]] with exterior cells = 0.0.
+- `noise_warp()` added to `justdoit/animate/presets.py` (~160 lines).
+- X_NOISE_WARP entry added to `scripts/generate_anim_gallery.py` SHOWCASE list.
+- 33 new tests in `tests/test_noise_warp.py` — all passing in 0.09s.
+- Total tests: 975 (was 942 before this session, +33).
+- Gallery SVG: `docs/gallery/2026-04-21-X_NOISE_WARP.svg` (frame 18/36, half-cycle — rows 2-3 at peak displacement)
+- Animation: `docs/anim_gallery/X_NOISE_WARP-noise-warp-spectral.cast` (1.06MB, 72 frames @ 12fps)
+- Animation: `docs/anim_gallery/X_NOISE_WARP-noise-warp-spectral.apng` (150KB, 72 frames @ 12fps)
+- Gallery README updated: 20 daily entries, 66 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
+| 4 | X_PLASMA_NOISE_WARP (plasma amplitude × noise phase) | X_PLASMA_NOISE_WARP | 5 | `idea` |
+| 5 | Wave Interference Animation | A_F09a | 3 | `idea` |
+| 6 | Wave Chromatic Interference | A_F09b | 3 | `idea` |
+| 7 | Living Fill (CA animated) | A06 | 5 | `idea` |

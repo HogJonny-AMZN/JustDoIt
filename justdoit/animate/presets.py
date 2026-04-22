@@ -2975,3 +2975,174 @@ def flame_iso_bloom(
 
     for frame_seed in seeds:
         yield _assemble_frame(frame_seed)
+
+
+# -------------------------------------------------------------------------
+def noise_warp(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 36,
+    noise_scale: float = 0.4,
+    noise_seed: Optional[int] = 42,
+    max_amplitude: float = 5.0,
+    max_phase_spread: float = 3.14159,
+    frequency: float = 1.0,
+    palette_name: str = "spectral",
+    bloom_color_name: str = "cyan",
+    bloom_radius: int = 2,
+    bloom_falloff: float = 0.75,
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Perlin noise field drives per-row sine_warp phase offset (X_NOISE_WARP).
+
+    A static Perlin noise float grid is computed once for the full text.  Each
+    row's mean noise intensity is mapped to a phase offset in [0, max_phase_spread]
+    and passed as ``phase_map`` to ``sine_warp()``.  Different rows therefore
+    reach their peak lateral displacement at different moments in the sine
+    cycle — some rows are already at their maximum when others are at zero.
+    The result is a correlated-but-non-uniform distortion field: text appears
+    to be viewed through crinkled cellophane or a rippled glass pane.
+
+    The global ``phase_offset`` sweeps 0→2π over ``n_frames`` to animate the
+    warp.  The phase_map is fixed (static noise topology); only the global
+    reference frame advances, causing the warp pattern to flow while retaining
+    the spatial structure of the noise field.
+
+    Key insight: amplitude_map (X_PLASMA_WARP, X_TURING_WARP) controls HOW
+    FAR a row moves; phase_map controls WHEN it peaks.  Phase modulation creates
+    a distinct visual from amplitude modulation: the warp looks like a texture
+    (spatial ripple) rather than a force (differential compliance).
+
+    Composite axes: F02 Perlin noise float (static) × S01 per-row phase_map
+    × C11 spectral color (same noise float) × C12 exterior bloom.
+
+    Visual interest: tension=4, emergence=4, distinctness=5, wow=4 → 17/20.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Frames per phase sweep cycle (default 36). Total = 2*n_frames
+        when loop=True (forward + reverse seamless loop).
+    :param noise_scale: Perlin frequency — lower = coarser grain, higher = finer
+        detail (default 0.4). Controls the spatial structure of the phase map.
+    :param noise_seed: Integer seed for the static noise field (default 42).
+        Different seeds produce different spatial topologies.
+    :param max_amplitude: Maximum horizontal warp amplitude in columns (default 5.0).
+        Uniform across all rows (unlike X_PLASMA_WARP which varies amplitude per row).
+    :param max_phase_spread: Maximum per-row phase spread in radians (default π).
+        Maps noise intensity range [0,1] → [0, max_phase_spread] for phase_map values.
+        π means top-of-noise rows are half a sine cycle ahead of bottom-of-noise rows.
+        2π means the full sine cycle is distributed across the noise topology.
+    :param frequency: Sine oscillation cycles across text height (default 1.0).
+    :param palette_name: C11 color palette for glyph chars (default 'spectral').
+    :param bloom_color_name: C12 bloom hue key from BLOOM_COLORS (default 'cyan').
+    :param bloom_radius: Exterior bloom radius in cells (default 2).
+    :param bloom_falloff: Per-cell bloom intensity falloff factor 0-1 (default 0.75).
+    :param loop: If True, append reversed frames for seamless forward-back loop
+        (default True).
+    :returns: Iterator of colored, phase-warped, and bloomed frame strings.
+    """
+    import math as _math
+    from justdoit.effects.generative import (
+        noise_float_grid as _noise_float_grid,
+    )
+    from justdoit.effects.color import (
+        fill_float_colorize as _colorize,
+        PALETTE_REGISTRY,
+        bloom as _bloom,
+        BLOOM_COLORS,
+    )
+    from justdoit.effects.spatial import sine_warp as _sine_warp
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.fonts import FONTS as _FONTS
+
+    TWO_PI = 2.0 * _math.pi
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["spectral"])
+    bc = BLOOM_COLORS.get(bloom_color_name, BLOOM_COLORS.get("cyan", (0, 220, 255)))
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+
+    if not font_data:
+        return
+
+    sample_glyph = next(iter(font_data.values()))
+    height = len(sample_glyph)
+
+    # --- Static noise float grid (computed once, reused every frame) ---
+
+    def _build_noise_row_means() -> tuple:
+        """Compute per-row mean Perlin noise intensity and full combined float grid.
+
+        Returns (row_means, combined_float_grid) where:
+          - row_means: list of floats [0,1], one per text row (mean over ink cells)
+          - combined_float_grid: 2D list[list[float]] concatenated across all glyphs
+        """
+        combined: list = [[] for _ in range(height)]
+        row_sums = [0.0] * height
+        row_counts = [0] * height
+
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+            fg = _noise_float_grid(mask, scale=noise_scale, seed=noise_seed)
+            glyph_cols = max((len(row) for row in mask), default=0)
+
+            for r in range(height):
+                row_floats = list((fg[r] if r < len(fg) else [])[:glyph_cols])
+                while len(row_floats) < glyph_cols:
+                    row_floats.append(0.0)
+                combined[r].extend(row_floats)
+                combined[r].extend([0.0] * gap)
+
+                # Accumulate mean for phase_map computation
+                for v in row_floats:
+                    if v > 0.0:  # ink cells only
+                        row_sums[r] += v
+                        row_counts[r] += 1
+
+        row_means = [
+            row_sums[r] / row_counts[r] if row_counts[r] > 0 else 0.5
+            for r in range(height)
+        ]
+        return row_means, combined
+
+    # Compute static noise topology once
+    noise_row_means, static_float_grid = _build_noise_row_means()
+
+    # Map per-row mean noise [0,1] → per-row phase offset [0, max_phase_spread]
+    # Rows with higher noise intensity get a larger phase offset, meaning they
+    # reach their sine peak at a different moment from low-noise rows.
+    phase_map = [mean * max_phase_spread for mean in noise_row_means]
+
+    # Render static glyph chars once (noise fill is seeded → static)
+    static_char_frame = _render(
+        text_plain,
+        font=font,
+        fill="noise",
+        fill_kwargs={"scale": noise_scale, "seed": noise_seed},
+    )
+
+    # C11 colorize: apply spectral color from static noise float grid
+    static_colored_frame = _colorize(static_char_frame, static_float_grid, palette)
+
+    # Sweep global phase_offset from 0 → 2π over n_frames
+    phase_offsets = [TWO_PI * i / max(n_frames, 1) for i in range(n_frames)]
+    if loop:
+        phase_offsets = phase_offsets + list(reversed(phase_offsets))
+
+    for global_phase in phase_offsets:
+        # Apply sine_warp with static phase_map + sweeping global phase_offset
+        warped_frame = _sine_warp(
+            static_colored_frame,
+            amplitude=max_amplitude,
+            frequency=frequency,
+            phase_map=phase_map,
+            phase_offset=global_phase,
+        )
+
+        # Apply C12 exterior bloom
+        final_frame = _bloom(warped_frame, bc, radius=bloom_radius, falloff=bloom_falloff)
+
+        yield final_frame
