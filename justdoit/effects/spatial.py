@@ -32,6 +32,7 @@ def sine_warp(
     frequency: float = 1.0,
     amplitude_map: Optional[list] = None,
     phase_offset: float = 0.0,
+    phase_map: Optional[list] = None,
 ) -> str:
     """Shift each row horizontally by a sine offset (S01 — wave/flag effect).
 
@@ -48,6 +49,14 @@ def sine_warp(
     animation without changing the amplitude topology (used by turing_warp to
     animate a structurally fixed deformation field).
 
+    When ``phase_map`` is provided each row receives its own additional phase
+    offset ON TOP OF the global ``phase_offset``.  This produces per-row warp
+    timing variation — rows reach their peak offset at different moments in
+    the sine cycle — creating an organic rippled-glass / crinkled-cellophane
+    distortion.  Used by noise_warp (X_NOISE_WARP) to route a Perlin float
+    field into spatial phase topology.  The list should have one float per row
+    (in radians); rows beyond the list length use zero additional phase.
+
     :param text: Multi-line rendered string from render().
     :param amplitude: Maximum horizontal shift in character columns (default: 3.0).
         Used for all rows when amplitude_map is None; used as fallback otherwise.
@@ -57,6 +66,9 @@ def sine_warp(
         clamped silently.  Default: None (uniform amplitude).
     :param phase_offset: Global phase offset added to every row's sine argument
         (default: 0.0).  Enables smooth animation by sweeping 0→2π across frames.
+    :param phase_map: Optional per-row additional phase offsets (list of floats,
+        in radians).  Combined with global phase_offset.  Default: None (no
+        per-row phase variation).
     :returns: Multi-line string with rows shifted by sine offsets.
     """
     if not text:
@@ -74,9 +86,13 @@ def sine_warp(
             row_amp = float(amplitude_map[i])
         else:
             row_amp = amplitude
-        # Normalise row index to 0.0–2π * frequency; add global phase_offset
+        # Per-row phase: global offset + optional per-row offset from phase_map
+        row_phase = phase_offset
+        if phase_map is not None and i < len(phase_map):
+            row_phase += float(phase_map[i])
+        # Normalise row index to 0.0–2π * frequency; add row phase
         t = (i / max(n - 1, 1)) * 2.0 * math.pi * frequency
-        offset = int(round(row_amp * math.sin(t + phase_offset)))
+        offset = int(round(row_amp * math.sin(t + row_phase)))
         # Positive offset → pad left; negative → pad right (keeps visual symmetry)
         if offset >= 0:
             result.append(" " * offset + line)

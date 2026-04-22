@@ -9,7 +9,7 @@ Run `python scripts/demo.py --gallery` to regenerate.
 - [Fill Effects (15)](#fill-effects)
 - [Color Effects (8)](#color-effects)
 - [Spatial & 3D (8)](#spatial--3d)
-- [Daily Techniques (18)](#daily-techniques)
+- [Daily Techniques (20)](#daily-techniques)
 
 ## Fonts
 
@@ -116,6 +116,9 @@ Run `python scripts/demo.py --gallery` to regenerate.
 
 <table>
 <tr>
+<td align="center"><img src="2026-04-21-X_NOISE_WARP.svg" width="480"><br><sub><b>2026-04-21 · X_NOISE_WARP Perlin Noise Phase-Map Sine Warp</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="2026-04-20-X_FLAME_ISO_BLOOM.svg" width="480"><br><sub><b>2026-04-20 · X_FLAME_ISO_BLOOM Flame + Isometric + Bloom</b></sub></td>
 </tr>
 <tr>
@@ -165,4 +168,4 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 </table>
 
-*Last updated: 2026-04-20 — 65 techniques*
+*Last updated: 2026-04-21 — 66 techniques*

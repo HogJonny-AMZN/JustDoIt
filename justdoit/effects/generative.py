@@ -216,6 +216,51 @@ def noise_fill(
 
 
 # -------------------------------------------------------------------------
+def noise_float_grid(
+    mask: list,
+    scale: float = 0.4,
+    seed: Optional[int] = None,
+) -> list:
+    """Compute normalized Perlin noise float grid for a glyph mask (C11 companion to noise_fill).
+
+    Returns the same 2D Perlin noise values used by ``noise_fill()`` as a
+    2D list of floats in [0.0, 1.0] rather than characters.  Interior cells
+    carry the normalized noise value; exterior cells carry 0.0.
+
+    This is the float-grid source for C11 colorization (pass to
+    ``fill_float_colorize()``) and for X_NOISE_WARP spatial phase modulation
+    (aggregate per-row means to drive ``phase_map`` in ``sine_warp()``).
+
+    :param mask: 2D list of floats from glyph_to_mask() -- values 0.0-1.0.
+    :param scale: Noise frequency -- higher = finer grain (default 0.4).
+    :param seed: Optional integer seed for reproducibility.
+    :returns: 2D list of floats -- same shape as mask; [0.0, 1.0] for ink cells, 0.0 for exterior.
+    """
+    perm = _build_perm(seed)
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    result = []
+    for r in range(rows):
+        row_out = []
+        for c in range(cols):
+            val = mask[r][c] if c < len(mask[r]) else 0.0
+            if val < 0.5:
+                row_out.append(0.0)
+                continue
+            raw = _perlin2d(c * scale, r * scale, perm)
+            t = (raw + 1.0) / 2.0  # -1..1 → 0..1
+            t = max(0.0, min(1.0, t))
+            row_out.append(t)
+        result.append(row_out)
+    return result
+
+
+# -------------------------------------------------------------------------
 def cells_fill(
     mask: list,
     steps: int = 4,
