@@ -324,7 +324,7 @@ def _write_readme(profile: GalleryProfile, entries: list[tuple[str, str, str]]) 
         lines.append("> **Wide gallery** — SVGs rendered at 1103×263px (28px font). Displayed at 780px width; open any SVG directly for full-width viewing.")
         lines.append("")
     elif profile.name == "4k":
-        lines.append("> **4K gallery** — SVGs rendered at 2836×676px (72px font). Displayed at 780px width; open any SVG directly for native 4K density.")
+        lines.append("> **4K gallery** — SVGs rendered at 3840×1080px canvas (50-row TTF, ~22px cells). Displayed at 780px width; open any SVG directly for native 4K density.")
         lines.append("")
     lines += [
         "## Contents",
@@ -401,30 +401,34 @@ def _generate_for_profile(profile: GalleryProfile, text: str) -> None:
             print(f"  HD rendering skipped: Pillow not available", file=sys.stderr)
 
         if use_hd_runtime:
-            from justdoit.layout import find_default_ttf, fit_ttf_size, fit_ttf_to_row_count
+            from justdoit.layout import find_default_ttf, fit_ttf_size
             font_path = find_default_ttf()
             if font_path is None:
                 print(f"  HD: no system TTF found — falling back to block font", file=sys.stderr)
             elif svg_canvas_h > 0 and svg_canvas_w > 0:
-                # Canvas-first sizing: derive cell_px from canvas height
+                # Canvas-first sizing: high TTF rows → rich cell density
+                # svg_font_size = canvas_height / ttf_rows, so LARGE ttf +
+                # SMALL svg_font_size = full-height letters with many cells.
                 try:
-                    _, block_rows = measure(text, font="block")
-                    cell_px = svg_canvas_h / block_rows
-                    svg_font_size = int(cell_px)
+                    TARGET_TTF_FS = 50  # rows per letter
+                    cell_px = svg_canvas_h / TARGET_TTF_FS  # 1080/50 = 21.6
+                    svg_font_size = max(1, round(cell_px))
 
-                    # Binary-search TTF pt size to produce ~block_rows rows
-                    pt_size = fit_ttf_to_row_count(block_rows, font_path)
+                    pt_size = TARGET_TTF_FS
                     from justdoit.fonts.ttf import load_ttf_font
                     render_font = load_ttf_font(font_path, font_size=pt_size)
 
-                    # Measure actual glyph width from TTF output
                     cols, rows = measure(text, font=render_font)
-                    actual_char_w = svg_canvas_w / cols if cols > 0 else cell_px * 0.6
+
+                    # Check width fits
+                    est_total_w = cols * svg_font_size * 0.6
+                    if est_total_w > svg_canvas_w:
+                        svg_font_size = max(1, int(svg_canvas_w / (cols * 0.6)))
 
                     print(
                         f"  Canvas-first: {svg_canvas_w}×{svg_canvas_h}px, "
-                        f"cell_px={cell_px:.1f}, ttf_pt={pt_size}, "
-                        f"render={cols}×{rows} chars"
+                        f"ttf_pt={pt_size}, svg_font_size={svg_font_size}, "
+                        f"text={cols}×{rows} chars"
                     )
                 except Exception as exc:
                     print(f"  Canvas-first setup failed: {exc} — falling back to block font", file=sys.stderr)

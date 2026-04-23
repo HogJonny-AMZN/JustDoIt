@@ -427,61 +427,6 @@ def fit_ttf_size(
 
 
 # -------------------------------------------------------------------------
-def fit_ttf_to_row_count(
-    target_rows: int,
-    font_path: str,
-    size_min: int = 4,
-    size_max: int = 200,
-) -> int:
-    """Find the TTF point size that produces glyphs with exactly ``target_rows`` rows.
-
-    Binary-searches point sizes so that :func:`rasterize_ttf` produces glyph
-    dicts whose row count equals ``target_rows``.  Because ``rasterize_ttf``
-    uses ``font_size`` as the target height directly, the answer is simply
-    ``target_rows`` — but this function validates that and falls back to a
-    binary search if the relationship ever changes.
-
-    :param target_rows: Desired number of rows per glyph.
-    :param font_path: Path to a .ttf or .otf font file.
-    :param size_min: Minimum point size to try (default: 8).
-    :param size_max: Maximum point size to try (default: 200).
-    :returns: TTF point size as an integer.
-    :raises ImportError: If Pillow is not installed.
-    """
-    try:
-        from justdoit.fonts.ttf import rasterize_ttf
-    except ImportError:
-        raise ImportError(
-            "fit_ttf_to_row_count() requires Pillow. Install with: pip install Pillow"
-        )
-
-    def _rows_at_size(size: int) -> int:
-        glyphs = rasterize_ttf(font_path, font_size=size)
-        sample = next(iter(glyphs.values()))
-        return len(sample) if sample else 0
-
-    # rasterize_ttf uses font_size as target_height, so try direct match first
-    if size_min <= target_rows <= size_max:
-        if _rows_at_size(target_rows) == target_rows:
-            return target_rows
-
-    # Fallback: binary search
-    best = size_min
-    lo, hi = size_min, size_max
-    while lo <= hi:
-        mid = (lo + hi) // 2
-        r = _rows_at_size(mid)
-        if r == target_rows:
-            return mid
-        elif r < target_rows:
-            best = mid
-            lo = mid + 1
-        else:
-            hi = mid - 1
-    return best
-
-
-# -------------------------------------------------------------------------
 def find_default_ttf() -> "str | None":
     """Return path to a usable system TTF font, or None if none found.
 
