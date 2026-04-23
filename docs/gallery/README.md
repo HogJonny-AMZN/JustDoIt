@@ -9,7 +9,7 @@ Run `python scripts/demo.py --gallery` to regenerate.
 - [Fill Effects (15)](#fill-effects)
 - [Color Effects (8)](#color-effects)
 - [Spatial & 3D (8)](#spatial--3d)
-- [Daily Techniques (20)](#daily-techniques)
+- [Daily Techniques (22)](#daily-techniques)
 
 ## Fonts
 
@@ -116,35 +116,27 @@ Run `python scripts/demo.py --gallery` to regenerate.
 
 <table>
 <tr>
-<td align="center"><img src="2026-04-22-X_PLASMA_NOISE_WARP.svg" width="480"><br><sub><b>2026-04-22 · X_PLASMA_NOISE_WARP Plasma Amplitude × Noise Phase Sine Warp</b></sub></td>
+<td align="center"><img src="2026-04-22-X_PLASMA_NOISE_WARP.svg" width="480"><br><sub><b>2026-04-22 · X_Plasma_Noise_Warp</b></sub></td>
+<td align="center"><img src="2026-04-21-X_NOISE_WARP.svg" width="480"><br><sub><b>2026-04-21 · X_Noise_Warp</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-21-X_NOISE_WARP.svg" width="480"><br><sub><b>2026-04-21 · X_NOISE_WARP Perlin Noise Phase-Map Sine Warp</b></sub></td>
+<td align="center"><img src="2026-04-20-X_FLAME_ISO_BLOOM.svg" width="480"><br><sub><b>2026-04-20 · X_Flame_Iso_Bloom</b></sub></td>
+<td align="center"><img src="2026-04-19-X_TURING_WARP.svg" width="480"><br><sub><b>2026-04-19 · X_Turing_Warp</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-20-X_FLAME_ISO_BLOOM.svg" width="480"><br><sub><b>2026-04-20 · X_FLAME_ISO_BLOOM Flame + Isometric + Bloom</b></sub></td>
+<td align="center"><img src="2026-04-18-X_FRACTAL_CLASSIC.svg" width="480"><br><sub><b>2026-04-18 · X_Fractal_Classic</b></sub></td>
+<td align="center"><img src="2026-04-17-X_PLASMA_WARP.svg" width="480"><br><sub><b>2026-04-17 · X_Plasma_Warp</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-19-X_TURING_WARP.svg" width="480"><br><sub><b>2026-04-19 · X_TURING_WARP Turing Morphogenesis-Modulated Sine Warp</b></sub></td>
+<td align="center"><img src="2026-04-17-A08d.svg" width="480"><br><sub><b>2026-04-17 · A08D</b></sub></td>
+<td align="center"><img src="2026-04-15-X_TURING_BIO.svg" width="480"><br><sub><b>2026-04-15 · X_Turing_Bio</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-18-X_FRACTAL_CLASSIC.svg" width="480"><br><sub><b>2026-04-18 · X_FRACTAL_CLASSIC</b></sub></td>
+<td align="center"><img src="2026-04-15-A_N09a.svg" width="480"><br><sub><b>2026-04-15 · A_N09A</b></sub></td>
+<td align="center"><img src="2026-04-14-A_ISO1.svg" width="480"><br><sub><b>2026-04-14 · A_Iso1</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-17-X_PLASMA_WARP.svg" width="480"><br><sub><b>2026-04-17 · X_PLASMA_WARP Plasma-Modulated Sine Warp</b></sub></td>
-</tr>
-<tr>
-<td align="center"><img src="2026-04-17-A08d.svg" width="480"><br><sub><b>2026-04-17 · A08d Plasma-Modulated Flame</b></sub></td>
-</tr>
-<tr>
-<td align="center"><img src="2026-04-15-X_TURING_BIO.svg" width="480"><br><sub><b>2026-04-15 · X_TURING_BIO Biological Coat Colors</b></sub></td>
-<td align="center"><img src="2026-04-15-A_N09a.svg" width="480"><br><sub><b>2026-04-15 · A_N09a Turing Morphogenesis</b></sub></td>
-</tr>
-<tr>
-<td align="center"><img src="2026-04-14-A_ISO1.svg" width="480"><br><sub><b>2026-04-14 · A_ISO1 Isometric Depth Breathe</b></sub></td>
 <td align="center"><img src="2026-04-11-X_PLASMA_BLOOM.svg" width="480"><br><sub><b>2026-04-11 · X_Plasma_Bloom</b></sub></td>
-</tr>
-<tr>
 <td align="center"><img src="2026-04-10-A_BLOOM1.svg" width="480"><br><sub><b>2026-04-10 · A_Bloom1</b></sub></td>
 </tr>
 <tr>
@@ -153,22 +145,20 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 <tr>
 <td align="center"><img src="2026-04-08-X_NEON_BLOOM.svg" width="480"><br><sub><b>2026-04-08 · X_Neon_Bloom</b></sub></td>
-</tr>
-<tr>
 <td align="center"><img src="2026-04-06-A_VOR1.svg" width="480"><br><sub><b>2026-04-06 · A_Vor1</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="2026-04-06-A10c.svg" width="480"><br><sub><b>2026-04-06 · A10C</b></sub></td>
-</tr>
-<tr>
 <td align="center"><img src="2026-04-04-A08.svg" width="480"><br><sub><b>2026-04-04 · A08</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="2026-04-03-A10.svg" width="480"><br><sub><b>2026-04-03 · A10</b></sub></td>
-</tr>
-<tr>
 <td align="center"><img src="2026-04-02-F07.svg" width="480"><br><sub><b>2026-04-02 · F07</b></sub></td>
-<td align="center"><img src="2026-03-30-N09.svg" width="480"><br><sub><b>2026-03-30 · N09</b></sub></td>
 </tr>
 <tr>
+<td align="center"><img src="2026-03-30-N09.svg" width="480"><br><sub><b>2026-03-30 · N09</b></sub></td>
 <td align="center"><img src="2026-03-29-N01.svg" width="480"><br><sub><b>2026-03-29 · N01</b></sub></td>
 </tr>
 </table>
 
-*Last updated: 2026-04-22 — 67 techniques*
+*Last updated: 2026-04-23 — 67 techniques*
