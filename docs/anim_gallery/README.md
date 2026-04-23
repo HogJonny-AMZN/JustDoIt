@@ -343,3 +343,11 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 | Variant | Preview | Terminal |
 |---------|---------|----------|
 | plasma-noise-warp-spectral | ![plasma-noise-warp-spectral](X_PLASMA_NOISE_WARP-plasma-noise-warp-spectral.apng) | [▶ terminal](X_PLASMA_NOISE_WARP-plasma-noise-warp-spectral.cast) |
+
+## A06 — Living Fill — Conway Gol
+
+**120 frames** · **10.0fps** · play-once
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| living-fill | ![living-fill](A06-living-fill.apng) | [▶ terminal](A06-living-fill.cast) |
