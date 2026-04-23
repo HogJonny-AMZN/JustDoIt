@@ -408,3 +408,37 @@ def test_find_default_ttf():
     result = find_default_ttf()
     if result is not None:
         assert os.path.isfile(result), f"find_default_ttf returned non-existent path: {result}"
+
+
+# -------------------------------------------------------------------------
+# fit_ttf_to_row_count() — requires Pillow
+
+def test_fit_ttf_to_row_count_returns_int():
+    """fit_ttf_to_row_count() returns an integer point size."""
+    pytest.importorskip("PIL")
+    ttf = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+    import os
+    if not os.path.isfile(ttf):
+        pytest.skip("DejaVuSansMono.ttf not found on this system")
+    from justdoit.layout import fit_ttf_to_row_count
+    result = fit_ttf_to_row_count(7, font_path=ttf)
+    assert isinstance(result, int)
+    assert result > 0
+
+
+def test_fit_ttf_to_row_count_produces_correct_rows():
+    """fit_ttf_to_row_count() produces glyphs with exactly the target row count."""
+    pytest.importorskip("PIL")
+    ttf = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+    import os
+    if not os.path.isfile(ttf):
+        pytest.skip("DejaVuSansMono.ttf not found on this system")
+    from justdoit.layout import fit_ttf_to_row_count
+    from justdoit.fonts.ttf import rasterize_ttf
+    for target in (5, 7, 10, 15):
+        pt = fit_ttf_to_row_count(target, font_path=ttf)
+        glyphs = rasterize_ttf(ttf, font_size=pt)
+        sample = next(iter(glyphs.values()))
+        assert len(sample) == target, (
+            f"target_rows={target}, pt={pt}, actual_rows={len(sample)}"
+        )

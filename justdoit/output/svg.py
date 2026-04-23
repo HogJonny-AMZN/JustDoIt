@@ -32,6 +32,8 @@ def to_svg(
     font_size: int = 14,
     bg_color: str = "#111111",
     line_height: float = 1.2,
+    canvas_width: "int | None" = None,
+    canvas_height: "int | None" = None,
 ) -> str:
     """Convert a rendered ANSI string to an SVG document.
 
@@ -42,11 +44,11 @@ def to_svg(
     :param font_size: Font size in pixels (controls overall scale, default: 14).
     :param bg_color: Background rectangle fill color (default: '#111111').
     :param line_height: Line spacing as a multiplier of font_size (default: 1.2).
+    :param canvas_width: Override SVG width in pixels (default: derived from content).
+    :param canvas_height: Override SVG height in pixels (default: derived from content).
     :returns: SVG document string.
     """
     tokens = parse(text)
-    char_w = font_size * _CHAR_W_RATIO
-    line_h = font_size * line_height
 
     # Lay out characters into rows
     rows: list = [[]]
@@ -56,11 +58,21 @@ def to_svg(
         else:
             rows[-1].append((ch, color))
 
-    # Canvas size
     max_cols = max((len(row) for row in rows), default=0)
     n_rows = len(rows)
-    width = int(max_cols * char_w) + font_size
-    height = int(n_rows * line_h) + font_size
+
+    # Canvas size — use overrides when provided, else derive from content
+    if canvas_width is not None and canvas_height is not None:
+        width = canvas_width
+        height = canvas_height
+        # Derive char metrics from canvas to fill it
+        char_w = width / max_cols if max_cols > 0 else font_size * _CHAR_W_RATIO
+        line_h = height / n_rows if n_rows > 0 else font_size * line_height
+    else:
+        char_w = font_size * _CHAR_W_RATIO
+        line_h = font_size * line_height
+        width = int(max_cols * char_w) + font_size
+        height = int(n_rows * line_h) + font_size
 
     elements = []
     elements.append(
