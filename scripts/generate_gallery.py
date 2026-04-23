@@ -50,6 +50,8 @@ class GalleryProfile:
     :param text: Default render text (default: 'JUST DO IT').
     :param use_hd: Enable HD TTF rendering for higher character density (default: False).
     :param hd_target_cols: Target column count for HD TTF auto-sizing (default: 160).
+    :param canvas_width: Fixed SVG canvas width in pixels (canvas-first sizing).
+    :param canvas_height: Fixed SVG canvas height in pixels (canvas-first sizing).
     """
     name: str
     svg_font_size: int
@@ -58,6 +60,8 @@ class GalleryProfile:
     text: str = "JUST DO IT"
     use_hd: bool = False
     hd_target_cols: int = 160
+    canvas_width: int = 0
+    canvas_height: int = 0
 
 
 PROFILES: dict[str, "GalleryProfile"] = {
@@ -82,6 +86,8 @@ PROFILES: dict[str, "GalleryProfile"] = {
         output_dir=Path(__file__).parent.parent / "docs" / "gallery-4k",
         use_hd=True,
         hd_target_cols=240,
+        canvas_width=3840,
+        canvas_height=1080,
     ),
 }
 
@@ -383,6 +389,8 @@ def _generate_for_profile(profile: GalleryProfile, text: str) -> None:
     # --- HD setup: attempt TTF rasterization for higher character density ---
     render_font = "block"
     svg_font_size = profile.svg_font_size
+    svg_canvas_w = profile.canvas_width if profile.canvas_width > 0 else 0
+    svg_canvas_h = profile.canvas_height if profile.canvas_height > 0 else 0
 
     if profile.use_hd:
         use_hd_runtime = False
@@ -393,10 +401,33 @@ def _generate_for_profile(profile: GalleryProfile, text: str) -> None:
             print(f"  HD rendering skipped: Pillow not available", file=sys.stderr)
 
         if use_hd_runtime:
-            from justdoit.layout import find_default_ttf, fit_ttf_size
+            from justdoit.layout import find_default_ttf, fit_ttf_size, fit_ttf_to_row_count
             font_path = find_default_ttf()
             if font_path is None:
                 print(f"  HD: no system TTF found — falling back to block font", file=sys.stderr)
+            elif svg_canvas_h > 0 and svg_canvas_w > 0:
+                # Canvas-first sizing: derive cell_px from canvas height
+                try:
+                    _, block_rows = measure(text, font="block")
+                    cell_px = svg_canvas_h / block_rows
+                    svg_font_size = int(cell_px)
+
+                    # Binary-search TTF pt size to produce ~block_rows rows
+                    pt_size = fit_ttf_to_row_count(block_rows, font_path)
+                    from justdoit.fonts.ttf import load_ttf_font
+                    render_font = load_ttf_font(font_path, font_size=pt_size)
+
+                    # Measure actual glyph width from TTF output
+                    cols, rows = measure(text, font=render_font)
+                    actual_char_w = svg_canvas_w / cols if cols > 0 else cell_px * 0.6
+
+                    print(
+                        f"  Canvas-first: {svg_canvas_w}×{svg_canvas_h}px, "
+                        f"cell_px={cell_px:.1f}, ttf_pt={pt_size}, "
+                        f"render={cols}×{rows} chars"
+                    )
+                except Exception as exc:
+                    print(f"  Canvas-first setup failed: {exc} — falling back to block font", file=sys.stderr)
             else:
                 try:
                     pt_size = fit_ttf_size(text, profile.hd_target_cols, font_path)
@@ -414,7 +445,11 @@ def _generate_for_profile(profile: GalleryProfile, text: str) -> None:
 
     for stem, label, rendered in entries:
         path = profile.output_dir / f"{stem}.svg"
-        save_svg(rendered, str(path), font_size=svg_font_size)
+        save_svg(
+            rendered, str(path), font_size=svg_font_size,
+            canvas_width=svg_canvas_w if svg_canvas_w > 0 else None,
+            canvas_height=svg_canvas_h if svg_canvas_h > 0 else None,
+        )
         print(f"  saved  {path.name}  ({label})")
 
     _write_readme(profile, entries)
