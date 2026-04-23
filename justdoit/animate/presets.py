@@ -12,6 +12,7 @@ Implemented techniques:
   A03n — neon_glitch: neon sign flicker — color tubes dim/die, fringe to adjacent hues
   A04 — pulse:        brightness/color oscillation via cycling ANSI color codes
   A05 — dissolve:     characters scatter and fade out on exit (reverse of typewriter)
+  A06 — living_fill:  Conway's Game of Life animated inside glyph masks in real time
 
 All generators:
   - Accept a rendered multi-line string
@@ -3362,3 +3363,167 @@ def plasma_noise_warp(
         final_frame = _bloom(warped_frame, bc, radius=bloom_radius, falloff=bloom_falloff)
 
         yield final_frame
+
+
+# -------------------------------------------------------------------------
+# A06 Living Fill — Conway's Game of Life animated inside glyph masks
+#
+# Unlike the static cells_fill (F03) which freezes CA after N steps,
+# this animation preset yields frames where the GoL state evolves each
+# frame.  The result is a living, breathing texture inside the letterforms.
+#
+# Algorithm:
+#   1. Render text with density fill to identify glyph interior cells.
+#   2. Build a parallel CA grid (same dimensions as render output).
+#   3. Seed alive cells randomly (40% density) only in interior cells.
+#   4. Each frame: advance GoL one step, map alive→dense chars,
+#      dead interior→light chars, exterior→space.
+#   5. GoL rules: B3/S23, boundary cells treat exterior as dead.
+#
+
+# Density character scales for alive/dead interior cells
+_LIVING_ALIVE: str = "█▓▒"
+_LIVING_DEAD: str = "░·"
+
+
+# -------------------------------------------------------------------------
+def living_fill(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 120,
+    seed: int = 42,
+    alive_prob: float = 0.4,
+    color: Optional[str] = None,
+    loop: bool = False,
+) -> Iterator[str]:
+    """Living Fill animation — Conway's Game of Life inside glyph masks (A06).
+
+    Renders text to identify glyph interior cells, then runs a GoL cellular
+    automaton across all glyphs simultaneously.  Each frame advances the CA by
+    one generation — alive cells display dense block chars, dead interior cells
+    display light chars, exterior cells remain spaces.
+
+    Unlike the static ``cells_fill`` (F03) which freezes CA after N steps as a
+    fill texture, this preset yields continuously evolving frames where the CA
+    state is always changing.
+
+    GoL rules: B3/S23 (standard Conway). Boundary cells treat exterior as dead.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Number of GoL generations / frames to yield (default 120).
+    :param seed: Integer seed for reproducible initial state (default 42).
+    :param alive_prob: Probability each interior cell starts alive (default 0.4).
+    :param color: Optional ANSI color name applied to each frame (e.g. 'green').
+    :param loop: If True, yield frames forward then reversed for seamless loop (default False).
+    :returns: Iterator of frame strings — one per GoL generation.
+    """
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.effects.color import colorize as _colorize_line
+
+    rng = random.Random(seed)
+
+    # 1. Render with density fill to identify glyph interior cells
+    rendered = _render(text_plain, font=font, fill="density")
+    base_rows = rendered.split("\n")
+    height = len(base_rows)
+    width = max((len(r) for r in base_rows), default=0)
+
+    # Pad rows to uniform width
+    base_rows = [r.ljust(width) for r in base_rows]
+
+    # 2. Build ink mask — any non-space cell is interior
+    ink = [[base_rows[r][c] != " " for c in range(width)] for r in range(height)]
+
+    # 3. Seed GoL state randomly inside ink cells
+    state = [[ink[r][c] and rng.random() < alive_prob
+              for c in range(width)]
+             for r in range(height)]
+
+    # -------------------------------------------------------------------------
+    def _gol_step(s: list) -> list:
+        """Advance GoL one generation.  B3/S23, exterior treated as dead.
+
+        :param s: Current boolean state grid.
+        :returns: Next generation boolean state grid.
+        """
+        ns = [[False] * width for _ in range(height)]
+        for r in range(height):
+            for c in range(width):
+                if not ink[r][c]:
+                    continue
+                alive_nb = 0
+                for dr in (-1, 0, 1):
+                    for dc in (-1, 0, 1):
+                        if dr == 0 and dc == 0:
+                            continue
+                        nr, nc = r + dr, c + dc
+                        if 0 <= nr < height and 0 <= nc < width and s[nr][nc]:
+                            alive_nb += 1
+                if s[r][c]:
+                    ns[r][c] = alive_nb in (2, 3)
+                else:
+                    ns[r][c] = alive_nb == 3
+        return ns
+
+    # -------------------------------------------------------------------------
+    def _state_to_frame(s: list) -> str:
+        """Convert boolean GoL state to a renderable frame string.
+
+        :param s: Boolean state grid.
+        :returns: Multi-line string with dense/light/space chars.
+        """
+        lines = []
+        for r in range(height):
+            line = []
+            for c in range(width):
+                if not ink[r][c]:
+                    line.append(" ")
+                elif s[r][c]:
+                    # Alive — count alive neighbours for shade variation
+                    alive_nb = sum(
+                        1
+                        for dr in (-1, 0, 1)
+                        for dc in (-1, 0, 1)
+                        if not (dr == 0 and dc == 0)
+                        and 0 <= r + dr < height
+                        and 0 <= c + dc < width
+                        and s[r + dr][c + dc]
+                    )
+                    idx = 0 if alive_nb >= 4 else (1 if alive_nb >= 2 else 2)
+                    line.append(_LIVING_ALIVE[idx])
+                else:
+                    # Dead interior — light chars
+                    alive_nb = sum(
+                        1
+                        for dr in (-1, 0, 1)
+                        for dc in (-1, 0, 1)
+                        if not (dr == 0 and dc == 0)
+                        and 0 <= r + dr < height
+                        and 0 <= c + dc < width
+                        and s[r + dr][c + dc]
+                    )
+                    line.append(_LIVING_DEAD[0] if alive_nb >= 2 else _LIVING_DEAD[1])
+            lines.append("".join(line))
+
+        frame_str = "\n".join(lines)
+
+        if color:
+            colored_lines = []
+            for idx, ln in enumerate(lines):
+                colored_lines.append(_colorize_line(ln, color, rainbow_index=idx))
+            frame_str = "\n".join(colored_lines)
+
+        return frame_str
+
+    # 4. Generate frames — each frame advances GoL one step
+    frames = []
+    for _ in range(n_frames):
+        frames.append(_state_to_frame(state))
+        state = _gol_step(state)
+
+    if loop:
+        frames = frames + list(reversed(frames))
+
+    for f in frames:
+        yield f

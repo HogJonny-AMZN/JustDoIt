@@ -87,7 +87,7 @@ Frame-based terminal animation techniques.
 | A03 | Glitch | Random character corruption, snap back | 2 | `done` |
 | A04 | Pulse | Brightness/color oscillation | 2 | `done` |
 | A05 | Particle Dissolve | Characters drift/scatter on exit | 3 | `done` |
-| A06 | Living Fill | Cellular automata animating inside glyph mask in real time | 5 | `idea` |
+| A06 | Living Fill | Cellular automata animating inside glyph mask in real time | 5 | `done` |
 | A07 | Matrix Rain | Characters falling through the glyph shape | 3 | `idea` |
 | A08 | Flame Simulation | Heat-based upward particle drift inside glyphs | 4 | `done` |
 | A08c | Flame Gradient + Sin-Wave Color | Variant of A08 — per-row fire palette (white→yellow→orange→red→dark red, hot at base) with a sin-wave phase offset per frame that makes the color boundary ripple vertically on a loop. No new deps: 256-color ANSI already in use. Post-processes `render()` output rows directly in the animation preset — same pattern as neon presets. One new `FIRE_PALETTE` list in color.py (~10 entries), one new `flame_gradient_flicker()` preset (~40 lines). | 3 | `idea` |

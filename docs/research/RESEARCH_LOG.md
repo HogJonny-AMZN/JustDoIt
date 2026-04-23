@@ -1324,5 +1324,19 @@ Future work on this axis would require adding new parameters to sine_warp() (e.g
 | 3 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
 | 4 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
 | 5 | Wave Interference Animation | A_F09a | 3 | `idea` |
-| 6 | Living Fill (CA animated) | A06 | 5 | `idea` |
+| 6 | ~~Living Fill (CA animated)~~ | A06 | 5 | `done` |
 | 7 | X_RD_PLASMA (reaction-diffusion × plasma field) | X_RD_PLASMA | 4 | `idea` |
+
+## Session 2026-04-23
+
+**Research focus:** A06 Living Fill — Conway's Game of Life animated inside glyph masks in real time
+**New techniques implemented:** 1 (A06 Living Fill)
+**Sources:** Conway's Game of Life (B3/S23 standard rules), prior F03 cells_fill static implementation
+**Key insight:** Running GoL continuously inside glyph masks produces a fascinating visual dynamic. The initial random seed (40% density) creates a chaotic first ~5 frames, then the CA settles into oscillators and still lifes constrained by the glyph boundaries. The boundary effect is the key differentiator from standard GoL: exterior cells act as permanent dead zones, so gliders that hit the glyph edge die rather than wrapping. This creates a natural "containment" effect where the living texture stays visually coherent within the letterforms. The neighbour-count-based shade mapping (dense chars for high-neighbour alive cells, light chars for isolated alive cells) adds visual depth — clusters appear bright while lone survivors flicker as dim dots.
+
+**Implementation notes:**
+- `living_fill()` added to `justdoit/animate/presets.py` (~140 lines).
+- A06 entry added to `scripts/generate_anim_gallery.py` SHOWCASE list (120 frames @ 10fps).
+- 7 new tests in `tests/test_living_fill.py` — all passing.
+- Gallery SVG: `docs/gallery/2026-04-23-A06.svg` (frame 20/120)
+- Gallery README updated: 23 daily entries
