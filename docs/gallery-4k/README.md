@@ -3,7 +3,7 @@
 Auto-generated visual showcase of rendering techniques.
 Run `python scripts/demo.py --gallery` to regenerate.
 
-> **4K gallery** — SVGs rendered at 2836×676px (72px font). Displayed at 780px width; open any SVG directly for native 4K density.
+> **4K gallery** — SVGs rendered at 3840×1080px canvas (50-row TTF, ~22px cells). Displayed at 780px width; open any SVG directly for native 4K density.
 
 ## Contents
 
