@@ -116,6 +116,9 @@ Run `python scripts/demo.py --gallery` to regenerate.
 
 <table>
 <tr>
+<td align="center"><img src="2026-04-22-X_PLASMA_NOISE_WARP.svg" width="480"><br><sub><b>2026-04-22 · X_PLASMA_NOISE_WARP Plasma Amplitude × Noise Phase Sine Warp</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="2026-04-21-X_NOISE_WARP.svg" width="480"><br><sub><b>2026-04-21 · X_NOISE_WARP Perlin Noise Phase-Map Sine Warp</b></sub></td>
 </tr>
 <tr>
@@ -168,4 +171,4 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 </table>
 
-*Last updated: 2026-04-21 — 66 techniques*
+*Last updated: 2026-04-22 — 67 techniques*

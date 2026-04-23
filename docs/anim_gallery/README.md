@@ -1,6 +1,6 @@
 # Animation Gallery
 
-Auto-generated 2026-04-17 — do not edit manually.
+Auto-generated 2026-04-23 — do not edit manually.
 Run `uv run python scripts/generate_anim_gallery.py` to regenerate.
 
 Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
@@ -295,3 +295,51 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 | Variant | Preview | Terminal |
 |---------|---------|----------|
 | plasma-flame | ![plasma-flame](A08d-plasma-flame.apng) | [▶ terminal](A08d-plasma-flame.cast) |
+
+## X_PLASMA_WARP — Plasma-Modulated Sine Warp
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-warp-spectral | ![plasma-warp-spectral](X_PLASMA_WARP-plasma-warp-spectral.apng) | [▶ terminal](X_PLASMA_WARP-plasma-warp-spectral.cast) |
+
+## X_FRACTAL_CLASSIC — Fractal-Color-Cycle
+
+**144 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| fractal-escape-escape | ![fractal-escape-escape](X_FRACTAL_CLASSIC-fractal-escape-escape.apng) | [▶ terminal](X_FRACTAL_CLASSIC-fractal-escape-escape.cast) |
+
+## X_TURING_WARP — Turing Morphogenesis-Modulated Sine Warp
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| turing-warp-spots | ![turing-warp-spots](X_TURING_WARP-turing-warp-spots.apng) | [▶ terminal](X_TURING_WARP-turing-warp-spots.cast) |
+
+## X_FLAME_ISO_BLOOM — Flame Isometric Bloom
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| flame-iso-bloom-fire | ![flame-iso-bloom-fire](X_FLAME_ISO_BLOOM-flame-iso-bloom-fire.apng) | [▶ terminal](X_FLAME_ISO_BLOOM-flame-iso-bloom-fire.cast) |
+
+## X_NOISE_WARP — Perlin Noise Phase-Map Sine Warp
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| noise-warp-spectral | ![noise-warp-spectral](X_NOISE_WARP-noise-warp-spectral.apng) | [▶ terminal](X_NOISE_WARP-noise-warp-spectral.cast) |
+
+## X_PLASMA_NOISE_WARP — Plasma Amplitude × Noise Phase Sine Warp
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-noise-warp-spectral | ![plasma-noise-warp-spectral](X_PLASMA_NOISE_WARP-plasma-noise-warp-spectral.apng) | [▶ terminal](X_PLASMA_NOISE_WARP-plasma-noise-warp-spectral.cast) |

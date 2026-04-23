@@ -1262,3 +1262,67 @@ These two axis parameters on sine_warp() are now fully independent. A cross-bree
 | 5 | Wave Interference Animation | A_F09a | 3 | `idea` |
 | 6 | Wave Chromatic Interference | A_F09b | 3 | `idea` |
 | 7 | Living Fill (CA animated) | A06 | 5 | `idea` |
+
+## Session 2026-04-22 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** X_PLASMA_NOISE_WARP — Plasma Amplitude × Noise Phase Sine Warp
+**Scores:** tension=5 emergence=5 distinctness=5 wow=4 → **total=19/20**
+**Why chosen over alternatives:**
+- A_F09a (12/20): wave phase animation, skipped for 6 consecutive sessions. Below threshold.
+- A_F09b (12/20): needs wave_float_grid infra; tied-low.
+- X_ISO_NEON (16/20): blocked on per-face fill routing infra — would consume entire session.
+- X_PLASMA_NOISE_WARP chosen: highest-scoring available candidate, all infra exists (amplitude_map from 2026-04-17, phase_map from 2026-04-21). This is the natural culmination of the FILL→SPATIAL coupling axis — using BOTH independent params of sine_warp() simultaneously, each driven by a different float field. No prior session produced doubly-modulated warp.
+
+**Implementation path:**
+New `plasma_noise_warp()` preset in `justdoit/animate/presets.py` (~230 lines).
+- **Static noise topology** (computed once per call): `noise_float_grid()` per glyph → per-row means → `phase_map` in `[0, max_phase_spread]`. Static crystalline structure, fixed every frame.
+- **Dynamic plasma topology** (recomputed each frame): `plasma_float_grid(t=t_val)` per glyph → per-row means → `amplitude_map` in `[0.3, 1.0] × max_amplitude`. Rotates as plasma phase sweeps.
+- Per frame: render plasma chars → C11 spectral colorize from plasma float → `sine_warp(amplitude_map=..., phase_map=..., phase_offset=t_val)` → C12 cyan bloom.
+- Global phase_offset = t_val (same plasma cycle clock drives both char content and warp phase reference).
+
+**CB6 Visual Validation Result:** ✅ Meets the bar.
+- 72 frames total (36 forward + 36 reverse palindrome) at 12fps
+- 166 foreground spectral color codes per frame (identical count — ink cell count stable despite warp; plasma drives color dynamically each frame)
+- 274–304 background bloom codes per frame (slight variation as warp moves cells near canvas edge)
+- Frame 0 row leads: [3, 5, 3, 3, 0, 2, 67]
+- Frame 9 row leads: [1, 3, 3, 3, 3, 5, 68]
+- Frame 18 row leads: [0, 3, 6, 8, 2, 1, 69] — row 3 displaced 8 cols, row 4 only 2 cols at same frame: noise phase at work
+- Frame 27 row leads: [0, 7, 6, 4, 0, 1, 68] — row 1 now at 7 (was 5 at frame 0): plasma amplitude rotating
+- 32/36 forward frames have unique leading-space patterns — confirms dynamic amplitude evolution
+- Char distribution frame 0: {':':27, '+':23, '%':20, '.':19, ';':19, '*':18, ...} — mid-weight plasma chars, full density range present
+- Two-axis verification confirmed: noise phase creates within-frame row variation (same frame, different leading spaces per row); plasma amplitude creates cross-frame variation (same row, different amplitude at different frames).
+- The critical observation: row 3 leads 3,3,8,4 across frames 0/9/18/27 (amplitude varying) while always peaking LATER than row 0 (phase offset from noise). This is precisely the doubly-uncorrelated behavior that neither parent alone produces.
+
+**Key insight:** The correct mental model is: each row is a damped oscillator with its own spring constant (plasma amplitude, changing per frame as plasma topology rotates) AND its own initial phase (noise, fixed for the animation). In a real physical system you cannot have both independent unless you have two independent energy sources — which is exactly what this cross-breed provides. The animation reads as genuinely organic rather than mechanical because no two rows ever move in coordinated lockstep. The predecessor presets (plasma_warp, noise_warp) each remove one degree of freedom; this one restores both.
+
+**Architecture note:** X_PLASMA_NOISE_WARP closes the FILL→SPATIAL two-parameter experiment. The full parameter space of sine_warp() is now available as a modulation target:
+- `amplitude_map` alone (X_PLASMA_WARP, X_TURING_WARP): differential magnitude per row
+- `phase_map` alone (X_NOISE_WARP): differential timing per row
+- Both together (X_PLASMA_NOISE_WARP): full per-row independence
+Future work on this axis would require adding new parameters to sine_warp() (e.g., per-row frequency) or switching to a different spatial transform entirely.
+
+**ATTRIBUTE_MODEL.md updates:**
+- X_PLASMA_NOISE_WARP marked as `done 2026-04-22` in "High novelty cross-breeds" table
+- X_PLASMA_NOISE_WARP struck through at priority #11 in Priority Order
+
+**Implementation notes:**
+- `plasma_noise_warp()` added to `justdoit/animate/presets.py` (~230 lines).
+- X_PLASMA_NOISE_WARP entry added to `scripts/generate_anim_gallery.py` SHOWCASE list.
+- 25 new tests in `tests/test_plasma_noise_warp.py` — all passing in 0.17s.
+- Total tests: 1000 (was 975 before this session, +25).
+- Gallery SVG: `docs/gallery/2026-04-22-X_PLASMA_NOISE_WARP.svg` (frame 18/36, mid-cycle — rows at varied displacement)
+- Animation: `docs/anim_gallery/X_PLASMA_NOISE_WARP-plasma-noise-warp-spectral.cast` (72 frames @ 12fps)
+- Animation: `docs/anim_gallery/X_PLASMA_NOISE_WARP-plasma-noise-warp-spectral.apng` (72 frames @ 12fps)
+- Gallery README updated: 21 daily entries, 67 techniques total
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | X_ISO_NEON (needs per-face fill routing) | X_ISO_NEON | 5 | `idea` |
+| 4 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
+| 5 | Wave Interference Animation | A_F09a | 3 | `idea` |
+| 6 | Living Fill (CA animated) | A06 | 5 | `idea` |
+| 7 | X_RD_PLASMA (reaction-diffusion × plasma field) | X_RD_PLASMA | 4 | `idea` |

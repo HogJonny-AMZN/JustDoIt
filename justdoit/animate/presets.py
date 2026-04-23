@@ -3146,3 +3146,219 @@ def noise_warp(
         final_frame = _bloom(warped_frame, bc, radius=bloom_radius, falloff=bloom_falloff)
 
         yield final_frame
+
+
+def plasma_noise_warp(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 36,
+    plasma_preset: str = "default",
+    noise_scale: float = 0.4,
+    noise_seed: Optional[int] = 42,
+    max_amplitude: float = 6.0,
+    max_phase_spread: float = 3.14159,
+    frequency: float = 1.0,
+    palette_name: str = "spectral",
+    bloom_color_name: str = "cyan",
+    bloom_radius: int = 2,
+    bloom_falloff: float = 0.75,
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Plasma amplitude_map × noise phase_map → sine_warp (X_PLASMA_NOISE_WARP).
+
+    Two independent float fields are wired to two independent parameters of
+    ``sine_warp()`` simultaneously:
+
+    - **Plasma** (per-frame-varying) → ``amplitude_map``: each row's mean plasma
+      intensity scales how far that row can displace laterally.  As the plasma
+      phase rotates over frames, the amplitude topology evolves — rows that
+      swing hard this frame may barely move next frame.
+
+    - **Noise** (static crystalline) → ``phase_map``: each row's mean Perlin
+      noise intensity offsets the moment that row peaks in its sine cycle.  The
+      timing topology is fixed — the same rows always lead / lag — but which
+      rows swing far changes every frame (plasma).
+
+    The result: rows differ in BOTH magnitude AND timing each frame.  Neither
+    parent preset can produce this — amplitude-only (plasma_warp) produces
+    differential compliance; phase-only (noise_warp) produces rippled texture;
+    the combination produces organic, fully-uncorrelated per-row motion where
+    no two rows ever coincide.  The text appears to be embedded in a flowing
+    medium with complex internal stresses.
+
+    Composite axes: A10 plasma float (dynamic) × F02 noise float (static)
+    × S01 amplitude_map × S01 phase_map × C11 spectral color × C12 bloom.
+    Visual interest: tension=5, emergence=5, distinctness=5, wow=4 → 19/20.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Frames per plasma phase cycle (default 36). Total = 2*n_frames
+        when loop=True (forward + reverse seamless loop).
+    :param plasma_preset: Plasma sin-field preset used for amplitude modulation
+        ('default', 'tight', 'slow', 'diagonal').  Default 'default'.
+    :param noise_scale: Perlin frequency for static phase topology (default 0.4).
+        Lower = coarser grain, higher = finer detail.
+    :param noise_seed: Integer seed for static noise field (default 42).
+        Different seeds produce different spatial topologies.
+    :param max_amplitude: Maximum per-row horizontal warp amplitude when plasma
+        is at peak (value=1.0).  Default 6.0 columns.
+    :param max_phase_spread: Maximum per-row phase spread in radians driven by
+        noise topology (default π ≈ 3.14159).  2π spreads the full sine cycle
+        across the noise field for maximum timing contrast.
+    :param frequency: Sine oscillation cycles across text height (default 1.0).
+    :param palette_name: C11 color palette for glyph chars (default 'spectral').
+    :param bloom_color_name: C12 bloom hue key (default 'cyan').
+    :param bloom_radius: Exterior bloom radius in cells (default 2).
+    :param bloom_falloff: Per-cell bloom intensity falloff 0-1 (default 0.75).
+    :param loop: If True, append reversed frames for seamless forward-back loop.
+    :returns: Iterator of colored, doubly-modulated-warp, bloomed frame strings.
+    """
+    import math as _math
+    from justdoit.effects.generative import (
+        plasma_float_grid as _plasma_float_grid,
+        noise_float_grid as _noise_float_grid,
+    )
+    from justdoit.effects.color import (
+        fill_float_colorize as _colorize,
+        PALETTE_REGISTRY,
+        bloom as _bloom,
+        BLOOM_COLORS,
+    )
+    from justdoit.effects.spatial import sine_warp as _sine_warp
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.fonts import FONTS as _FONTS
+
+    TWO_PI = 2.0 * _math.pi
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["spectral"])
+    bc = BLOOM_COLORS.get(bloom_color_name, BLOOM_COLORS.get("cyan", (0, 220, 255)))
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+
+    if not font_data:
+        return
+
+    sample_glyph = next(iter(font_data.values()))
+    height = len(sample_glyph)
+
+    # --- Static noise topology (computed once) ---
+    # Used for: phase_map + C11 color base
+
+    def _build_noise_topology() -> tuple:
+        """Return (row_means, combined_float_grid) for the noise field."""
+        combined: list = [[] for _ in range(height)]
+        row_sums = [0.0] * height
+        row_counts = [0] * height
+
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+            fg = _noise_float_grid(mask, scale=noise_scale, seed=noise_seed)
+            glyph_cols = max((len(row) for row in mask), default=0)
+
+            for r in range(height):
+                row_floats = list((fg[r] if r < len(fg) else [])[:glyph_cols])
+                while len(row_floats) < glyph_cols:
+                    row_floats.append(0.0)
+                combined[r].extend(row_floats)
+                combined[r].extend([0.0] * gap)
+
+                for v in row_floats:
+                    if v > 0.0:
+                        row_sums[r] += v
+                        row_counts[r] += 1
+
+        row_means = [
+            row_sums[r] / row_counts[r] if row_counts[r] > 0 else 0.5
+            for r in range(height)
+        ]
+        return row_means, combined
+
+    noise_row_means, noise_float_grid_static = _build_noise_topology()
+    # phase_map: noise mean [0,1] -> phase offset [0, max_phase_spread]
+    phase_map = [mean * max_phase_spread for mean in noise_row_means]
+
+    # --- Per-frame plasma helpers (dynamic, recalculated each frame) ---
+
+    def _build_plasma_row_amplitudes(t_val: float) -> list:
+        """Per-row mean plasma intensity -> amplitude_map for this frame's t."""
+        row_sums = [0.0] * height
+        row_counts = [0] * height
+
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+            fg = _plasma_float_grid(mask, t=t_val, preset=plasma_preset)
+            glyph_cols = max((len(row) for row in mask), default=0)
+
+            for r in range(min(height, len(fg))):
+                for c in range(min(glyph_cols, len(fg[r]))):
+                    v = fg[r][c]
+                    if v > 0.0:
+                        row_sums[r] += v
+                        row_counts[r] += 1
+
+        amplitudes = []
+        for r in range(height):
+            mean_val = row_sums[r] / row_counts[r] if row_counts[r] > 0 else 0.0
+            # Map [0,1] -> [0.3, 1.0] * max_amplitude: even trough rows still move
+            scaled = (0.3 + 0.7 * mean_val) * max_amplitude
+            amplitudes.append(scaled)
+        return amplitudes
+
+    def _assemble_plasma_float_grid(t_val: float) -> list:
+        """Assemble combined plasma float grid across all glyphs at time t."""
+        combined: list = [[] for _ in range(height)]
+        for ch in text_upper:
+            glyph = font_data.get(ch, font_data.get(" "))
+            ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+            mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+            fg = _plasma_float_grid(mask, t=t_val, preset=plasma_preset)
+            glyph_cols = max((len(row) for row in mask), default=0)
+            for r in range(height):
+                row_floats = list((fg[r] if r < len(fg) else [])[:glyph_cols])
+                while len(row_floats) < glyph_cols:
+                    row_floats.append(0.0)
+                combined[r].extend(row_floats)
+                combined[r].extend([0.0] * gap)
+        return combined
+
+    # --- Animation loop ---
+    # Global phase_offset sweeps 0 -> 2pi over n_frames
+    t_values = [TWO_PI * i / max(n_frames, 1) for i in range(n_frames)]
+    if loop:
+        t_values = t_values + list(reversed(t_values))
+
+    for t_val in t_values:
+        # 1. Render plasma chars for this frame (dynamic)
+        char_frame = _render(
+            text_plain,
+            font=font,
+            fill="plasma",
+            fill_kwargs={"t": t_val, "preset": plasma_preset},
+        )
+
+        # 2. C11 colorize: spectral color from plasma float grid (dynamic)
+        plasma_fg = _assemble_plasma_float_grid(t_val)
+        colored_frame = _colorize(char_frame, plasma_fg, palette)
+
+        # 3. Compute per-row amplitude_map from plasma topology (dynamic)
+        amplitude_map = _build_plasma_row_amplitudes(t_val)
+
+        # 4. Apply sine_warp with BOTH plasma amplitude_map AND noise phase_map
+        #    Global phase = t_val (advances with plasma cycle for temporal coherence)
+        warped_frame = _sine_warp(
+            colored_frame,
+            frequency=frequency,
+            amplitude_map=amplitude_map,
+            phase_map=phase_map,
+            phase_offset=t_val,
+        )
+
+        # 5. Apply C12 exterior bloom
+        final_frame = _bloom(warped_frame, bc, radius=bloom_radius, falloff=bloom_falloff)
+
+        yield final_frame
