@@ -1338,5 +1338,21 @@ Future work on this axis would require adding new parameters to sine_warp() (e.g
 - `living_fill()` added to `justdoit/animate/presets.py` (~140 lines).
 - A06 entry added to `scripts/generate_anim_gallery.py` SHOWCASE list (120 frames @ 10fps).
 - 7 new tests in `tests/test_living_fill.py` — all passing.
+- Total tests: 1007 (was 1000, +7).
 - Gallery SVG: `docs/gallery/2026-04-23-A06.svg` (frame 20/120)
-- Gallery README updated: 23 daily entries
+- Animation: `docs/anim_gallery/A06-living-fill.cast` (120 frames @ 10fps)
+- Animation: `docs/anim_gallery/A06-living-fill.apng` (120 frames @ 10fps)
+- Gallery README updated: 23 daily entries, 67 techniques total
+- Commit: 4247d26
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | X_ISO_NEON (needs per-face fill routing infra) | X_ISO_NEON | 5 | `idea` |
+| 4 | Chromatic Aberration | C08 | 5 | `idea` |
+| 5 | X_RD_PLASMA (reaction-diffusion × plasma field) | X_RD_PLASMA | 4 | `idea` |
+| 6 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
+| 7 | Wave Interference Animation | A_F09a | 3 | `idea` |
