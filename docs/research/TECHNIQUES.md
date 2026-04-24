@@ -32,14 +32,14 @@ Techniques for generating or importing new glyph sets.
 | ID | Name | Description | Novelty | Status |
 |----|------|-------------|---------|--------|
 | G01 | FIGlet Parser | Parse `.flf` format, unlock 400+ community fonts | 2 | `done` |
-| G02 | TTF/PIL Rasterizer | System fonts → low-res ASCII via Pillow | 3 | `done` |
+| G02 | TTF/PIL Rasterizer | System fonts → low-res ASCII via Pillow. Superseded by image pipeline (G09) for 4K; glyph-dict path retained for fill effects | 3 | `done` |
 | G03 | Bitmap Spritesheet Import | `.png` pixel font → glyph dict | 3 | `idea` |
 | G04 | SDF Font Generator | Letterforms as signed distance fields, rasterize to grid | 5 | `idea` |
 | G05 | Bézier Font Generator | Letters as Bézier curves, rasterize at any resolution | 5 | `idea` |
 | G06 | Braille Font | Unicode Braille patterns for ultra-high-res ASCII | 3 | `idea` |
 | G07 | Half-block Font | Unicode half-block chars (▀▄) for 2x vertical resolution | 2 | `idea` |
 | G08 | Quadrant Block Font | Unicode quadrant chars (▖▗▘▝) for 2x2 subpixel grid | 3 | `idea` |
-| G09 | GenAI Logo-to-Image → ASCII | AI image gen (DALL-E / SD) → hi-res image → 6D zone char matching via `_get_char_db()` | 5 | `idea` |
+| G09 | Image-to-ASCII Pipeline | Any PIL image → 6D zone char matching → (char, rgb) grid. Modules: `core/char_db.py` (promoted from shape_fill), `core/image_sampler.py`, `core/image_pipeline.py`. Supports text-as-image rendering (4K gallery) and arbitrary image/photo conversion. | 5 | `done` |
 | G10 | Custom PUA Glyph Font | Unicode Private Use Area (U+E000–U+F8FF) + font patching (Terminal Glyph Patcher) to embed custom SVG glyphs — partial-fill blocks, diagonal sub-cell patterns, specialty symbols — usable in terminals running a patched font | 4 | `idea` |
 
 ### C. Spatial Effects

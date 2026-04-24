@@ -20,156 +20,30 @@ than trying to differentiate continuous SDF gradient levels that do not exist
 at this resolution.
 
 Pure Python at render time — no external dependencies.
-The Pillow-based character DB (_get_char_db) is retained for tests and for
-future use in photo-to-ASCII rendering where sub-cell resolution is available.
+The Pillow-based character DB is in justdoit.core.char_db and is used by
+the image-to-ASCII pipeline (G09) and tests.
 """
 
 import logging as _logging
-import string
 from typing import Optional
+
+from justdoit.core.char_db import (
+    PRINTABLE_ASCII as SHAPE_CHARS,
+    get_char_db as _get_char_db,
+    nearest_char as _nearest_char,
+)
 
 # -------------------------------------------------------------------------
 # module global scope
 _MODULE_NAME = "justdoit.effects.shape_fill"
-__updated__ = "2026-03-28 00:00:00"
-__version__ = "0.3.0"
+__updated__ = "2026-04-24 00:00:00"
+__version__ = "0.4.0"
 __author__ = ["jGalloway"]
 
 _LOGGER = _logging.getLogger(_MODULE_NAME)
 
-# Default character vocabulary for the Pillow-based DB (tests / future use)
-SHAPE_CHARS: str = string.printable[:95]
-
-# Cell dimensions used when rendering chars for the Pillow-based DB
-_CELL_H: int = 16
-_CELL_W: int = 8
-
-# Module-level DB cache: (charset, cell_h, cell_w) → {char: [6 floats]}
-_DB_CACHE: dict = {}
-
 # Interior density ramp — densest (8 filled neighbors) to lightest (4 filled)
 _INTERIOR_CHARS: str = "@#S%*+;:,. "
-
-
-# -------------------------------------------------------------------------
-def _require_pil() -> None:
-    """Raise ImportError with install hint if Pillow is unavailable.
-
-    :raises ImportError: If Pillow is not installed.
-    """
-    try:
-        import PIL  # noqa: F401
-    except ImportError:
-        raise ImportError(
-            "Shape fill character DB requires Pillow. Install with: uv add --dev Pillow"
-        )
-
-
-# -------------------------------------------------------------------------
-def _find_mono_font(size: int):
-    """Return a PIL ImageFont for a monospace face at the given size.
-
-    :param size: Font size in pixels.
-    :returns: PIL ImageFont instance.
-    """
-    from PIL import ImageFont
-
-    candidates = [
-        "DejaVuSansMono.ttf",
-        "DejaVuSansMono",
-        "LiberationMono-Regular.ttf",
-        "UbuntuMono-R.ttf",
-        "Courier New",
-        "CourierNew.ttf",
-        "cour.ttf",
-    ]
-    for name in candidates:
-        try:
-            return ImageFont.truetype(name, size)
-        except (IOError, OSError):
-            continue
-    return ImageFont.load_default()
-
-
-# -------------------------------------------------------------------------
-def _char_zone_densities(char: str, cell_h: int, cell_w: int) -> list:
-    """Render a character and compute its 6-zone ink density vector.
-
-    Zones (2-column × 3-row):  UL UR / ML MR / LL LR
-
-    :param char: Single character to render.
-    :param cell_h: Cell height in pixels.
-    :param cell_w: Cell width in pixels.
-    :returns: List of 6 floats in [0.0, 1.0].
-    """
-    from PIL import Image, ImageDraw
-
-    img = Image.new("L", (cell_w, cell_h), 0)
-    draw = ImageDraw.Draw(img)
-    font = _find_mono_font(cell_h - 2)
-    draw.text((0, 0), char, fill=255, font=font)
-    pixels = list(img.tobytes())
-
-    def zone(r0: int, r1: int, c0: int, c1: int) -> float:
-        total = sum(pixels[r * cell_w + c] for r in range(r0, r1) for c in range(c0, c1))
-        area = (r1 - r0) * (c1 - c0)
-        return total / (area * 255.0) if area > 0 else 0.0
-
-    h2, h3, w2 = cell_h // 2, cell_h // 3, cell_w // 2
-    return [
-        zone(0,  h2,      0,  w2),
-        zone(0,  h2,      w2, cell_w),
-        zone(h3, 2 * h3,  0,  w2),
-        zone(h3, 2 * h3,  w2, cell_w),
-        zone(h2, cell_h,  0,  w2),
-        zone(h2, cell_h,  w2, cell_w),
-    ]
-
-
-# -------------------------------------------------------------------------
-def _build_char_db(charset: str, cell_h: int, cell_w: int) -> dict:
-    """Precompute 6D shape vectors for every character in charset.
-
-    :param charset: Characters to include.
-    :param cell_h: Render height in pixels.
-    :param cell_w: Render width in pixels.
-    :returns: Dict mapping char → list of 6 floats.
-    """
-    _require_pil()
-    db = {ch: _char_zone_densities(ch, cell_h, cell_w) for ch in charset}
-    _LOGGER.debug("Built shape DB: %d chars at %d×%dpx", len(db), cell_h, cell_w)
-    return db
-
-
-# -------------------------------------------------------------------------
-def _get_char_db(charset: str = SHAPE_CHARS) -> dict:
-    """Return the cached Pillow-based shape DB for charset.
-
-    :param charset: Character vocabulary.
-    :returns: Dict mapping char → list of 6 floats.
-    """
-    key = (charset, _CELL_H, _CELL_W)
-    if key not in _DB_CACHE:
-        _DB_CACHE[key] = _build_char_db(charset, _CELL_H, _CELL_W)
-    return _DB_CACHE[key]
-
-
-# -------------------------------------------------------------------------
-def _nearest_char(vec: list, db: dict) -> str:
-    """Find the character whose shape vector is nearest to vec.
-
-    :param vec: 6D input vector.
-    :param db: Shape DB from _get_char_db().
-    :returns: Best-matching character string.
-    """
-    best_char = " "
-    best_dist = float("inf")
-    for ch, cv in db.items():
-        dist = sum((a - b) ** 2 for a, b in zip(vec, cv))
-        if dist < best_dist:
-            best_dist = dist
-            best_char = ch
-    return best_char
 
 
 # -------------------------------------------------------------------------
