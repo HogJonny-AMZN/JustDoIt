@@ -64,6 +64,53 @@ class GalleryProfile:
     canvas_height: int = 0
 
 
+# -------------------------------------------------------------------------
+def optimal_ttf_for_canvas(
+    text: str,
+    canvas_w: int,
+    canvas_h: int,
+    font_path: str,
+    char_w_ratio: float = 0.6,
+    min_rows: int = 8,
+) -> "tuple[int, float, tuple[int, int, int] | None]":
+    """Find TTF font_size that maximizes effective cell size for a canvas.
+
+    For each candidate font_size, measures actual cols/rows, then computes:
+      effective_cell_px = min(canvas_h / rows, canvas_w / (cols * char_w_ratio))
+    Returns the font_size that maximizes effective_cell_px.
+
+    :param text: Text to render.
+    :param canvas_w: Canvas width in pixels.
+    :param canvas_h: Canvas height in pixels.
+    :param font_path: Path to the TTF font file.
+    :param char_w_ratio: Monospace char width / font-size ratio (default: 0.6).
+    :param min_rows: Minimum row count for quality (default: 8).
+    :returns: (best_ttf_fs, best_cell_px, (cols, rows, svg_fs)) or
+              (best_ttf_fs, best_cell_px, None) if no valid size found.
+    """
+    from justdoit.fonts.ttf import load_ttf_font
+
+    best_fs = 4
+    best_cell_px: float = 0
+    best_info: "tuple[int, int, int] | None" = None
+
+    for fs in range(4, 80, 2):
+        try:
+            font = load_ttf_font(font_path, font_size=fs)
+            cols, rows = measure(text, font=font)
+            if cols <= 0 or rows < min_rows:
+                continue
+            cell_px = min(canvas_h / rows, canvas_w / (cols * char_w_ratio))
+            if cell_px > best_cell_px:
+                best_cell_px = cell_px
+                best_fs = fs
+                best_info = (cols, rows, round(cell_px))
+        except Exception:
+            continue
+
+    return best_fs, best_cell_px, best_info
+
+
 PROFILES: dict[str, "GalleryProfile"] = {
     "standard": GalleryProfile(
         name="standard",
@@ -406,28 +453,24 @@ def _generate_for_profile(profile: GalleryProfile, text: str) -> None:
             if font_path is None:
                 print(f"  HD: no system TTF found — falling back to block font", file=sys.stderr)
             elif svg_canvas_h > 0 and svg_canvas_w > 0:
-                # Canvas-first sizing: high TTF rows → rich cell density
-                # svg_font_size = canvas_height / ttf_rows, so LARGE ttf +
-                # SMALL svg_font_size = full-height letters with many cells.
+                # Canvas-first sizing: find TTF font_size that maximizes
+                # effective cell size so fill effects render large.
                 try:
-                    _CHAR_W_RATIO = 0.6
-                    pt_size = 50  # TTF raster rows (high for dense cells)
                     from justdoit.fonts.ttf import load_ttf_font
+                    best_fs, cell_px, info = optimal_ttf_for_canvas(
+                        text, svg_canvas_w, svg_canvas_h, font_path,
+                    )
+                    pt_size = best_fs
                     render_font = load_ttf_font(font_path, font_size=pt_size)
+                    # to_svg() will derive font_size from char_w in canvas mode,
+                    # so svg_font_size here is informational only
+                    svg_font_size = max(1, round(cell_px))
 
-                    cols, rows = measure(text, font=render_font)
-                    # rows now reflects trimmed glyph height (ink only)
-                    svg_font_size = max(1, round(svg_canvas_h / rows))
-
-                    # Check width fits
-                    est_total_w = cols * svg_font_size * _CHAR_W_RATIO
-                    if est_total_w > svg_canvas_w:
-                        svg_font_size = max(1, int(svg_canvas_w / (cols * _CHAR_W_RATIO)))
-
+                    cols, rows = info[:2] if info else (0, 0)
                     print(
-                        f"  Canvas-first: {svg_canvas_w}×{svg_canvas_h}px, "
-                        f"ttf_pt={pt_size}, svg_font_size={svg_font_size}, "
-                        f"text={cols}×{rows} chars"
+                        f"  Canvas-first optimal: ttf_pt={pt_size}, "
+                        f"cell_px={cell_px:.1f}, text={cols}×{rows} chars, "
+                        f"svg_font_size~{svg_font_size}px"
                     )
                 except Exception as exc:
                     print(f"  Canvas-first setup failed: {exc} — falling back to block font", file=sys.stderr)
