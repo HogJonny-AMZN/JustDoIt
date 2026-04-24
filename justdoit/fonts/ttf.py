@@ -140,6 +140,21 @@ def rasterize_ttf(
     if " " not in result:
         result[" "] = space_rows
 
+    # --- Trim uniform blank leading/trailing rows ---
+    ink_row_indices: set[int] = set()
+    for rows in result.values():
+        for i, row in enumerate(rows):
+            if any(c != " " for c in row):
+                ink_row_indices.add(i)
+
+    if ink_row_indices:
+        top = min(ink_row_indices)
+        bot = max(ink_row_indices)
+        for ch in result:
+            result[ch] = result[ch][top : bot + 1]
+        new_h = bot - top + 1
+        result[" "] = [" " * max_w] * new_h
+
     return result
 
 

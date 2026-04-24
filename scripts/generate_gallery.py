@@ -410,20 +410,19 @@ def _generate_for_profile(profile: GalleryProfile, text: str) -> None:
                 # svg_font_size = canvas_height / ttf_rows, so LARGE ttf +
                 # SMALL svg_font_size = full-height letters with many cells.
                 try:
-                    TARGET_TTF_FS = 50  # rows per letter
-                    cell_px = svg_canvas_h / TARGET_TTF_FS  # 1080/50 = 21.6
-                    svg_font_size = max(1, round(cell_px))
-
-                    pt_size = TARGET_TTF_FS
+                    _CHAR_W_RATIO = 0.6
+                    pt_size = 50  # TTF raster rows (high for dense cells)
                     from justdoit.fonts.ttf import load_ttf_font
                     render_font = load_ttf_font(font_path, font_size=pt_size)
 
                     cols, rows = measure(text, font=render_font)
+                    # rows now reflects trimmed glyph height (ink only)
+                    svg_font_size = max(1, round(svg_canvas_h / rows))
 
                     # Check width fits
-                    est_total_w = cols * svg_font_size * 0.6
+                    est_total_w = cols * svg_font_size * _CHAR_W_RATIO
                     if est_total_w > svg_canvas_w:
-                        svg_font_size = max(1, int(svg_canvas_w / (cols * 0.6)))
+                        svg_font_size = max(1, int(svg_canvas_w / (cols * _CHAR_W_RATIO)))
 
                     print(
                         f"  Canvas-first: {svg_canvas_w}×{svg_canvas_h}px, "
