@@ -274,7 +274,10 @@ def _apply_fill_color_to_grid(
     if fill_name == "flame":
         from justdoit.effects.color import FIRE_PALETTE
         from justdoit.effects.generative import flame_float_grid
-        float_grid = flame_float_grid(mask, seed=42, **kw)
+        raw = flame_float_grid(mask, seed=42, **kw)
+        # Remap: lift floor so edge cells (low values) stay visible; fire reads
+        # brightest at high values — remap [0,1] → [0.25,1.0] so min is dim red
+        float_grid = [[max(0.25, v) for v in row] for row in raw]
         palette = FIRE_PALETTE
     elif fill_name == "plasma":
         from justdoit.effects.color import SPECTRAL_PALETTE
@@ -293,7 +296,9 @@ def _apply_fill_color_to_grid(
     elif fill_name == "turing":
         from justdoit.effects.color import BIO_PALETTE
         from justdoit.effects.generative import turing_float_grid
-        float_grid = turing_float_grid(mask, seed=42, scale=1, steps=500, **kw)
+        raw = turing_float_grid(mask, seed=42, scale=1, steps=500, **kw)
+        # Lift floor so dark turing cells stay visible (min dim green, not black)
+        float_grid = [[max(0.2, v) for v in row] for row in raw]
         palette = BIO_PALETTE
     elif fill_name == "wave":
         float_grid = _wave_float_inline(mask)
