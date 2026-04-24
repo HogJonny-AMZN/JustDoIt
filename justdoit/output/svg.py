@@ -68,6 +68,8 @@ def to_svg(
         # Derive char metrics from canvas to fill it
         char_w = width / max_cols if max_cols > 0 else font_size * _CHAR_W_RATIO
         line_h = height / n_rows if n_rows > 0 else font_size * line_height
+        # In canvas mode, font-size must match char spacing — derive from char_w
+        font_size = max(1, round(char_w / _CHAR_W_RATIO))
     else:
         char_w = font_size * _CHAR_W_RATIO
         line_h = font_size * line_height
