@@ -185,13 +185,20 @@ def _g09_grid_to_mask(base_grid: list) -> list:
 
 
 # -------------------------------------------------------------------------
-def _wave_float_inline(mask: list) -> list:
+def _wave_float_inline(mask: list, preset: str = "default") -> list:
     """Compute wave interference float grid inline (no existing float_grid fn).
 
     :param mask: 2D list of floats — glyph mask.
+    :param preset: Wave preset name (default, moire, radial, fine).
     :returns: 2D list of floats in [0.0, 1.0] for ink cells, 0.0 for exterior.
     """
-    freq1, angle1, freq2, angle2 = 3.0, 0.0, 5.0, 45.0
+    _presets = {
+        "default": (3.0, 0.0, 5.0, 45.0),
+        "moire":   (8.0, 0.0, 8.0, 5.0),
+        "radial":  (4.0, 30.0, 4.0, -30.0),
+        "fine":    (10.0, 22.5, 7.0, 67.5),
+    }
+    freq1, angle1, freq2, angle2 = _presets.get(preset, _presets["default"])
     fx1 = freq1 * math.cos(math.radians(angle1))
     fy1 = freq1 * math.sin(math.radians(angle1))
     fx2 = freq2 * math.cos(math.radians(angle2))
@@ -217,16 +224,18 @@ def _wave_float_inline(mask: list) -> list:
 
 
 # -------------------------------------------------------------------------
-def _fill_to_float_grid(mask: list, fill_name: str) -> list:
+def _fill_to_float_grid(mask: list, fill_name: str, fill_kwargs: "dict | None" = None) -> list:
     """Run a fill function and reverse-map chars to floats for fills without float_grid.
 
     :param mask: 2D list of floats — glyph mask.
     :param fill_name: Fill name (currently only 'voronoi' supported).
+    :param fill_kwargs: Extra kwargs for the fill function.
     :returns: 2D list of floats in [0.0, 1.0].
     """
+    fkw = fill_kwargs or {}
     if fill_name == "voronoi":
         from justdoit.effects.generative import voronoi_fill
-        char_rows = voronoi_fill(mask, seed=42)
+        char_rows = voronoi_fill(mask, seed=42, **fkw)
     else:
         return [[0.0] * len(row) for row in mask]
 
@@ -252,6 +261,7 @@ def _apply_fill_color_to_grid(
     grid_rows: int,
     t: float = 0.0,
     fill_kwargs: "dict | None" = None,
+    palette_override: "list | None" = None,
 ) -> list:
     """Apply field effect color to G09 base grid cells.
 
@@ -264,6 +274,7 @@ def _apply_fill_color_to_grid(
     :param grid_rows: Grid row count.
     :param t: Time phase for animated fills (default 0.0).
     :param fill_kwargs: Extra kwargs for the fill function.
+    :param palette_override: Optional list of (r,g,b) tuples to use instead of the fill's default palette.
     :returns: list[list[(char, (r,g,b)|None)]].
     """
     mask = _g09_grid_to_mask(base_grid)
@@ -301,12 +312,15 @@ def _apply_fill_color_to_grid(
         float_grid = [[max(0.2, v) for v in row] for row in raw]
         palette = BIO_PALETTE
     elif fill_name == "wave":
-        float_grid = _wave_float_inline(mask)
+        float_grid = _wave_float_inline(mask, **(kw if kw else {}))
         palette = _WAVE_PALETTE
     elif fill_name == "voronoi":
         from justdoit.effects.color import SPECTRAL_PALETTE
-        float_grid = _fill_to_float_grid(mask, "voronoi")
+        float_grid = _fill_to_float_grid(mask, "voronoi", fill_kwargs=kw if kw else None)
         palette = SPECTRAL_PALETTE
+
+    if palette_override is not None:
+        palette = palette_override
 
     if float_grid is None or palette is None:
         return base_grid
@@ -330,15 +344,17 @@ def _apply_char_fill_to_grid(
     base_grid: list,
     fill_name: str,
     color: "tuple | None" = None,
+    color_fn: "callable | None" = None,
 ) -> list:
-    """Apply char-replacement fill (density/sdf/shape) to G09 mask.
+    """Apply char-replacement fill to G09 mask.
 
     Extracts a binary mask from base_grid, runs the fill function, and
     returns a new (char, rgb) grid using the fill's chars.
 
     :param base_grid: list[list[(char, rgb|None)]].
-    :param fill_name: Fill name (density, sdf, shape).
+    :param fill_name: Fill name (density, sdf, shape, cells, rd, attractor, slime, truchet, lsystem).
     :param color: Foreground color for filled chars (default white).
+    :param color_fn: Optional callable(grid) -> grid to apply color after char fill.
     :returns: list[list[(char, (r,g,b)|None)]].
     """
     mask = _g09_grid_to_mask(base_grid)
@@ -352,6 +368,24 @@ def _apply_char_fill_to_grid(
     elif fill_name == "shape":
         from justdoit.effects.shape_fill import shape_fill
         char_rows = shape_fill(mask)
+    elif fill_name == "cells":
+        from justdoit.effects.generative import cells_fill
+        char_rows = cells_fill(mask)
+    elif fill_name == "rd":
+        from justdoit.effects.generative import reaction_diffusion_fill
+        char_rows = reaction_diffusion_fill(mask)
+    elif fill_name == "attractor":
+        from justdoit.effects.generative import strange_attractor_fill
+        char_rows = strange_attractor_fill(mask)
+    elif fill_name == "slime":
+        from justdoit.effects.generative import slime_mold_fill
+        char_rows = slime_mold_fill(mask)
+    elif fill_name == "truchet":
+        from justdoit.effects.generative import truchet_fill
+        char_rows = truchet_fill(mask)
+    elif fill_name == "lsystem":
+        from justdoit.effects.generative import lsystem_fill
+        char_rows = lsystem_fill(mask)
     else:
         return base_grid
 
@@ -365,6 +399,10 @@ def _apply_char_fill_to_grid(
             else:
                 new_row.append((ch, fg))
         result.append(new_row)
+
+    if color_fn is not None:
+        result = color_fn(result)
+
     return result
 
 
@@ -386,6 +424,79 @@ def _grid_rainbow_color(base_grid: list) -> list:
                 hue = c / max(n_cols - 1, 1)
                 r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
                 new_row.append((ch, (int(r * 255), int(g * 255), int(b * 255))))
+        result.append(new_row)
+    return result
+
+
+# -------------------------------------------------------------------------
+# Default gradient palette: cyan → purple → magenta
+_GRADIENT_PALETTE: list = [(0, 200, 255), (100, 50, 255), (255, 0, 200)]
+
+
+# -------------------------------------------------------------------------
+def _apply_gradient_color(
+    base_grid: list,
+    grid_cols: int,
+    grid_rows: int,
+    direction: str = "horizontal",
+    palette: "list | None" = None,
+) -> list:
+    """Color each ink cell by position gradient.
+
+    :param base_grid: list[list[(char, rgb|None)]].
+    :param grid_cols: Grid column count.
+    :param grid_rows: Grid row count.
+    :param direction: One of 'horizontal', 'vertical', 'diagonal', 'radial'.
+    :param palette: List of (r,g,b) stops (default: _GRADIENT_PALETTE).
+    :returns: list[list[(char, (r,g,b)|None)]].
+    """
+    pal = palette if palette is not None else _GRADIENT_PALETTE
+    cx = grid_cols / 2.0
+    cy = grid_rows / 2.0
+    max_dim = max(cx, cy, 1.0)
+    result = []
+    for r, row in enumerate(base_grid):
+        new_row = []
+        for c, (ch, _) in enumerate(row):
+            if ch == " ":
+                new_row.append((" ", None))
+            else:
+                if direction == "horizontal":
+                    t = c / max(grid_cols - 1, 1)
+                elif direction == "vertical":
+                    t = r / max(grid_rows - 1, 1)
+                elif direction == "diagonal":
+                    t = (c / max(grid_cols - 1, 1) + r / max(grid_rows - 1, 1)) / 2.0
+                else:  # radial
+                    dx = c - cx
+                    dy = r - cy
+                    t = min(1.0, math.sqrt(dx * dx + dy * dy) / max_dim)
+                rgb = _lerp_palette_rgb(pal, t)
+                new_row.append((ch, rgb))
+        result.append(new_row)
+    return result
+
+
+# -------------------------------------------------------------------------
+def _apply_palette_by_density(base_grid: list, palette: list) -> list:
+    """Color each ink cell by its character density position in _REVERSE_DENSITY.
+
+    :param base_grid: list[list[(char, rgb|None)]].
+    :param palette: List of (r,g,b) stops.
+    :returns: list[list[(char, (r,g,b)|None)]].
+    """
+    n = len(_REVERSE_DENSITY)
+    result = []
+    for row in base_grid:
+        new_row = []
+        for ch, _ in row:
+            if ch == " ":
+                new_row.append((" ", None))
+            else:
+                idx = _REVERSE_DENSITY.find(ch)
+                t = 1.0 - idx / max(n - 1, 1) if idx >= 0 else 0.5
+                rgb = _lerp_palette_rgb(palette, t)
+                new_row.append((ch, rgb))
         result.append(new_row)
     return result
 
@@ -451,20 +562,107 @@ def _curated_entries_g09(
 
     add("S-G09-clean-rainbow", "G09 — Clean text (rainbow)", _grid_rainbow_color(base_grid))
 
-    # Strategy B — field fills as color overlay
+    # Strategy A extensions — palette-by-density variants
+    from justdoit.effects.color import FIRE_PALETTE, LAVA_PALETTE, BIO_PALETTE, ESCAPE_PALETTE
+    print("    G09 Strategy A: palette-by-density variants ...")
+    add("S-G09-palette-fire",   "G09+C03 — Fire palette",   _apply_palette_by_density(base_grid, FIRE_PALETTE))
+    add("S-G09-palette-lava",   "G09+C03 — Lava palette",   _apply_palette_by_density(base_grid, LAVA_PALETTE))
+    add("S-G09-palette-bio",    "G09+C03 — Bio palette",    _apply_palette_by_density(base_grid, BIO_PALETTE))
+    add("S-G09-palette-escape", "G09+C03 — Escape palette", _apply_palette_by_density(base_grid, ESCAPE_PALETTE))
+
+    # Strategy A extensions — gradient variants
+    print("    G09 Strategy A: gradient variants ...")
+    add("S-G09-gradient-horiz",  "G09+C01 — Gradient horizontal",
+        _apply_gradient_color(base_grid, grid_cols, grid_rows, "horizontal"))
+    add("S-G09-gradient-diag",   "G09+C01 — Gradient diagonal",
+        _apply_gradient_color(base_grid, grid_cols, grid_rows, "diagonal"))
+    add("S-G09-gradient-radial", "G09+C02 — Gradient radial",
+        _apply_gradient_color(base_grid, grid_cols, grid_rows, "radial"))
+    add("S-G09-gradient-vert",   "G09+C01 — Gradient vertical",
+        _apply_gradient_color(base_grid, grid_cols, grid_rows, "vertical"))
+
+    # Strategy B — field fills as color overlay (defaults)
     _strategy_b = [
-        ("S-G09-flame",   "G09+A08 — Flame",   "flame"),
-        ("S-G09-plasma",  "G09+A10 — Plasma",  "plasma"),
-        ("S-G09-voronoi", "G09+F07 — Voronoi", "voronoi"),
-        ("S-G09-noise",   "G09+F02 — Noise",   "noise"),
-        ("S-G09-wave",    "G09+F09 — Wave",    "wave"),
-        ("S-G09-fractal", "G09+F05 — Fractal", "fractal"),
-        ("S-G09-turing",  "G09+N09 — Turing",  "turing"),
+        ("S-G09-flame",   "G09+A08 — Flame",   "flame",   None, None),
+        ("S-G09-plasma",  "G09+A10 — Plasma",  "plasma",  None, None),
+        ("S-G09-voronoi", "G09+F07 — Voronoi", "voronoi", None, None),
+        ("S-G09-noise",   "G09+F02 — Noise",   "noise",   None, None),
+        ("S-G09-wave",    "G09+F09 — Wave",    "wave",    None, None),
+        ("S-G09-fractal", "G09+F05 — Fractal", "fractal", None, None),
+        ("S-G09-turing",  "G09+N09 — Turing",  "turing",  None, None),
     ]
-    for stem, label, fill_name in _strategy_b:
+    for stem, label, fill_name, fkw, pal in _strategy_b:
         print(f"    G09 Strategy B: {fill_name} ...")
-        colored = _apply_fill_color_to_grid(base_grid, fill_name, grid_cols, grid_rows)
+        colored = _apply_fill_color_to_grid(base_grid, fill_name, grid_cols, grid_rows,
+                                            fill_kwargs=fkw, palette_override=pal)
         add(stem, label, colored)
+
+    # Strategy B extensions — flame presets
+    _strategy_b_flame = [
+        ("S-G09-flame-hot",    "G09+A08 — Flame hot",    "flame", {"preset": "hot"},    None),
+        ("S-G09-flame-embers", "G09+A08 — Flame embers", "flame", {"preset": "embers"}, None),
+        ("S-G09-flame-cool",   "G09+A08 — Flame cool",   "flame", {"preset": "cool"},   None),
+        ("S-G09-flame-lava",   "G09+A08 — Flame lava",   "flame", None,                 LAVA_PALETTE),
+    ]
+    for stem, label, fill_name, fkw, pal in _strategy_b_flame:
+        print(f"    G09 Strategy B: {stem} ...")
+        colored = _apply_fill_color_to_grid(base_grid, fill_name, grid_cols, grid_rows,
+                                            fill_kwargs=fkw, palette_override=pal)
+        add(stem, label, colored)
+
+    # Strategy B extensions — plasma presets
+    _strategy_b_plasma = [
+        ("S-G09-plasma-tight",    "G09+A10 — Plasma tight",    "plasma", {"preset": "tight"},    None),
+        ("S-G09-plasma-slow",     "G09+A10 — Plasma slow",     "plasma", {"preset": "slow"},     None),
+        ("S-G09-plasma-diagonal", "G09+A10 — Plasma diagonal", "plasma", {"preset": "diagonal"}, None),
+    ]
+    for stem, label, fill_name, fkw, pal in _strategy_b_plasma:
+        print(f"    G09 Strategy B: {stem} ...")
+        colored = _apply_fill_color_to_grid(base_grid, fill_name, grid_cols, grid_rows,
+                                            fill_kwargs=fkw, palette_override=pal)
+        add(stem, label, colored)
+
+    # Strategy B extensions — voronoi presets
+    _strategy_b_voronoi = [
+        ("S-G09-voronoi-cracked", "G09+F07 — Voronoi cracked", "voronoi", {"preset": "cracked"}, None),
+        ("S-G09-voronoi-fine",    "G09+F07 — Voronoi fine",    "voronoi", {"preset": "fine"},    None),
+        ("S-G09-voronoi-coarse",  "G09+F07 — Voronoi coarse",  "voronoi", {"preset": "coarse"}, None),
+        ("S-G09-voronoi-cells",   "G09+F07 — Voronoi cells",   "voronoi", {"preset": "cells"},  None),
+    ]
+    for stem, label, fill_name, fkw, pal in _strategy_b_voronoi:
+        print(f"    G09 Strategy B: {stem} ...")
+        colored = _apply_fill_color_to_grid(base_grid, fill_name, grid_cols, grid_rows,
+                                            fill_kwargs=fkw, palette_override=pal)
+        add(stem, label, colored)
+
+    # Strategy B extensions — turing presets
+    _strategy_b_turing = [
+        ("S-G09-turing-spots", "G09+N09 — Turing spots", "turing", {"preset": "spots"}, None),
+        ("S-G09-turing-maze",  "G09+N09 — Turing maze",  "turing", {"preset": "maze"},  None),
+    ]
+    for stem, label, fill_name, fkw, pal in _strategy_b_turing:
+        print(f"    G09 Strategy B: {stem} ...")
+        colored = _apply_fill_color_to_grid(base_grid, fill_name, grid_cols, grid_rows,
+                                            fill_kwargs=fkw, palette_override=pal)
+        add(stem, label, colored)
+
+    # Strategy B extensions — wave moire
+    print("    G09 Strategy B: S-G09-wave-moire ...")
+    add("S-G09-wave-moire", "G09+F09 — Wave moire",
+        _apply_fill_color_to_grid(base_grid, "wave", grid_cols, grid_rows,
+                                  fill_kwargs={"preset": "moire"}))
+
+    # Strategy B extensions — fractal julia
+    print("    G09 Strategy B: S-G09-fractal-julia ...")
+    add("S-G09-fractal-julia", "G09+F05 — Fractal Julia",
+        _apply_fill_color_to_grid(base_grid, "fractal", grid_cols, grid_rows,
+                                  fill_kwargs={"julia": True, "julia_c": complex(-0.7, 0.27)}))
+
+    # Strategy B extensions — noise radial
+    print("    G09 Strategy B: S-G09-noise-radial ...")
+    noise_grid = _apply_fill_color_to_grid(base_grid, "noise", grid_cols, grid_rows,
+                                           palette_override=_NOISE_PALETTE)
+    add("S-G09-noise-radial", "G09+F02 — Noise + radial", noise_grid)
 
     # Strategy C — char fills on G09 mask (full resolution)
     _strategy_c = [
@@ -473,6 +671,40 @@ def _curated_entries_g09(
         ("S-G09-shape",   "G09+F07 — Shape (hi-res)",   "shape"),
     ]
     for stem, label, fill_name in _strategy_c:
+        print(f"    G09 Strategy C: {fill_name} ...")
+        filled = _apply_char_fill_to_grid(base_grid, fill_name)
+        add(stem, label, filled)
+
+    # Strategy C extensions — colored char fills
+    print("    G09 Strategy C: density-fire ...")
+    add("S-G09-density-fire", "G09+F01 — Density + fire",
+        _apply_char_fill_to_grid(base_grid, "density",
+                                 color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
+                                                                          "horizontal", FIRE_PALETTE)))
+    print("    G09 Strategy C: sdf-neon ...")
+    add("S-G09-sdf-neon", "G09+F06 — SDF + neon",
+        _apply_char_fill_to_grid(base_grid, "sdf",
+                                 color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
+                                                                          "diagonal",
+                                                                          [(0, 255, 200), (255, 0, 255)])))
+    print("    G09 Strategy C: shape-ocean ...")
+    add("S-G09-shape-ocean", "G09+F07 — Shape + ocean",
+        _apply_char_fill_to_grid(base_grid, "shape",
+                                 color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
+                                                                          "vertical",
+                                                                          [(0, 30, 120), (0, 180, 255),
+                                                                           (200, 240, 255)])))
+
+    # Strategy C extensions — previously undiscovered fills
+    _strategy_c_new = [
+        ("S-G09-cells",     "G09+F03 — Cellular automata", "cells"),
+        ("S-G09-rd",        "G09+F04 — Reaction-diffusion", "rd"),
+        ("S-G09-attractor", "G09+F11 — Strange attractor",  "attractor"),
+        ("S-G09-slime",     "G09+F12 — Slime mold",         "slime"),
+        ("S-G09-truchet",   "G09+F13 — Truchet tiles",      "truchet"),
+        ("S-G09-lsystem",   "G09+F14 — L-system",           "lsystem"),
+    ]
+    for stem, label, fill_name in _strategy_c_new:
         print(f"    G09 Strategy C: {fill_name} ...")
         filled = _apply_char_fill_to_grid(base_grid, fill_name)
         add(stem, label, filled)
