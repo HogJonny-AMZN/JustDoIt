@@ -1356,3 +1356,64 @@ Future work on this axis would require adding new parameters to sine_warp() (e.g
 | 5 | X_RD_PLASMA (reaction-diffusion × plasma field) | X_RD_PLASMA | 4 | `idea` |
 | 6 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
 | 7 | Wave Interference Animation | A_F09a | 3 | `idea` |
+
+## Session 2026-04-24 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** X_LIVING_COLOR — Conway GoL (A06) + C11 Age-Heat Coloring
+**Scores:** tension=4 emergence=4 distinctness=4 wow=3 → total=15/20
+**Why chosen over alternatives:**
+- A_F09a (12/20): wave phase animation, skipped for 8 consecutive sessions. Below threshold.
+- A_F09b (12/20): needs wave_float_grid infra; tied-low.
+- X_ISO_NEON (16/20): blocked on per-face fill routing infra — would consume entire session.
+- X_LIVING_COLOR chosen: all infra present (A06 done 2026-04-23, C11 done 2026-04-06, AGE_PALETTE new but trivial). Introduces a TIME axis into the cross-breed space — cell age as a color signal is categorically different from the float fields used by all prior C11 cross-breeds (plasma, Turing, noise, fractal all use spatial distribution; age uses temporal accumulation).
+
+**Implementation path:**
+- New `AGE_PALETTE` added to `justdoit/effects/color.py` and `PALETTE_REGISTRY`: blue=newborn (0.0) → cyan-green → amber → red=ancient (1.0).
+- New `living_color()` preset in `justdoit/animate/presets.py` (~230 lines):
+  - GoL engine copied from `living_fill()` (B3/S23, glyph-masked, boundary=dead).
+  - Added age counter grid: alive cells increment each frame; dead cells reset to 0.
+  - `_build_age_float_grid()`: age / max_age, clamped to [0.0, 1.0]. Both alive cells (dense block chars) and dead interior cells (dim dot char `·`) receive float values — alive get their age float, dead get 0.0 (blue floor).
+  - `fill_float_colorize()` colorizes all non-space cells (dot chars included).
+  - Optional C12 cyan bloom (radius=2, falloff=0.70).
+- 20 new tests in `tests/test_living_color.py` — all passing in 0.05s.
+- Total tests: 1066 (was 1046 before this session, +20).
+
+**CB6 Visual Validation Result:** ⚠️ Partial — meets bar but underperformed on the dynamic-interest dimension.
+- 144 frames total (72 forward + 72 reverse palindrome loop) at 10fps.
+- 166 foreground C11 color codes per frame (identical count across all frames — confirms ink cell count is stable).
+- 256 background bloom codes per frame (C12 cyan halo, consistent across frames).
+- Frame 25 color census: 154 blue cells (transients/dead-interior), 12 red cells (stable structures), 0 mid-range cells.
+- Key observation: Conway GoL in 7-row block-font glyph masks converges within ~15 frames to a stable pattern: most interior space dies out (glyph masks too narrow for most glider/oscillator species), leaving only still-lifes and period-2 blinkers. The result is a BIMODAL color distribution: blue floor (dead cells) + red islands (stable structures), with almost nothing in between. This is actually accurate: CA stability in small bounded regions is a near-binary phenomenon.
+- The initial frames (0-15) show the most interesting content: chaotic blue flickering collapses into a stable red-spotted pattern. By frame 15, the pattern is effectively static.
+- The effect delivers on its premise (metabolic map of CA stability, stable structures visually distinguished from transients) but the animation loop is mostly static after convergence.
+
+**Key insight:** The limitation is the bounded-mask GoL problem. Large unbounded GoL has rich long-term dynamics (gliders, spaceships, oscillators with long periods). Small 7-row masked GoL dies to still-lifes and blinkers within ~10-15 generations. The age coloring *correctly* reveals this: the stable red clusters are the actual surviving structures. But it means the animation is informative in the first 15 frames and static thereafter. Future improvement: use `wrap` boundary conditions (exterior wraps to opposite side) to give GoL more space to sustain dynamics. Or: use `alive_prob` tuned to the critical density (~0.28 for edge-of-chaos behavior) rather than 0.4 (above critical density, fast collapse to empty).
+
+**ATTRIBUTE_MODEL.md updates:**
+- X_LIVING_COLOR marked as `done 2026-04-24` in "High novelty cross-breeds" table.
+- CB6 partial verdict noted inline.
+
+**Implementation notes:**
+- `AGE_PALETTE` (6 stops, blue→red) added to `justdoit/effects/color.py`; `"age"` key added to `PALETTE_REGISTRY`.
+- `_LIVING_COLOR_ALIVE: str = "█▓▒"`, `_LIVING_COLOR_DEAD: str = "·"` constants.
+- `living_color()` added to `justdoit/animate/presets.py` (~230 lines).
+- X_LIVING_COLOR entry added to `scripts/generate_anim_gallery.py` SHOWCASE list.
+- 20 new tests in `tests/test_living_color.py` — all passing.
+- Total tests: 1066 (was 1046, +20).
+- Gallery SVG: `docs/gallery/2026-04-24-X_LIVING_COLOR.svg` (frame 25/72 — post-convergence, shows bimodal blue/red structure).
+- Animation: `docs/anim_gallery/X_LIVING_COLOR-living-color-age.cast` (2.0MB, 144 frames @ 10fps).
+- Animation: `docs/anim_gallery/X_LIVING_COLOR-living-color-age.apng` (130KB, 144 frames @ 10fps).
+- Gallery README updated: 24 daily entries, 69 techniques total.
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | X_ISO_NEON (needs per-face fill routing infra) | X_ISO_NEON | 5 | `idea` |
+| 4 | Chromatic Aberration | C08 | 5 | `idea` |
+| 5 | X_RD_PLASMA (reaction-diffusion × plasma field) | X_RD_PLASMA | 4 | `idea` |
+| 6 | X_LIVING_COLOR_WRAP (X_LIVING_COLOR variant with wrap boundary) | X_LIVING_WRAP | 3 | `idea` |
+| 7 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
+| 8 | Wave Interference Animation | A_F09a | 3 | `idea` |

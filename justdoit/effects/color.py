@@ -105,12 +105,25 @@ ESCAPE_PALETTE: list = [
     (255, 220, 230),  # 1.0  — near-white pink
 ]
 
+# C11 — AGE_PALETTE for X_LIVING_COLOR: temporal heat map.
+# float=0.0 (just born/new alive) → cool blue; float=1.0 (long-lived/stable) → hot red.
+# Reveals cellular age structure: transients glow blue, stable oscillators burn red.
+AGE_PALETTE: list = [
+    (0, 80, 220),     # 0.0  — newborn: deep blue
+    (0, 180, 255),    # 0.2  — young: bright cyan-blue
+    (0, 220, 160),    # 0.4  — adolescent: cyan-green
+    (80, 220, 0),     # 0.6  — maturing: bright green
+    (240, 180, 0),    # 0.8  — old: amber-orange
+    (255, 40, 0),     # 1.0  — ancient/stable: hot red
+]
+
 PALETTE_REGISTRY: dict = {
     "fire":     FIRE_PALETTE,
     "lava":     LAVA_PALETTE,
     "spectral": SPECTRAL_PALETTE,
     "bio":      BIO_PALETTE,
     "escape":   ESCAPE_PALETTE,
+    "age":      AGE_PALETTE,
 }
 
 # C12 — Named bloom colors for presets

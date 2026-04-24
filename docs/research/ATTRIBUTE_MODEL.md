@@ -362,7 +362,8 @@ PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
 | X_PLASMA_NOISE_WARP | plasma amplitude_map + noise phase_map → sine_warp simultaneously | two independent float fields on two independent warp params: rows swing different distances (plasma) AND peak at different moments (noise). Maximum FILL→SPATIAL coupling on a single transform. | **done 2026-04-22** |
 | X_RD_PLASMA | reaction-diffusion fill spatially modulated by plasma field | two generative systems layered, plasma shapes where RD can grow |
 | X_FRACTAL_ZOOM_ANIM | fractal fill + zoom animation + C11 escape bands | zoom into Mandelbrot live inside letterforms, colored |
-| X_LIVING_COLOR | CA fill animated (A06) + C11 step-count color | cells age, older cells shift hue toward red/orange |
+| X_LIVING_COLOR | CA fill animated (A06) + C11 step-count color | cells age, older cells shift hue toward red/orange | **done 2026-04-24** — CB6 ⚠️ Partial: metabolic map legible, CA converges quickly to bimodal (blue transients + red stable), less dynamic than predicted |
+| X_LIVING_WRAP | X_LIVING_COLOR with wrap boundary conditions | exterior wraps to opposite side — GoL can sustain gliders/oscillators indefinitely. Changes color dynamics: no stable convergence, perpetual blue oscillation with occasional red clusters. Tuning: alive_prob=0.28 (critical density), wrap boundary in _gol_step(). ~20 line change to living_color(). |
 
 ---
 
@@ -405,6 +406,7 @@ Based on implementation cost vs novelty payoff:
 9. ~~**X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project's flagship composite visual.~~ **done 2026-04-20**
 10. ~~**X_NOISE_WARP** — Perlin noise per-row means → new phase_map param on sine_warp(). Phase vs amplitude: categorically different spatial warp character.~~ **done 2026-04-21**
 11. ~~**X_PLASMA_NOISE_WARP** — plasma amplitude_map × noise phase_map on sine_warp() simultaneously. Maximum FILL→SPATIAL coupling: two independent float fields on two independent warp params. Each row differs in BOTH magnitude AND timing per frame.~~ **done 2026-04-22**
+12. ~~**X_LIVING_COLOR** — A06 GoL + C11 age-heat coloring. Metabolic map of CA stability: blue=transient, red=stable. AGE_PALETTE added. CB6 ⚠️ Partial — bimodal color pattern (12 red stable + 154 blue) is visually legible but less dynamic than predicted.~~ **done 2026-04-24**
 
 ---
 
