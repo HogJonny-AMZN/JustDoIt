@@ -131,7 +131,7 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass, plasma_lava_lamp, flame_gradient_color, flame_bloom, bloom_pulse, plasma_bloom, iso_depth_breathe, turing_bio, turing_morphogenesis, plasma_flame, plasma_warp, fractal_color_cycle, turing_warp, flame_iso_bloom, noise_warp, plasma_noise_warp, living_fill
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass, plasma_lava_lamp, flame_gradient_color, flame_bloom, bloom_pulse, plasma_bloom, iso_depth_breathe, turing_bio, turing_morphogenesis, plasma_flame, plasma_warp, fractal_color_cycle, turing_warp, flame_iso_bloom, noise_warp, plasma_noise_warp, living_fill, living_color
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
@@ -485,6 +485,14 @@ def _build_showcase() -> list[dict]:
             "frames": lambda: list(living_fill(text_plain, n_frames=120, seed=42, alive_prob=0.4, color="green", loop=False)),
             "fps": 10.0,
             "loop": False,
+        },
+        {
+            "id": "X_LIVING_COLOR",
+            "name": "Living Color — GoL Age-Heat",
+            "label": "living-color-age",
+            "frames": lambda: list(living_color(text_plain, n_frames=72, seed=42, alive_prob=0.4, max_age=20, palette_name="age", bloom_color_name="cyan", bloom_radius=2, bloom_falloff=0.70, loop=True)),
+            "fps": 10.0,
+            "loop": True,
         },
     ]
 

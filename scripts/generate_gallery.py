@@ -30,8 +30,8 @@ from justdoit.layout import measure
 # -------------------------------------------------------------------------
 # module global scope
 _MODULE_NAME = "scripts.generate_gallery"
-__updated__ = "2026-04-04 00:00:00"
-__version__ = "0.2.0"
+__updated__ = "2026-04-24 12:00:00"
+__version__ = "0.3.0"
 __author__ = ["jGalloway"]
 
 _LOGGER = _logging.getLogger(_MODULE_NAME)
@@ -502,6 +502,195 @@ def _apply_palette_by_density(base_grid: list, palette: list) -> list:
 
 
 # -------------------------------------------------------------------------
+def _pil_sine_warp(img: "PIL.Image.Image", amplitude: float = 0.08, frequency: float = 1.5) -> "PIL.Image.Image":
+    """Shift each row of pixels horizontally by a sine function.
+
+    :param img: PIL RGB image (white text on black).
+    :param amplitude: Fraction of canvas_w for max shift (default 0.08).
+    :param frequency: Sine cycles across full height (default 1.5).
+    :returns: New PIL.Image same size, black background.
+    """
+    from PIL import Image
+    import numpy as np
+
+    arr = np.array(img)
+    h, w = arr.shape[:2]
+    out = np.zeros_like(arr)
+    for row in range(h):
+        offset = int(amplitude * w * math.sin(row / max(h - 1, 1) * 2 * math.pi * frequency))
+        out[row] = np.roll(arr[row], offset, axis=0)
+    return Image.fromarray(out)
+
+
+# -------------------------------------------------------------------------
+def _pil_perspective_tilt(
+    img: "PIL.Image.Image",
+    strength: float = 0.25,
+    direction: str = "top",
+) -> "PIL.Image.Image":
+    """Apply a perspective (keystone) distortion.
+
+    :param img: PIL RGB image.
+    :param strength: 0.0 (none) to 1.0 (extreme), default 0.25.
+    :param direction: 'top' (top edge narrows) or 'bottom'.
+    :returns: New PIL.Image same size, black background.
+    """
+    from PIL import Image
+
+    w, h = img.size
+
+    if direction == "top":
+        src_tl = (w * strength / 2, 0)
+        src_tr = (w * (1 - strength / 2), 0)
+        src_bl = (0, h)
+        src_br = (w, h)
+    else:
+        src_tl = (0, 0)
+        src_tr = (w, 0)
+        src_bl = (w * strength / 2, h)
+        src_br = (w * (1 - strength / 2), h)
+
+    coeffs = _find_perspective_coeffs(
+        [(0, 0), (w, 0), (w, h), (0, h)],
+        [src_tl, src_tr, src_br, src_bl],
+    )
+    return img.transform((w, h), Image.PERSPECTIVE, coeffs, Image.BILINEAR, fillcolor=(0, 0, 0))
+
+
+# -------------------------------------------------------------------------
+def _find_perspective_coeffs(
+    dst_coords: "list[tuple]",
+    src_coords: "list[tuple]",
+) -> "tuple[float, ...]":
+    """Compute 8 perspective coefficients mapping dst -> src coords.
+
+    :param dst_coords: Four (x, y) destination corners.
+    :param src_coords: Four (x, y) source corners.
+    :returns: Tuple of 8 float coefficients for PIL PERSPECTIVE transform.
+    """
+    import numpy as np
+
+    matrix = []
+    for (dx, dy), (sx, sy) in zip(dst_coords, src_coords):
+        matrix.append([dx, dy, 1, 0, 0, 0, -sx * dx, -sx * dy])
+        matrix.append([0, 0, 0, dx, dy, 1, -sy * dx, -sy * dy])
+    A = np.array(matrix, dtype=np.float64)
+    B = np.array([c for pair in src_coords for c in pair], dtype=np.float64)
+    res = np.linalg.solve(A, B)
+    return tuple(res.tolist())
+
+
+# -------------------------------------------------------------------------
+def _pil_shear(
+    img: "PIL.Image.Image",
+    amount: float = 0.15,
+    direction: str = "right",
+) -> "PIL.Image.Image":
+    """Horizontal shear — each row shifted proportionally to vertical position.
+
+    :param img: PIL RGB image.
+    :param amount: Fraction of canvas_w per full height (default 0.15).
+    :param direction: 'right' (italic lean) or 'left'.
+    :returns: New PIL.Image same size, black background.
+    """
+    from PIL import Image
+
+    w, h = img.size
+    shear_x = amount * w / max(h, 1)
+    if direction == "left":
+        shear_x = -shear_x
+    tx = -shear_x * h / 2
+    return img.transform((w, h), Image.AFFINE, (1, shear_x, tx, 0, 1, 0), Image.BILINEAR, fillcolor=(0, 0, 0))
+
+
+# -------------------------------------------------------------------------
+def _pil_isometric(
+    text_img: "PIL.Image.Image",
+    depth_fraction: float = 0.04,
+    direction: str = "right",
+) -> "PIL.Image.Image":
+    """Create isometric extrusion effect in image space.
+
+    :param text_img: PIL RGB image (white text on black).
+    :param depth_fraction: Extrusion depth as fraction of canvas_w (default 0.04).
+    :param direction: 'right' (depth goes up-right) or 'left' (up-left).
+    :returns: PIL.Image ready for image_to_ascii().
+    """
+    from PIL import Image, ImageEnhance
+
+    w, h = text_img.size
+    depth_px = max(1, int(depth_fraction * w))
+
+    dx = depth_px if direction == "right" else -depth_px
+    depth_img = text_img.transform(
+        text_img.size, Image.AFFINE,
+        (1, 0, -dx, 0, 1, depth_px),
+        Image.BILINEAR, fillcolor=(0, 0, 0),
+    )
+    depth_img = ImageEnhance.Brightness(depth_img).enhance(0.4)
+
+    out = Image.new("RGB", text_img.size, (0, 0, 0))
+    out.paste(depth_img, (0, 0))
+    mask = text_img.convert("L")
+    out.paste(text_img, (0, 0), mask=mask)
+    return out
+
+
+# -------------------------------------------------------------------------
+def _apply_uniform_color(base_grid: list, rgb: tuple) -> list:
+    """Color every ink cell with a single uniform color.
+
+    :param base_grid: list[list[(char, rgb|None)]].
+    :param rgb: (r, g, b) tuple to apply.
+    :returns: list[list[(char, (r,g,b)|None)]].
+    """
+    return [
+        [(ch, rgb if ch != " " else None) for ch, _ in row]
+        for row in base_grid
+    ]
+
+
+# -------------------------------------------------------------------------
+def _g09_transform_entry(
+    text_pil: "PIL.Image.Image",
+    transform_fn: "callable",
+    cell_w: int,
+    cell_h: int,
+    post_color: "str | None" = None,
+    post_fill: "str | None" = None,
+    fill_kwargs: "dict | None" = None,
+    grid_cols: int = 0,
+    grid_rows: int = 0,
+) -> list:
+    """Orchestrate: transform PIL image -> sample to grid -> apply color/fill.
+
+    :param text_pil: PIL RGB image (white text on black, full canvas resolution).
+    :param transform_fn: Callable(PIL.Image) -> PIL.Image.
+    :param cell_w: Cell width in pixels.
+    :param cell_h: Cell height in pixels.
+    :param post_color: Optional color mode ('rainbow').
+    :param post_fill: Optional fill name for _apply_fill_color_to_grid().
+    :param fill_kwargs: Extra kwargs for fill function.
+    :param grid_cols: Grid column count (for fill functions).
+    :param grid_rows: Grid row count (for fill functions).
+    :returns: list[list[(char, (r,g,b)|None)]].
+    """
+    from justdoit.core.image_pipeline import render_pil_image_as_ascii
+
+    transformed = transform_fn(text_pil)
+    grid = render_pil_image_as_ascii(transformed, cell_w, cell_h, color=False)
+    if post_fill:
+        cols = grid_cols if grid_cols > 0 else (len(grid[0]) if grid else 0)
+        rows = grid_rows if grid_rows > 0 else len(grid)
+        grid = _apply_fill_color_to_grid(grid, post_fill, cols, rows, fill_kwargs=fill_kwargs)
+    elif post_color == "rainbow":
+        grid = _grid_rainbow_color(grid)
+    else:
+        grid = _apply_uniform_color(grid, (220, 220, 220))
+    return grid
+
+
+# -------------------------------------------------------------------------
 def _curated_entries_g09(
     text: str,
     font_path: str,
@@ -708,6 +897,46 @@ def _curated_entries_g09(
         print(f"    G09 Strategy C: {fill_name} ...")
         filled = _apply_char_fill_to_grid(base_grid, fill_name)
         add(stem, label, filled)
+
+    # Strategy D — spatial transforms in image space (PIL)
+    print("    G09 Strategy D: spatial transforms ...")
+    from justdoit.core.image_pipeline import render_text_to_pil
+    text_pil = render_text_to_pil(text, font_path, canvas_w, canvas_h)
+
+    _strategy_d = [
+        ("S-G09-sine-warp",          "G09+S01 — Sine warp",
+         lambda img: _pil_sine_warp(img), None, None, None),
+        ("S-G09-sine-warp-deep",     "G09+S01 — Sine warp (deep)",
+         lambda img: _pil_sine_warp(img, amplitude=0.14), None, None, None),
+        ("S-G09-sine-warp-fast",     "G09+S01 — Sine warp (fast)",
+         lambda img: _pil_sine_warp(img, frequency=3.0), None, None, None),
+        ("S-G09-perspective-top",    "G09+S02 — Perspective (top)",
+         lambda img: _pil_perspective_tilt(img, direction="top"), None, None, None),
+        ("S-G09-perspective-bottom", "G09+S02 — Perspective (bottom)",
+         lambda img: _pil_perspective_tilt(img, direction="bottom"), None, None, None),
+        ("S-G09-shear-right",        "G09+S08 — Shear right",
+         lambda img: _pil_shear(img, direction="right"), None, None, None),
+        ("S-G09-shear-left",         "G09+S08 — Shear left",
+         lambda img: _pil_shear(img, direction="left"), None, None, None),
+        ("S-G09-iso-right",          "G09+S03 — Isometric (right)",
+         lambda img: _pil_isometric(img, direction="right"), None, None, None),
+        ("S-G09-iso-left",           "G09+S03 — Isometric (left)",
+         lambda img: _pil_isometric(img, direction="left"), None, None, None),
+        ("S-G09-sine-warp-rainbow",  "G09+S01+C — Sine warp + rainbow",
+         lambda img: _pil_sine_warp(img), "rainbow", None, None),
+        ("S-G09-iso-flame",          "G09+S03+A08 — Iso + flame",
+         lambda img: _pil_isometric(img), None, "flame", None),
+        ("S-G09-shear-plasma",       "G09+S08+A10 — Shear + plasma",
+         lambda img: _pil_shear(img), None, "plasma", None),
+    ]
+    for stem, label, tfn, post_color, post_fill, fkw in _strategy_d:
+        print(f"    G09 Strategy D: {stem} ...")
+        grid = _g09_transform_entry(
+            text_pil, tfn, cell_w, cell_h,
+            post_color=post_color, post_fill=post_fill, fill_kwargs=fkw,
+            grid_cols=grid_cols, grid_rows=grid_rows,
+        )
+        add(stem, label, grid)
 
     return entries
 

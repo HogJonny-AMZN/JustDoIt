@@ -13,6 +13,7 @@ Implemented techniques:
   A04 — pulse:        brightness/color oscillation via cycling ANSI color codes
   A05 — dissolve:     characters scatter and fade out on exit (reverse of typewriter)
   A06 — living_fill:  Conway's Game of Life animated inside glyph masks in real time
+  X_LIVING_COLOR — living_color: GoL (A06) + C11 age-heat coloring — cells age from blue→red, revealing stable vs transient structure
 
 All generators:
   - Accept a rendered multi-line string
@@ -3521,6 +3522,265 @@ def living_fill(
     for _ in range(n_frames):
         frames.append(_state_to_frame(state))
         state = _gol_step(state)
+
+    if loop:
+        frames = frames + list(reversed(frames))
+
+    for f in frames:
+        yield f
+
+
+# =========================================================================
+# X_LIVING_COLOR — Conway GoL + C11 Age-Heat Coloring
+#
+# Cross-breed: A06 (Living Fill — GoL animated inside glyph masks) ×
+#              C11 fill_float_colorize (per-cell float→RGB via AGE_PALETTE)
+#
+# The key axis: each alive cell accumulates an age counter while it stays
+# alive consecutively.  Age is normalised to [0.0, 1.0] and mapped through
+# AGE_PALETTE: blue=newborn, cyan-green=young, amber=old, red=ancient/stable.
+#
+# Dead interior cells get age 0.0 and are rendered as dim dot chars (not
+# colored by C11 since their float is 0.0 — they appear as faint space-filling
+# dim dots showing where the CA has not ignited).
+#
+# What emerges that neither A06 nor C11 produces alone:
+#   - You can READ the metabolic structure of the CA from colour alone:
+#       - Blue flickers = transient cells just born, about to die.
+#       - Green cells = cells in mid-length oscillators (period 2-5).
+#       - Red clusters = blinkers, still-lifes, and stable blocks that
+#         have persisted many generations.
+#   - Stable structures in a Conway grid are RARE.  This makes them
+#     visually obvious without any annotation: they burn red while the
+#     chaos around them flickers blue.
+#
+
+# Age character scales for living_color (alive chars)
+_LIVING_COLOR_ALIVE: str = "█▓▒"
+_LIVING_COLOR_DEAD: str = "·"
+
+
+# -------------------------------------------------------------------------
+def living_color(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 72,
+    seed: int = 42,
+    alive_prob: float = 0.4,
+    max_age: int = 20,
+    palette_name: str = "age",
+    bloom_color_name: Optional[str] = "cyan",
+    bloom_radius: int = 2,
+    bloom_falloff: float = 0.70,
+    loop: bool = True,
+) -> Iterator[str]:
+    """Living Color animation — Conway GoL with C11 age-heat coloring (X_LIVING_COLOR).
+
+    Runs Conway's Game of Life inside glyph masks (A06) while tracking each
+    alive cell's consecutive-alive age.  Age is normalised to [0.0, 1.0]
+    relative to ``max_age`` and mapped through ``AGE_PALETTE``
+    (blue→cyan→green→amber→red) via C11 ``fill_float_colorize()``.
+
+    What this reveals that A06 alone cannot:
+    - **Blue cells** are newborn (just flicked on this generation).
+    - **Cyan/green cells** are young-to-mid oscillators (period 2–10).
+    - **Red cells** are ancient stable structures (still-lifes, period-2 blinkers).
+    - Stable CA structures are visually *rare* — they stand out as red islands
+      in a field of flickering blue, making the CA's metabolic structure legible.
+
+    Dead interior cells receive age 0.0 and are rendered as dim ``·`` chars with
+    no color (exterior cells are spaces, as always).
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Total GoL generations to yield (default 72).
+    :param seed: Integer seed for reproducible initial state (default 42).
+    :param alive_prob: Probability each interior cell starts alive (default 0.4).
+    :param max_age: Consecutive-alive frames at which age float saturates to 1.0
+        (default 20).
+    :param palette_name: Palette from PALETTE_REGISTRY for age coloring
+        (default 'age').
+    :param bloom_color_name: Bloom hue name from BLOOM_COLORS, or None to
+        disable bloom (default 'cyan').
+    :param bloom_radius: Bloom radius in cells (default 2).
+    :param bloom_falloff: Per-cell bloom falloff factor (default 0.70).
+    :param loop: If True, yield frames forward then reversed for seamless
+        loop (default True).
+    :returns: Iterator of colored frame strings with age-heat coloring.
+    """
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.effects.color import (
+        fill_float_colorize as _fill_float_colorize,
+        bloom as _bloom,
+        PALETTE_REGISTRY,
+        BLOOM_COLORS,
+    )
+
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["age"])
+    bloom_color = BLOOM_COLORS.get(bloom_color_name) if bloom_color_name else None
+
+    rng = random.Random(seed)
+
+    # 1. Render with density fill to identify glyph interior cells
+    rendered = _render(text_plain, font=font, fill="density")
+    base_rows = rendered.split("\n")
+    height = len(base_rows)
+    width = max((len(r) for r in base_rows), default=0)
+
+    # Pad rows to uniform width
+    base_rows = [r.ljust(width) for r in base_rows]
+
+    # 2. Build ink mask — any non-space cell is interior
+    ink = [[base_rows[r][c] != " " for c in range(width)] for r in range(height)]
+
+    # 3. Seed GoL state and age counters randomly inside ink cells
+    state = [
+        [ink[r][c] and rng.random() < alive_prob for c in range(width)]
+        for r in range(height)
+    ]
+
+    # Age counter: number of consecutive frames this cell has been alive.
+    # Initialise at 1 for initially-alive cells so they show as "just born" (not 0).
+    age = [[0] * width for _ in range(height)]
+    for r in range(height):
+        for c in range(width):
+            if state[r][c]:
+                age[r][c] = 1
+
+    # -------------------------------------------------------------------------
+    def _gol_step(s: list) -> list:
+        """Advance GoL one generation.  B3/S23, exterior treated as dead.
+
+        :param s: Current boolean state grid.
+        :returns: Next generation boolean state grid.
+        """
+        ns = [[False] * width for _ in range(height)]
+        for r in range(height):
+            for c in range(width):
+                if not ink[r][c]:
+                    continue
+                alive_nb = 0
+                for dr in (-1, 0, 1):
+                    for dc in (-1, 0, 1):
+                        if dr == 0 and dc == 0:
+                            continue
+                        nr, nc = r + dr, c + dc
+                        if 0 <= nr < height and 0 <= nc < width and s[nr][nc]:
+                            alive_nb += 1
+                if s[r][c]:
+                    ns[r][c] = alive_nb in (2, 3)
+                else:
+                    ns[r][c] = alive_nb == 3
+        return ns
+
+    # -------------------------------------------------------------------------
+    def _update_age(s: list, a: list) -> list:
+        """Update age counters based on new state.
+
+        Alive cells increment their age counter; dead cells reset to 0.
+
+        :param s: New boolean state grid (after GoL step).
+        :param a: Current age grid.
+        :returns: Updated age grid (new 2D list, does not mutate inputs).
+        """
+        na = [[0] * width for _ in range(height)]
+        for r in range(height):
+            for c in range(width):
+                if s[r][c]:
+                    na[r][c] = a[r][c] + 1
+                else:
+                    na[r][c] = 0
+        return na
+
+    # -------------------------------------------------------------------------
+    def _state_to_chars(s: list, a: list) -> str:  # noqa: ARG001
+        """Convert GoL state to plain char string for C11 colorization.
+
+        Alive cells: dense block chars selected by alive-neighbour count.
+        Dead interior cells: dim dot char (non-space so bloom can see them).
+        Exterior cells: space.
+
+        :param s: Boolean state grid.
+        :param a: Age grid (unused here; density is from neighbour count).
+        :returns: Multi-line plain char string.
+        """
+        lines = []
+        for r in range(height):
+            line = []
+            for c in range(width):
+                if not ink[r][c]:
+                    line.append(" ")
+                elif s[r][c]:
+                    alive_nb = sum(
+                        1
+                        for dr in (-1, 0, 1)
+                        for dc in (-1, 0, 1)
+                        if not (dr == 0 and dc == 0)
+                        and 0 <= r + dr < height
+                        and 0 <= c + dc < width
+                        and s[r + dr][c + dc]
+                    )
+                    idx = 0 if alive_nb >= 4 else (1 if alive_nb >= 2 else 2)
+                    line.append(_LIVING_COLOR_ALIVE[idx])
+                else:
+                    # Dead interior: dim dot — visible but not colored by C11
+                    # (C11 skips cells whose float == 0.0 leaves them uncolored)
+                    line.append(_LIVING_COLOR_DEAD)
+            lines.append("".join(line))
+        return "\n".join(lines)
+
+    # -------------------------------------------------------------------------
+    def _build_age_float_grid(s: list, a: list) -> list:
+        """Build per-cell age float grid for C11 colorization.
+
+        Alive cells: age / max_age, clamped to [0.0, 1.0].
+          - 0.0 = just born this generation (blue in AGE_PALETTE)
+          - 1.0 = alive for >= max_age consecutive generations (red in AGE_PALETTE)
+        Dead interior and exterior cells: 0.0 (C11 treats 0.0 as space-equivalent;
+        since dead cells use the dot char and float=0.0, they are rendered as
+        the palette's cold-blue color, but fill_float_colorize only colors
+        non-space chars, so dots get the 0.0 palette entry: deep blue).
+
+        :param s: Boolean state grid.
+        :param a: Age grid (consecutive alive frames).
+        :returns: 2D list[list[float]] of age float values.
+        """
+        fg = []
+        for r in range(height):
+            row = []
+            for c in range(width):
+                if s[r][c]:
+                    row.append(min(1.0, a[r][c] / max_age))
+                else:
+                    # Dead cells get 0.0 — fill_float_colorize will color the
+                    # dot char with the palette[0] (deep blue) if it's non-space.
+                    # This makes dead interior cells a dim blue floor,
+                    # contrasting with the animated alive cells above.
+                    row.append(0.0)
+            fg.append(row)
+        return fg
+
+    # 4. Generate frames
+    frames = []
+    for _ in range(n_frames):
+        char_text = _state_to_chars(state, age)
+        age_float_grid = _build_age_float_grid(state, age)
+
+        # C11: colorize all ink cells (alive + dead interior dot) by age float
+        colored = _fill_float_colorize(char_text, age_float_grid, palette)
+
+        # C12: bloom around ink cells (optional, cyan halo for the living texture)
+        if bloom_color:
+            colored = _bloom(
+                colored, bloom_color, radius=bloom_radius, falloff=bloom_falloff
+            )
+
+        frames.append(colored)
+
+        # Advance GoL one generation and update age counters
+        new_state = _gol_step(state)
+        age = _update_age(new_state, age)
+        state = new_state
 
     if loop:
         frames = frames + list(reversed(frames))

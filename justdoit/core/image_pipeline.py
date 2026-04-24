@@ -18,13 +18,73 @@ from typing import Optional
 # -------------------------------------------------------------------------
 # module global scope
 _MODULE_NAME = "justdoit.core.image_pipeline"
-__updated__ = "2026-04-24 00:00:00"
-__version__ = "1.0.0"
+__updated__ = "2026-04-24 12:00:00"
+__version__ = "1.1.0"
 __author__ = ["jGalloway"]
 
 _LOGGER = _logging.getLogger(_MODULE_NAME)
 
 _CHAR_W_RATIO = 0.6
+
+
+# -------------------------------------------------------------------------
+def render_text_to_pil(
+    text: str,
+    font_path: str,
+    canvas_w: int,
+    canvas_h: int,
+    fg_color: tuple = (255, 255, 255),
+    bg_color: tuple = (0, 0, 0),
+    font_scale: float = 1.0,
+) -> "PIL.Image.Image":
+    """Render text to a PIL image at canvas resolution without ASCII sampling.
+
+    Produces a white-on-black (or custom fg/bg) PIL image suitable for
+    geometric transforms before passing to ``image_to_ascii()``.
+
+    :param text: Text to render.
+    :param font_path: Path to a TTF/OTF font file.
+    :param canvas_w: Canvas width in pixels.
+    :param canvas_h: Canvas height in pixels.
+    :param fg_color: Foreground (text) color as (r, g, b) tuple.
+    :param bg_color: Background color as (r, g, b) tuple.
+    :param font_scale: Scale factor for auto-sized font (default: 1.0).
+    :returns: PIL.Image.Image (RGB) at *canvas_w* x *canvas_h*.
+    :raises ImportError: If Pillow is not installed.
+    """
+    from PIL import Image, ImageDraw, ImageFont
+
+    best_pt = 10
+    for pt in range(10, 500):
+        try:
+            font = ImageFont.truetype(font_path, pt)
+        except (IOError, OSError):
+            break
+        bbox = font.getbbox(text)
+        tw = bbox[2] - bbox[0]
+        th = bbox[3] - bbox[1]
+        if tw > canvas_w * 0.95 or th > canvas_h * 0.95:
+            break
+        best_pt = pt
+
+    best_pt = max(10, int(best_pt * font_scale))
+
+    try:
+        font = ImageFont.truetype(font_path, best_pt)
+    except (IOError, OSError):
+        font = ImageFont.load_default()
+
+    img = Image.new("RGB", (canvas_w, canvas_h), bg_color)
+    draw = ImageDraw.Draw(img)
+
+    bbox = font.getbbox(text)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
+    x = (canvas_w - tw) // 2 - bbox[0]
+    y = (canvas_h - th) // 2 - bbox[1]
+    draw.text((x, y), text, fill=fg_color, font=font)
+
+    return img
 
 
 # -------------------------------------------------------------------------
