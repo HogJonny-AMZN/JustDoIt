@@ -115,3 +115,54 @@ if PIL_AVAILABLE:
         result = render('HI', font=name)
         assert isinstance(result, str)
         assert len(result) > 0
+
+    def test_trimmed_height_less_than_font_size():
+        """Trimmed glyphs should be shorter than font_size (blank rows removed)."""
+        font_path = _find_test_font()
+        if font_path is None:
+            print("SKIP: no system fonts found")
+            return
+        from justdoit.fonts.ttf import rasterize_ttf
+        fs = 50
+        result = rasterize_ttf(font_path, font_size=fs, chars='ABCJ')
+        height = len(result['A'])
+        assert height < fs, f"Trimmed height {height} should be < font_size {fs}"
+
+    def test_no_uniform_leading_blank_rows():
+        """At least one glyph must have ink in the first row after trim."""
+        font_path = _find_test_font()
+        if font_path is None:
+            print("SKIP: no system fonts found")
+            return
+        from justdoit.fonts.ttf import rasterize_ttf
+        result = rasterize_ttf(font_path, font_size=50, chars='ABCJ')
+        non_space = {ch: rows for ch, rows in result.items() if ch != ' '}
+        has_ink_top = any(
+            any(c != ' ' for c in rows[0]) for rows in non_space.values()
+        )
+        assert has_ink_top, "No glyph has ink in the first row — trim failed"
+
+    def test_no_uniform_trailing_blank_rows():
+        """At least one glyph must have ink in the last row after trim."""
+        font_path = _find_test_font()
+        if font_path is None:
+            print("SKIP: no system fonts found")
+            return
+        from justdoit.fonts.ttf import rasterize_ttf
+        result = rasterize_ttf(font_path, font_size=50, chars='ABCJ')
+        non_space = {ch: rows for ch, rows in result.items() if ch != ' '}
+        has_ink_bot = any(
+            any(c != ' ' for c in rows[-1]) for rows in non_space.values()
+        )
+        assert has_ink_bot, "No glyph has ink in the last row — trim failed"
+
+    def test_space_glyph_matches_trimmed_height():
+        """Space glyph height must match other glyphs after trimming."""
+        font_path = _find_test_font()
+        if font_path is None:
+            print("SKIP: no system fonts found")
+            return
+        from justdoit.fonts.ttf import rasterize_ttf
+        result = rasterize_ttf(font_path, font_size=50, chars='ABCJ ')
+        heights = {len(rows) for rows in result.values()}
+        assert len(heights) == 1, f"Inconsistent heights after trim: {heights}"
