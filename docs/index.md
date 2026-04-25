@@ -8,7 +8,8 @@ Zero-dependency Python 3 ASCII art CLI. Renders text as ANSI-colorized terminal 
 
 - [Static Gallery](https://hogjonny-amzn.github.io/JustDoIt/gallery/) — fonts, fills, color, spatial & 3D
 - [Wide Gallery](https://hogjonny-amzn.github.io/JustDoIt/gallery-wide/) — HiDPI / retina renders
-- [4K Gallery](https://hogjonny-amzn.github.io/JustDoIt/gallery-4k/) — full 3840×2160 renders
+- [4K Gallery](https://hogjonny-amzn.github.io/JustDoIt/gallery-4k/) — full 3840×2160 PNG renders
+- [Font Gallery](https://hogjonny-amzn.github.io/JustDoIt/gallery-fonts/) — TTF comparison (37+ fonts, growing daily)
 - [Animation Gallery](https://hogjonny-amzn.github.io/JustDoIt/anim_gallery/) — APNG + asciinema casts
 - [GitHub](https://github.com/HogJonny-AMZN/JustDoIt)
 
