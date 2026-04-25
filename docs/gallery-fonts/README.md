@@ -2,7 +2,7 @@
 
 > TTF font comparison — each entry shows how that font renders as ASCII art.
 > Rendered at ~160 cols target width, wide-gallery style.
-> **27 fonts rendered** (manual + Google Fonts batch).
+> **37 fonts rendered** (manual + Google Fonts batch).
 
 ## Curated Fonts
 
@@ -30,13 +30,23 @@
 
 | Font | Preview |
 |------|---------|
-| **Aclonica-Regular** | ![Aclonica-Regular](G-Aclonica-Regular.svg) |
-| **Arimo-Italic[wght]** | ![Arimo-Italic[wght]](G-Arimo-Italic[wght].svg) |
-| **Arimo[wght]** | ![Arimo[wght]](G-Arimo[wght].svg) |
-| **Calligraffitti-Regular** | ![Calligraffitti-Regular](G-Calligraffitti-Regular.svg) |
-| **CherryCreamSoda-Regular** | ![CherryCreamSoda-Regular](G-CherryCreamSoda-Regular.svg) |
-| **Chewy-Regular** | ![Chewy-Regular](G-Chewy-Regular.svg) |
-| **ComingSoon-Regular** | ![ComingSoon-Regular](G-ComingSoon-Regular.svg) |
-| **Cousine-Bold** | ![Cousine-Bold](G-Cousine-Bold.svg) |
-| **Cousine-BoldItalic** | ![Cousine-BoldItalic](G-Cousine-BoldItalic.svg) |
-| **Cousine-Italic** | ![Cousine-Italic](G-Cousine-Italic.svg) |
+| **G-Aclonica-Regular** | ![G-Aclonica-Regular](G-Aclonica-Regular.svg) |
+| **G-Arimo-Italic[wght]** | ![G-Arimo-Italic[wght]](G-Arimo-Italic[wght].svg) |
+| **G-Arimo[wght]** | ![G-Arimo[wght]](G-Arimo[wght].svg) |
+| **G-Calligraffitti-Regular** | ![G-Calligraffitti-Regular](G-Calligraffitti-Regular.svg) |
+| **G-CherryCreamSoda-Regular** | ![G-CherryCreamSoda-Regular](G-CherryCreamSoda-Regular.svg) |
+| **G-Chewy-Regular** | ![G-Chewy-Regular](G-Chewy-Regular.svg) |
+| **G-ComingSoon-Regular** | ![G-ComingSoon-Regular](G-ComingSoon-Regular.svg) |
+| **G-Cousine-Bold** | ![G-Cousine-Bold](G-Cousine-Bold.svg) |
+| **G-Cousine-BoldItalic** | ![G-Cousine-BoldItalic](G-Cousine-BoldItalic.svg) |
+| **G-Cousine-Italic** | ![G-Cousine-Italic](G-Cousine-Italic.svg) |
+| **Cousine-Regular** | ![Cousine-Regular](G-Cousine-Regular.svg) |
+| **CraftyGirls-Regular** | ![CraftyGirls-Regular](G-CraftyGirls-Regular.svg) |
+| **CreepsterCaps-Regular** | ![CreepsterCaps-Regular](G-CreepsterCaps-Regular.svg) |
+| **Crushed-Regular** | ![Crushed-Regular](G-Crushed-Regular.svg) |
+| **FontdinerSwanky-Regular** | ![FontdinerSwanky-Regular](G-FontdinerSwanky-Regular.svg) |
+| **HomemadeApple-Regular** | ![HomemadeApple-Regular](G-HomemadeApple-Regular.svg) |
+| **IrishGrover-Regular** | ![IrishGrover-Regular](G-IrishGrover-Regular.svg) |
+| **jsMath-cmbx10** | ![jsMath-cmbx10](G-jsMath-cmbx10.svg) |
+| **jsMath-cmex10** | ![jsMath-cmex10](G-jsMath-cmex10.svg) |
+| **jsMath-cmmi10** | ![jsMath-cmmi10](G-jsMath-cmmi10.svg) |

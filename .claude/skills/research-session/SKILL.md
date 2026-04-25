@@ -413,7 +413,7 @@ After completing Steps 6a-6d, run the next batch of Google Fonts renders:
 ```bash
 # Check if Google Fonts is downloaded
 if [ -f assets/fonts/google/.manifest.json ]; then
-    uv run python scripts/generate_font_gallery.py --batch 10
+    uv run python scripts/generate_font_gallery.py --batch 20
 else
     echo "Google Fonts not downloaded — skipping font batch"
     echo "To enable: uv run python scripts/download_google_fonts.py"
