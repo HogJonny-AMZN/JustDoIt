@@ -41,6 +41,7 @@ Techniques for generating or importing new glyph sets.
 | G08 | Quadrant Block Font | Unicode quadrant chars (▖▗▘▝) for 2x2 subpixel grid | 3 | `idea` |
 | G09 | Image-to-ASCII Pipeline | Any PIL image → 6D zone char matching → (char, rgb) grid. Modules: `core/char_db.py` (promoted from shape_fill), `core/image_sampler.py`, `core/image_pipeline.py`. Supports text-as-image rendering (4K gallery) and arbitrary image/photo conversion. | 5 | `done` |
 | G10 | Custom PUA Glyph Font | Unicode Private Use Area (U+E000–U+F8FF) + font patching (Terminal Glyph Patcher) to embed custom SVG glyphs — partial-fill blocks, diagonal sub-cell patterns, specialty symbols — usable in terminals running a patched font | 4 | `idea` |
+| G11 | 3D Glyph Mesh Renderer | ttf2mesh (https://github.com/fetisov/ttf2mesh) tessellates TTF glyphs into 3D Delaunay meshes (.obj). Python numpy soft-rasterizer (Z-buffer, per-face lighting) renders mesh to PIL canvas → image_to_ascii_fast → 4K PNG. Enables true isometric/perspective/oblique 3D letterforms with correct occlusion and lighting — no PIL affine hacks. Gallery entries: iso, perspective, oblique, rotate45, lit-left, neon-emissive. | 5 | `idea` |
 
 ### C. Spatial Effects
 Geometric transformations applied to the full rasterized grid.
