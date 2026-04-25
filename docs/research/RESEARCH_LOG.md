@@ -1417,3 +1417,47 @@ Future work on this axis would require adding new parameters to sine_warp() (e.g
 | 6 | X_LIVING_COLOR_WRAP (X_LIVING_COLOR variant with wrap boundary) | X_LIVING_WRAP | 3 | `idea` |
 | 7 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
 | 8 | Wave Interference Animation | A_F09a | 3 | `idea` |
+
+## Session 2026-04-25 (Manual — 4K Gallery & Pipeline Quality Work)
+
+**Work done:** Not a technique session — foundational rendering quality work on 4K gallery and font gallery.
+
+### What was built / fixed
+- `image_to_ascii_fast()` — numpy stride trick + batch matrix L2 distance. 14s → 0.32s (45x speedup).
+- 4K gallery pivoted to true PNG output: 3840×2160, 8×16px cells, 480×135 char grid.
+- `_pil_isometric()` rewritten: filled side faces via back-to-front numpy layer compositing with brightness ramp (0.20→0.58). Binarized source eliminates anti-alias streaking.
+- `sdf_fill()` gamma parameter: bias toward bold interior (gamma=4.0) vs linear outline (1.0). Three SDF variants added to gallery.
+- `debug_pipeline.py`: visual inspection script, crop-to-content + normalize so images aren't all-black thumbnails.
+- Font gallery: `generate_font_gallery.py` + 11 downloaded Google Fonts → `docs/gallery-fonts/` (17 fonts, SVG comparison table).
+
+### Key diagnostic insight (from visual debugging)
+The image_to_ascii 6-zone shape DB maps solid-white cells to `E` at 4×8px cells because:
+1. Max char density at 4×8px is only 0.386 (E). No char reaches > 40% zone coverage at this scale.
+2. Pure white source (PIL text render) → all interior cells have zone vector [1,1,1,1,1,1] → all map to E.
+3. The DB is designed for *shape matching* not *density ranking*. At tiny cells all chars look the same.
+Fix path: either use a luminance-sorted charset (bypass DB for uniform-luminance cells) or don't use image_to_ascii on solid-color source images — use glyph-dict path for char selection, image pipeline only for color.
+
+### Quality improvement backlog (picked up from today's work)
+
+| ID | Description | Priority | Notes |
+|----|-------------|----------|-------|
+| Q01 | **Interior char variety (M-dominance fix)** | high | Solid letter interiors all map to M at 8×16px. Same root cause as E-dominance. Fix: luminance-sorted fallback when SDF interior zones are uniform. Or: use density_fill on interior + shape_fill on edges (hybrid). |
+| Q02 | **SDF bold interior + thin edge — verified working in data** | done | p90=238 brightness at gamma=1.0. Thumbnails mislead because 8px chars are sparse. View at 1:1 on 4K. |
+| Q03 | **Isometric side-face char differentiation** | medium | Currently side faces use same chars as front face (rotated). True isometric ASCII uses `/`, `\`, `│`, `▒` for side planes. Would make extrusion read as solid geometry rather than dimmed copy. |
+| Q04 | **Flame fill — top-of-letter too dark** | medium | Flame physics correct (heat rises from base). Fix: lift palette floor so top of letters are dim-red not black. Already partially addressed (floor=0.25 in _apply_fill_color_to_grid). Review at 1:1. |
+| Q05 | **Font gallery — proportional fonts vs monospace** | low | DejaVu Sans/Serif are proportional — chars don't align in grid. Either exclude them or add a note. The ASCII art grid assumes monospace; proportional fonts produce irregular spacing. |
+| Q06 | **SDF neon brightness** | low | Neon fill is dim. Increase base brightness of neon palette stops. |
+| Q07 | **gallery-fonts: add fill effects** | low | Currently font gallery is plain text only. Add density/SDF/plasma variants per font once a best font is chosen. |
+
+### Priority queue update
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | X_ISO_NEON (needs per-face fill routing infra) | X_ISO_NEON | 5 | `idea` |
+| 4 | Chromatic Aberration | C08 | 5 | `idea` |
+| 5 | Interior char variety fix (Q01) | Q01 | 4 | `idea` — quality, not new technique |
+| 6 | Isometric side-face char differentiation (Q03) | Q03 | 3 | `idea` |
+| 7 | X_RD_PLASMA (reaction-diffusion × plasma field) | X_RD_PLASMA | 4 | `idea` |
+| 8 | X_LIVING_COLOR_WRAP (GoL wrap boundary) | X_LIVING_WRAP | 3 | `idea` |
