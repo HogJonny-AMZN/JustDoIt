@@ -19,10 +19,10 @@
   <text x="1920" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
   <text x="2000" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
   <text x="2080" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">,</text>
-  <text x="2320" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">@</text>
-  <text x="2400" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">@</text>
-  <text x="2480" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">@</text>
-  <text x="2560" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">@</text>
+  <text x="2320" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
+  <text x="2400" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
+  <text x="2480" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
+  <text x="2560" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
   <text x="3040" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">@</text>
   <text x="3120" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">#</text>
   <text x="3200" y="270" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">#</text>
@@ -45,10 +45,10 @@
   <text x="2000" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">:</text>
   <text x="2080" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">:</text>
   <text x="2160" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">;</text>
-  <text x="2320" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">S</text>
-  <text x="2400" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">S</text>
-  <text x="2480" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">S</text>
-  <text x="2560" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">S</text>
+  <text x="2320" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
+  <text x="2400" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
+  <text x="2480" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
+  <text x="2560" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
   <text x="3120" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">S</text>
   <text x="3200" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">S</text>
   <text x="3520" y="405" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">;</text>
@@ -68,10 +68,10 @@
   <text x="2000" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">+</text>
   <text x="2080" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">+</text>
   <text x="2160" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">+</text>
-  <text x="2320" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">*</text>
-  <text x="2400" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">*</text>
-  <text x="2480" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">*</text>
-  <text x="2560" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">*</text>
+  <text x="2320" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
+  <text x="2400" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
+  <text x="2480" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
+  <text x="2560" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
   <text x="3120" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">*</text>
   <text x="3200" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">*</text>
   <text x="3520" y="540" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">?</text>
@@ -90,10 +90,10 @@
   <text x="2000" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">?</text>
   <text x="2080" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">?</text>
   <text x="2160" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">?</text>
-  <text x="2320" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">:</text>
-  <text x="2400" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">:</text>
-  <text x="2480" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">:</text>
-  <text x="2560" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">:</text>
+  <text x="2320" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
+  <text x="2400" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
+  <text x="2480" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
+  <text x="2560" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">.</text>
   <text x="3120" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">;</text>
   <text x="3200" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">;</text>
   <text x="3520" y="675" fill="#dcdcdc" font-size="133" font-family="Courier New, Courier, monospace">#</text>
