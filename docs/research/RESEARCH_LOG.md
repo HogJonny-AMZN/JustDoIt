@@ -1461,3 +1461,89 @@ Fix path: either use a luminance-sorted charset (bypass DB for uniform-luminance
 | 6 | Isometric side-face char differentiation (Q03) | Q03 | 3 | `idea` |
 | 7 | X_RD_PLASMA (reaction-diffusion × plasma field) | X_RD_PLASMA | 4 | `idea` |
 | 8 | X_LIVING_COLOR_WRAP (GoL wrap boundary) | X_LIVING_WRAP | 3 | `idea` |
+
+## Research Note 2026-04-25 — ttf2mesh: 3D Glyph Mesh for ASCII Art Rendering
+
+**Source:** https://github.com/fetisov/ttf2mesh
+**Flagged by:** Jonny
+
+### What it is
+C99 library (2 files: `ttf2mesh.c` + `ttf2mesh.h`) that tessellates TTF font glyphs into
+2D or 3D mesh objects using Delaunay triangulation. No graphics context required.
+Key output: `.obj` Wavefront files — one mesh object per glyph, with Unicode ID,
+advance, and bearing metadata.
+
+### The pipeline idea
+Use ttf2mesh to generate proper 3D glyph geometry, then software-rasterize it
+(with depth, perspective, lighting) into a PIL image, then feed that into
+`image_to_ascii_fast()` the same way we handle the 4K canvas today.
+
+```
+TTF file
+  → ttf2mesh (C, via Python ctypes or subprocess ttf2obj)
+  → .obj mesh per glyph (Wavefront format)
+  → Python soft-renderer (numpy Z-buffer, no OpenGL)
+    - perspective projection: isometric, oblique, front-on, rotated
+    - lighting: flat-shaded faces, Phong, ambient occlusion
+    - depth gradient: near=bright, far=dim (connects to SDF brightness work)
+  → PIL image (same 3840×2160 canvas)
+  → image_to_ascii_fast() (existing)
+  → 4K PNG gallery entry
+```
+
+### Why this beats the current PIL affine-transform approach
+Current `_pil_isometric()`: shifts a 2D pixel image diagonally and dims it.
+Result: approximation of depth with no real geometry. Side faces are "filled"
+by stacking shifted copies of a flat image.
+
+ttf2mesh approach: actual 3D triangulated glyph geometry.
+- Real perspective projection (foreshortening, correct occlusion)
+- Distinct front face, side faces, back face as separate mesh surfaces
+- Can extrude to any depth without artifacts
+- Can rotate freely (any angle, not just fixed isometric)
+- Lighting model gives physically correct shading on curved surfaces (O, S, J)
+- The "O" interior curve streaking problem disappears — it's solid geometry
+
+### What the soft-renderer needs (numpy only, no OpenGL)
+1. Load .obj → triangles list (v, vn optional)
+2. Transform vertices: model → world → camera → clip → NDC
+3. Rasterize: for each triangle, scan-convert, Z-buffer test
+4. Shade: per-face normal → dot with light direction → brightness
+5. Output: PIL RGB image at target canvas resolution
+
+This is ~200-300 lines of numpy. `trimesh` (Python) can do the OBJ loading
+and has a soft-rasterizer, but adds a dependency. A minimal custom rasterizer
+keeps zero-dep spirit for the package (gallery script only).
+
+### Integration points
+- `scripts/generate_gallery.py`: new Strategy E — "3D mesh render"
+  → `_render_glyph_3d(text, font_path, projection, depth, lighting) -> PIL.Image`
+  → feeds into `image_to_ascii_fast()` same as existing G09 base grid
+- `assets/fonts/`: TTF files already present (from font gallery work)
+- ttf2mesh: build as static binary (`ttf2obj` example) or call via ctypes
+
+### Build path
+```bash
+git clone https://github.com/fetisov/ttf2mesh /tmp/ttf2mesh
+cd /tmp/ttf2mesh/examples/build-linux-make
+make ttf2obj
+# produces: ttf2obj binary
+# usage: ./ttf2obj font.ttf output.obj [glyph_char]
+```
+Then Python reads the .obj and rasterizes it.
+
+### Gallery entries this enables (all via image_to_ascii_fast → 4K PNG)
+- `S-G09-3d-iso` — isometric extrusion with real geometry + lighting
+- `S-G09-3d-perspective` — slight perspective tilt (camera above/angled)
+- `S-G09-3d-oblique` — cabinet oblique projection (classic ASCII art 3D)
+- `S-G09-3d-rotate45` — letters rotated 45° on Y axis
+- `S-G09-3d-lit-left` — directional lighting from upper-left
+- `S-G09-3d-lit-neon` — emissive front face + ambient occlusion sides
+
+### Priority
+**High novelty (5)** — no other ASCII art tool renders genuine 3D glyph geometry.
+This is the clean solution to the isometric quality problem AND opens a whole new
+rendering axis that doesn't exist anywhere else in the codebase.
+
+Add to priority queue as **G10 — 3D Glyph Mesh Renderer** (novelty 5, infrastructure).
+Once the soft-renderer exists, each projection/lighting variant is a ~5-line gallery entry.
