@@ -2,23 +2,41 @@
 
 > TTF font comparison — each entry shows how that font renders as ASCII art.
 > Rendered at ~160 cols target width, wide-gallery style.
+> **27 fonts rendered** (manual + Google Fonts batch).
+
+## Curated Fonts
 
 | Font | Preview |
 |------|---------|
-| **Bungee  (display/wide)** | ![Bungee  (display/wide)](F-Bungee-Regular.svg) |
-| **Inconsolata** | ![Inconsolata](F-Inconsolata-Regular.svg) |
-| **Oxanium Bold  (geometric/sci-fi)** | ![Oxanium Bold  (geometric/sci-fi)](F-Oxanium-Bold.svg) |
-| **Press Start 2P  (pixel/retro)** | ![Press Start 2P  (pixel/retro)](F-PressStart2P-Regular.svg) |
-| **Roboto Mono Bold** | ![Roboto Mono Bold](F-RobotoMono-Bold.svg) |
-| **Roboto Mono** | ![Roboto Mono](F-RobotoMono-Regular.svg) |
-| **Share Tech Mono** | ![Share Tech Mono](F-ShareTechMono-Regular.svg) |
-| **Source Code Pro Bold** | ![Source Code Pro Bold](F-SourceCodePro-Bold.svg) |
-| **Source Code Pro** | ![Source Code Pro](F-SourceCodePro-Regular.svg) |
-| **Space Mono Bold** | ![Space Mono Bold](F-SpaceMono-Bold.svg) |
-| **Space Mono** | ![Space Mono](F-SpaceMono-Regular.svg) |
-| **DejaVu Sans Bold** | ![DejaVu Sans Bold](F-DejaVuSans-Bold.svg) |
-| **DejaVu Sans** | ![DejaVu Sans](F-DejaVuSans.svg) |
-| **DejaVu Sans Mono Bold** | ![DejaVu Sans Mono Bold](F-DejaVuSansMono-Bold.svg) |
-| **DejaVu Sans Mono** | ![DejaVu Sans Mono](F-DejaVuSansMono.svg) |
-| **DejaVu Serif Bold** | ![DejaVu Serif Bold](F-DejaVuSerif-Bold.svg) |
-| **DejaVu Serif** | ![DejaVu Serif](F-DejaVuSerif.svg) |
+| **F-Bungee-Regular** | ![F-Bungee-Regular](F-Bungee-Regular.svg) |
+| **F-DejaVuSans** | ![F-DejaVuSans](F-DejaVuSans.svg) |
+| **F-DejaVuSans-Bold** | ![F-DejaVuSans-Bold](F-DejaVuSans-Bold.svg) |
+| **F-DejaVuSansMono** | ![F-DejaVuSansMono](F-DejaVuSansMono.svg) |
+| **F-DejaVuSansMono-Bold** | ![F-DejaVuSansMono-Bold](F-DejaVuSansMono-Bold.svg) |
+| **F-DejaVuSerif** | ![F-DejaVuSerif](F-DejaVuSerif.svg) |
+| **F-DejaVuSerif-Bold** | ![F-DejaVuSerif-Bold](F-DejaVuSerif-Bold.svg) |
+| **F-Inconsolata-Regular** | ![F-Inconsolata-Regular](F-Inconsolata-Regular.svg) |
+| **F-Oxanium-Bold** | ![F-Oxanium-Bold](F-Oxanium-Bold.svg) |
+| **F-PressStart2P-Regular** | ![F-PressStart2P-Regular](F-PressStart2P-Regular.svg) |
+| **F-RobotoMono-Bold** | ![F-RobotoMono-Bold](F-RobotoMono-Bold.svg) |
+| **F-RobotoMono-Regular** | ![F-RobotoMono-Regular](F-RobotoMono-Regular.svg) |
+| **F-ShareTechMono-Regular** | ![F-ShareTechMono-Regular](F-ShareTechMono-Regular.svg) |
+| **F-SourceCodePro-Bold** | ![F-SourceCodePro-Bold](F-SourceCodePro-Bold.svg) |
+| **F-SourceCodePro-Regular** | ![F-SourceCodePro-Regular](F-SourceCodePro-Regular.svg) |
+| **F-SpaceMono-Bold** | ![F-SpaceMono-Bold](F-SpaceMono-Bold.svg) |
+| **F-SpaceMono-Regular** | ![F-SpaceMono-Regular](F-SpaceMono-Regular.svg) |
+
+## Google Fonts Batch
+
+| Font | Preview |
+|------|---------|
+| **Aclonica-Regular** | ![Aclonica-Regular](G-Aclonica-Regular.svg) |
+| **Arimo-Italic[wght]** | ![Arimo-Italic[wght]](G-Arimo-Italic[wght].svg) |
+| **Arimo[wght]** | ![Arimo[wght]](G-Arimo[wght].svg) |
+| **Calligraffitti-Regular** | ![Calligraffitti-Regular](G-Calligraffitti-Regular.svg) |
+| **CherryCreamSoda-Regular** | ![CherryCreamSoda-Regular](G-CherryCreamSoda-Regular.svg) |
+| **Chewy-Regular** | ![Chewy-Regular](G-Chewy-Regular.svg) |
+| **ComingSoon-Regular** | ![ComingSoon-Regular](G-ComingSoon-Regular.svg) |
+| **Cousine-Bold** | ![Cousine-Bold](G-Cousine-Bold.svg) |
+| **Cousine-BoldItalic** | ![Cousine-BoldItalic](G-Cousine-BoldItalic.svg) |
+| **Cousine-Italic** | ![Cousine-Italic](G-Cousine-Italic.svg) |
