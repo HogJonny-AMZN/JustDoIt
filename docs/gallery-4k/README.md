@@ -7,7 +7,7 @@ Run `python scripts/demo.py --gallery` to regenerate.
 
 ## Contents
 
-- [Fonts (49)](#fonts)
+- [Fonts (61)](#fonts)
 - [Fill Effects (15)](#fill-effects)
 - [Color Effects (6)](#color-effects)
 - [Spatial & 3D (6)](#spatial--3d)
@@ -59,38 +59,62 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 <tr>
 <td align="center"><img src="S-G09-gradient-vert.svg" width="780"><br><sub><b>G09 — Gradient Vert</b></sub></td>
+<td align="center"><img src="S-G09-iso-flame.svg" width="780"><br><sub><b>G09 — Iso Flame</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-G09-iso-left.svg" width="780"><br><sub><b>G09 — Iso Left</b></sub></td>
+<td align="center"><img src="S-G09-iso-right.svg" width="780"><br><sub><b>G09 — Iso Right</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="S-G09-lsystem.svg" width="780"><br><sub><b>G09 — Lsystem</b></sub></td>
-</tr>
-<tr>
 <td align="center"><img src="S-G09-noise-radial.svg" width="780"><br><sub><b>G09 — Noise Radial</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="S-G09-noise.svg" width="780"><br><sub><b>G09 — Noise</b></sub></td>
-</tr>
-<tr>
 <td align="center"><img src="S-G09-palette-bio.svg" width="780"><br><sub><b>G09 — Palette Bio</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="S-G09-palette-escape.svg" width="780"><br><sub><b>G09 — Palette Escape</b></sub></td>
-</tr>
-<tr>
 <td align="center"><img src="S-G09-palette-fire.svg" width="780"><br><sub><b>G09 — Palette Fire</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="S-G09-palette-lava.svg" width="780"><br><sub><b>G09 — Palette Lava</b></sub></td>
+<td align="center"><img src="S-G09-perspective-bottom.svg" width="780"><br><sub><b>G09 — Perspective Bottom</b></sub></td>
 </tr>
 <tr>
+<td align="center"><img src="S-G09-perspective-top.svg" width="780"><br><sub><b>G09 — Perspective Top</b></sub></td>
 <td align="center"><img src="S-G09-plasma-diagonal.svg" width="780"><br><sub><b>G09 — Plasma Diagonal</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="S-G09-plasma-slow.svg" width="780"><br><sub><b>G09 — Plasma Slow</b></sub></td>
-</tr>
-<tr>
 <td align="center"><img src="S-G09-plasma-tight.svg" width="780"><br><sub><b>G09 — Plasma Tight</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="S-G09-plasma.svg" width="780"><br><sub><b>G09 — Plasma</b></sub></td>
-</tr>
-<tr>
 <td align="center"><img src="S-G09-rd.svg" width="780"><br><sub><b>G09 — Rd</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="S-G09-sdf-neon.svg" width="780"><br><sub><b>G09 — Sdf Neon</b></sub></td>
-</tr>
-<tr>
 <td align="center"><img src="S-G09-sdf.svg" width="780"><br><sub><b>G09 — Sdf</b></sub></td>
-<td align="center"><img src="S-G09-shape-ocean.svg" width="780"><br><sub><b>G09 — Shape Ocean</b></sub></td>
 </tr>
 <tr>
+<td align="center"><img src="S-G09-shape-ocean.svg" width="780"><br><sub><b>G09 — Shape Ocean</b></sub></td>
 <td align="center"><img src="S-G09-shape.svg" width="780"><br><sub><b>G09 — Shape</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-G09-shear-left.svg" width="780"><br><sub><b>G09 — Shear Left</b></sub></td>
+<td align="center"><img src="S-G09-shear-plasma.svg" width="780"><br><sub><b>G09 — Shear Plasma</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-G09-shear-right.svg" width="780"><br><sub><b>G09 — Shear Right</b></sub></td>
+<td align="center"><img src="S-G09-sine-warp-deep.svg" width="780"><br><sub><b>G09 — Sine Warp Deep</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-G09-sine-warp-fast.svg" width="780"><br><sub><b>G09 — Sine Warp Fast</b></sub></td>
+<td align="center"><img src="S-G09-sine-warp-rainbow.svg" width="780"><br><sub><b>G09 — Sine Warp Rainbow</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="S-G09-sine-warp.svg" width="780"><br><sub><b>G09 — Sine Warp</b></sub></td>
 <td align="center"><img src="S-G09-slime.svg" width="780"><br><sub><b>G09 — Slime</b></sub></td>
 </tr>
 <tr>
@@ -194,4 +218,4 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 </table>
 
-*Last updated: 2026-04-24 — 86 techniques*
+*Last updated: 2026-04-25 — 98 techniques*
