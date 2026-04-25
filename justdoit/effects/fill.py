@@ -50,16 +50,26 @@ def density_fill(mask: list, density_chars: Optional[str] = None) -> list:
 
 
 # -------------------------------------------------------------------------
-def sdf_fill(mask: list, density_chars: Optional[str] = None) -> list:
+def sdf_fill(
+    mask: list,
+    density_chars: Optional[str] = None,
+    gamma: float = 1.0,
+) -> list:
     """Fill using signed distance field — natural outline and shading effect.
 
     Computes the SDF of the mask (edge ≈ 0.5, interior → 1.0, exterior → 0.0),
-    then applies density_fill. Creates a shaded/outlined look with heavier
-    characters toward glyph centers and lighter characters at edges.
+    applies an optional gamma curve, then applies density_fill.
+
+    gamma > 1.0 biases the gradient toward the interior (more full-density chars
+    in the centre, sharper falloff at edges). gamma=2.5-3.0 gives a bold interior
+    with a narrow edge ring. gamma=1.0 is linear (default, existing behaviour).
 
     :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
     :param density_chars: Darkest-to-lightest char sequence (default: DENSITY_CHARS).
+    :param gamma: Curve exponent applied to SDF values before density mapping.
     :returns: List of strings — one per row, same shape as input mask.
     """
     sdf = mask_to_sdf(mask)
+    if gamma != 1.0:
+        sdf = [[v ** gamma for v in row] for row in sdf]
     return density_fill(sdf, density_chars)
