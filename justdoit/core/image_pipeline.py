@@ -249,19 +249,22 @@ def grid_to_svg(
     else:
         cw = cell_w if cell_w > 0 else font_size * _CHAR_W_RATIO
         ch = cell_h if cell_h > 0 else font_size * 1.2
-        width = int(n_cols * cw) + font_size
-        height = int(n_rows * ch) + font_size
+        pad = font_size  # equal padding on all four sides
+        width  = int(n_cols * cw) + pad * 2
+        height = int(n_rows * ch) + pad * 2
+
+    pad = font_size
 
     elements = [f'<rect width="{width}" height="{height}" fill="{_svg_escape(bg_color)}"/>']
 
     default_color = (255, 255, 255)
 
     for row_idx, row in enumerate(grid):
-        y = int((row_idx + 1) * ch)
+        y = int(pad + (row_idx + 1) * ch)
         for col_idx, (char, rgb) in enumerate(row):
             if char == " ":
                 continue
-            x = int(col_idx * cw)
+            x = int(pad + col_idx * cw)
             r, g, b = rgb if rgb is not None else default_color
             fill = f"#{r:02x}{g:02x}{b:02x}"
             safe_ch = _svg_escape(char)
