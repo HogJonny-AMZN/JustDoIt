@@ -406,6 +406,30 @@ Spec is in `docs/animation_gallery.md`.
 
 ---
 
+## Step 6e — Font gallery batch (run every session)
+
+After completing Steps 6a-6d, run the next batch of Google Fonts renders:
+
+```bash
+# Check if Google Fonts is downloaded
+if [ -f assets/fonts/google/.manifest.json ]; then
+    uv run python scripts/generate_font_gallery.py --batch 10
+else
+    echo "Google Fonts not downloaded — skipping font batch"
+    echo "To enable: uv run python scripts/download_google_fonts.py"
+fi
+```
+
+If the manifest reports **all fonts rendered**, switch to finding new sources:
+1. Check RESEARCH_LOG.md for the "Future Font Sources" list
+2. Download and add the next source (SDL_ttf, Nerd Fonts, GNU FreeFont, etc.)
+3. Log the new source in RESEARCH_LOG.md under a "Font Source Expansion" entry
+4. Commit any new fonts to `assets/fonts/` (not `assets/fonts/google/` — that's gitignored)
+
+Font gallery SVGs (`docs/gallery-fonts/`) ARE committed — they're the output, not the source.
+
+---
+
 ## Step 7 — Update records
 
 **Mode A:**
