@@ -140,11 +140,13 @@ PROFILES: dict[str, "GalleryProfile"] = {
     ),
 }
 
-# Cell dimensions for 4K image pipeline rendering
-# 4x8px = minimum recognizable ASCII char; on 3840x2160 gives 960x270 = 259,200 cells
-# 40x denser than wide — fills have rich per-cell detail inside each letter
-_4K_CELL_W = 4
-_4K_CELL_H = 8
+# Cell dimensions for 4K image pipeline rendering.
+# 8x16px = classic VGA terminal cell; at this size the 6-zone shape DB correctly
+# maps bright cells to dense chars (M, #, @) and mid-gray to mid-density chars.
+# On 3840x2160 this gives 480x135 = 64,800 cells, output as a 3840x2160 PNG
+# where every pixel is real — no SVG font-size tricks.
+_4K_CELL_W = 8
+_4K_CELL_H = 16
 
 # Custom palettes for G09 gallery color fills (not in main palette registry)
 _NOISE_PALETTE: list = [(20, 40, 140), (60, 120, 200), (160, 210, 255), (240, 250, 255)]
@@ -634,10 +636,15 @@ def _pil_isometric(
     )
     depth_img = ImageEnhance.Brightness(depth_img).enhance(0.4)
 
+    import numpy as np
     out = Image.new("RGB", text_img.size, (0, 0, 0))
-    out.paste(depth_img, (0, 0))
-    mask = text_img.convert("L")
-    out.paste(text_img, (0, 0), mask=mask)
+    # Use thresholded masks so anti-aliased edges don't create ghost bleed.
+    # Depth layer: paste only where depth pixels are bright (letter ink, not background)
+    depth_mask = depth_img.convert("L").point(lambda p: 255 if p > 20 else 0)
+    out.paste(depth_img, (0, 0), mask=depth_mask)
+    # Front face: paste only where source text pixels are bright
+    front_mask = text_img.convert("L").point(lambda p: 255 if p > 20 else 0)
+    out.paste(text_img, (0, 0), mask=front_mask)
     return out
 
 
@@ -719,7 +726,7 @@ def _curated_entries_g09(
     :param svg_font_size: Base SVG font size.
     :returns: List of (stem, label, svg_string).
     """
-    from justdoit.core.image_pipeline import grid_to_svg, render_text_as_image
+    from justdoit.core.image_pipeline import render_text_as_image
 
     grid_cols = canvas_w // cell_w
     grid_rows = canvas_h // cell_h
@@ -735,16 +742,37 @@ def _curated_entries_g09(
         bg_color=(0, 0, 0),
     )
 
-    entries: list[tuple[str, str, str]] = []
+    entries: list[tuple[str, str, bytes]] = []
 
-    def _to_svg(grid: list) -> str:
-        # Do NOT pin to canvas pixel dimensions — let grid_to_svg auto-size
-        # from char count + font_size. SVG is vector; it scales to any display.
-        # Pinning forces font_size down to ~13px making chars microscopic.
-        return grid_to_svg(grid, font_size=svg_font_size)
+    # Monospace font for PNG rendering — must match cell_w x cell_h exactly
+    try:
+        from PIL import ImageFont as _IF
+        _png_font = _IF.truetype("DejaVuSansMono.ttf", cell_h - 1)
+    except Exception:
+        try:
+            from PIL import ImageFont as _IF
+            _png_font = _IF.load_default()
+        except Exception:
+            _png_font = None
+
+    def _to_png(grid: list) -> bytes:
+        """Render (char, rgb) grid to a 3840x2160 PNG in memory."""
+        from PIL import Image as _Img, ImageDraw as _ID
+        import io
+        rows = len(grid)
+        cols = max(len(r) for r in grid) if rows else 0
+        img = _Img.new("RGB", (cols * cell_w, rows * cell_h), (17, 17, 17))
+        draw = _ID.Draw(img)
+        for r, row in enumerate(grid):
+            for c, (ch, rgb) in enumerate(row):
+                if ch != " " and rgb:
+                    draw.text((c * cell_w, r * cell_h), ch, fill=rgb, font=_png_font)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=False)
+        return buf.getvalue()
 
     def add(stem: str, label: str, grid: list) -> None:
-        entries.append((stem, label, _to_svg(grid)))
+        entries.append((stem, label, _to_png(grid)))
 
     # Strategy A — clean text, color variants
     print("    G09 Strategy A: clean text variants ...")
@@ -1234,6 +1262,60 @@ def _write_readme(profile: GalleryProfile, entries: list[tuple[str, str, str]]) 
 
 
 # -------------------------------------------------------------------------
+def _write_readme_4k(profile: GalleryProfile, entries: list) -> None:
+    """Write README.md for the 4K PNG gallery.
+
+    :param profile: Gallery profile with output_dir.
+    :param entries: List of (stem, label, png_bytes) tuples.
+    """
+    gallery_dir = profile.output_dir
+    pngs = sorted(gallery_dir.glob("*.png"))
+    if not pngs:
+        print(f"  no PNGs found in {gallery_dir} — nothing to index")
+        return
+
+    showcase = [p for p in pngs if p.stem.startswith("S-")]
+    daily    = sorted([p for p in pngs if not p.stem.startswith("S-")], reverse=True)
+
+    groups: dict = {k: [] for k in _CATEGORIES}
+    for p in showcase:
+        code = p.stem[2:].split("-")[0].upper()
+        cat = code[0] if code else "S"
+        groups.setdefault(cat, []).append((p.name, _showcase_label(p.stem)))
+
+    lines = ["# 4K Gallery (PNG)", "",
+             "> 3840×2160 true-pixel renders — 480×135 char grid, 8×16px cells.",
+             "> Each PNG is a full 4K frame; zoom in to read individual characters.",
+             ""]
+
+    # TOC
+    for cat, (heading, anchor, _desc) in _CATEGORIES.items():
+        if groups.get(cat):
+            lines.append(f"- [{heading}](#{anchor})")
+    lines.append("")
+
+    total = 0
+    for cat, (heading, anchor, _desc) in _CATEGORIES.items():
+        pairs = groups.get(cat, [])
+        if not pairs:
+            continue
+        lines.append(f"## {heading}")
+        lines.append("")
+        lines += _table(pairs, img_width=profile.readme_img_width)
+        total += len(pairs)
+
+    if daily:
+        lines.append("## Daily Outputs")
+        lines.append("")
+        daily_pairs = [(p.name, p.stem) for p in daily]
+        lines += _table(daily_pairs, img_width=profile.readme_img_width)
+
+    readme = gallery_dir / "README.md"
+    readme.write_text("\n".join(lines), encoding="utf-8")
+    print(f"  index  {readme}  ({total} entries)")
+
+
+# -------------------------------------------------------------------------
 def _generate_for_profile(profile: GalleryProfile, text: str) -> None:
     """Generate all gallery SVGs and README for a given profile.
 
@@ -1310,11 +1392,11 @@ def _generate_for_profile(profile: GalleryProfile, text: str) -> None:
                     cell_w=_4K_CELL_W, cell_h=_4K_CELL_H,
                     svg_font_size=svg_font_size,
                 )
-                for stem, label, svg_str in entries:
-                    path = profile.output_dir / f"{stem}.svg"
-                    path.write_text(svg_str, encoding="utf-8")
+                for stem, label, png_bytes in entries:
+                    path = profile.output_dir / f"{stem}.png"
+                    path.write_bytes(png_bytes)
                     print(f"  saved  {path.name}  ({label})")
-                _write_readme(profile, entries)
+                _write_readme_4k(profile, entries)
                 return
             print("  G09: no system TTF found — falling back to old path", file=sys.stderr)
         except Exception as exc:
