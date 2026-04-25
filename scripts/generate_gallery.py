@@ -618,34 +618,68 @@ def _pil_isometric(
 ) -> "PIL.Image.Image":
     """Create isometric extrusion effect in image space.
 
+    Renders a filled 3D extrusion by compositing depth_px individual layers
+    back-to-front. Each layer is shifted 1px in the extrusion direction
+    (upper-right or upper-left) and progressively darkened. The front face
+    is rendered last at full brightness, producing a solid side face.
+
+    depth_px is derived from depth_fraction * canvas_w so it scales
+    proportionally with canvas size.
+
     :param text_img: PIL RGB image (white text on black).
     :param depth_fraction: Extrusion depth as fraction of canvas_w (default 0.04).
-    :param direction: 'right' (depth goes up-right) or 'left' (up-left).
+    :param direction: 'right' (extrudes upper-right) or 'left' (upper-left).
     :returns: PIL.Image ready for image_to_ascii().
     """
-    from PIL import Image, ImageEnhance
+    import numpy as np
+    from PIL import Image
 
     w, h = text_img.size
-    depth_px = max(1, int(depth_fraction * w))
+    depth_px = max(2, int(depth_fraction * w))  # e.g. 153px at 3840 wide
 
-    dx = depth_px if direction == "right" else -depth_px
-    depth_img = text_img.transform(
-        text_img.size, Image.AFFINE,
-        (1, 0, -dx, 0, 1, depth_px),
-        Image.BILINEAR, fillcolor=(0, 0, 0),
-    )
-    depth_img = ImageEnhance.Brightness(depth_img).enhance(0.4)
+    # Per-step direction: extrude upper-right (+x, -y) or upper-left (-x, -y)
+    step_x =  1 if direction == "right" else -1
+    step_y = -1  # always goes upward
 
-    import numpy as np
-    out = Image.new("RGB", text_img.size, (0, 0, 0))
-    # Use thresholded masks so anti-aliased edges don't create ghost bleed.
-    # Depth layer: paste only where depth pixels are bright (letter ink, not background)
-    depth_mask = depth_img.convert("L").point(lambda p: 255 if p > 20 else 0)
-    out.paste(depth_img, (0, 0), mask=depth_mask)
-    # Front face: paste only where source text pixels are bright
-    front_mask = text_img.convert("L").point(lambda p: 255 if p > 20 else 0)
-    out.paste(text_img, (0, 0), mask=front_mask)
-    return out
+    # Binarize the source: threshold at 50% brightness to get clean ink mask.
+    # Anti-aliased edges create sub-pixel grey values that leave gaps when shifted;
+    # binarizing fills those gaps so shifted layers stack solidly.
+    src_raw = np.array(text_img, dtype=np.float32)  # original (for front face)
+    threshold = 128.0
+    src_bin = np.where(src_raw > threshold, 255.0, 0.0)  # binarized
+    src = src_bin  # use binarized for extrusion layers
+    out = np.full((h, w, 3), 17.0, dtype=np.float32)  # dark background
+
+    # Ink mask from binarized source
+    src_ink = src.max(axis=2) > 128  # (H, W) bool
+
+    # Render depth layers back-to-front.
+    # Each shifted layer is painted over the previous; the front face wins last.
+    # brightness ramps from 0.20 (far) to 0.58 (nearest to front).
+    # To get a solid filled face we use numpy slice assignment — no gaps.
+    for d in range(depth_px, 0, -1):
+        ox = step_x * d
+        oy = step_y * d
+        brightness = 0.20 + 0.38 * (1.0 - d / depth_px)
+
+        sr0 = max(0, -oy);  sr1 = min(h, h - oy)
+        dr0 = max(0,  oy);  dr1 = min(h, h + oy)
+        sc0 = max(0, -ox);  sc1 = min(w, w - ox)
+        dc0 = max(0,  ox);  dc1 = min(w, w + ox)
+
+        # Shifted ink mask for this layer — only paint ink pixels, not background
+        layer_ink = src_ink[sr0:sr1, sc0:sc1]          # (slice_h, slice_w)
+        dest_slice = out[dr0:dr1, dc0:dc1]              # view into output
+        src_slice  = src[sr0:sr1, sc0:sc1]              # source RGB for this shift
+
+        # Paint every ink pixel in this layer (back-to-front, so later = closer)
+        dest_slice[layer_ink] = src_slice[layer_ink] * brightness
+
+    # Front face — use original (anti-aliased) pixels for smooth edges
+    front_ink = src_raw.max(axis=2) > 20
+    out[front_ink] = src_raw[front_ink]
+
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8))
 
 
 # -------------------------------------------------------------------------
