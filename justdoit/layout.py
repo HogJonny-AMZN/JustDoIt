@@ -435,8 +435,13 @@ def find_default_ttf() -> "str | None":
 
     :returns: Absolute path to a .ttf file, or None.
     """
+    # Project assets dir relative to this file: justdoit/ -> .. -> assets/fonts/
+    _assets = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "fonts")
+
     candidates = [
-        # Prefer monospace fonts for ASCII art
+        # Prefer project-bundled RobotoMono Bold — best ASCII art rendering
+        os.path.join(_assets, "RobotoMono-Bold.ttf"),
+        # System monospace fallbacks
         "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
