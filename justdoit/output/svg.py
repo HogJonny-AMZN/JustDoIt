@@ -73,8 +73,11 @@ def to_svg(
     else:
         char_w = font_size * _CHAR_W_RATIO
         line_h = font_size * line_height
-        width = int(max_cols * char_w) + font_size
-        height = int(n_rows * line_h) + font_size
+        pad = font_size  # equal padding on all four sides
+        width  = int(max_cols * char_w) + pad * 2
+        height = int(n_rows  * line_h)  + pad * 2
+
+    pad = font_size  # padding offset for character positions
 
     elements = []
     elements.append(
@@ -82,11 +85,11 @@ def to_svg(
     )
 
     for row_idx, row in enumerate(rows):
-        y = int((row_idx + 1) * line_h)
+        y = int(pad + (row_idx + 1) * line_h)
         for col_idx, (ch, color) in enumerate(row):
             if ch == " ":
                 continue
-            x = int(col_idx * char_w)
+            x = int(pad + col_idx * char_w)
             r, g, b = effective_color(color)
             fill = f"#{r:02x}{g:02x}{b:02x}"
             safe_ch = _svg_escape(ch)
