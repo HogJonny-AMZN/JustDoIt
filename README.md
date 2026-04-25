@@ -23,6 +23,7 @@ ASCII/ANSI text art with a serious rendering pipeline — fills, spatial effects
 | [**Static Gallery →**](https://hogjonny-amzn.github.io/JustDoIt/gallery/) | Fonts, fills, color effects, spatial & 3D — SVG snapshots (14px / standard) |
 | [**Wide Gallery →**](https://hogjonny-amzn.github.io/JustDoIt/gallery-wide/) | Same techniques at 28px — sharper on retina/HiDPI screens |
 | [**4K Gallery →**](https://hogjonny-amzn.github.io/JustDoIt/gallery-4k/) | Full 4K renders at 72px — pixel-perfect for 3840×2160 displays |
+| [**Font Gallery →**](https://hogjonny-amzn.github.io/JustDoIt/gallery-fonts/) | TTF comparison — 37+ fonts rendered as ASCII art, 20 new fonts added daily |
 | [**Animation Gallery →**](https://hogjonny-amzn.github.io/JustDoIt/anim_gallery/) | APNG + asciinema `.cast` — animated effects (typewriter, glitch, neon, flame, plasma) |
 
 ---
