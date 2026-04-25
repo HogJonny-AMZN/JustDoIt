@@ -163,7 +163,8 @@ def render_text_as_image(
     y = (canvas_h - th) // 2 - bbox[1]
     draw.text((x, y), text, fill=fg_color, font=font)
 
-    return image_to_ascii(img, cell_w, cell_h, charset=charset, color=color)
+    from justdoit.core.image_sampler import image_to_ascii_fast
+    return image_to_ascii_fast(img, cell_w, cell_h, charset=charset, color=color)
 
 
 # -------------------------------------------------------------------------
@@ -186,8 +187,8 @@ def render_pil_image_as_ascii(
     :returns: list[rows] of list[cols] of (char, (r,g,b) | None).
     :raises ImportError: If Pillow is not installed.
     """
-    from justdoit.core.image_sampler import image_to_ascii
-    return image_to_ascii(image, cell_w, cell_h, charset=charset, color=color)
+    from justdoit.core.image_sampler import image_to_ascii_fast
+    return image_to_ascii_fast(image, cell_w, cell_h, charset=charset, color=color)
 
 
 # -------------------------------------------------------------------------
