@@ -8,23 +8,23 @@
 
 | Font | Preview |
 |------|---------|
-| **F-Bungee-Regular** | ![F-Bungee-Regular](F-Bungee-Regular.svg) |
-| **F-DejaVuSans** | ![F-DejaVuSans](F-DejaVuSans.svg) |
-| **F-DejaVuSans-Bold** | ![F-DejaVuSans-Bold](F-DejaVuSans-Bold.svg) |
-| **F-DejaVuSansMono** | ![F-DejaVuSansMono](F-DejaVuSansMono.svg) |
-| **F-DejaVuSansMono-Bold** | ![F-DejaVuSansMono-Bold](F-DejaVuSansMono-Bold.svg) |
-| **F-DejaVuSerif** | ![F-DejaVuSerif](F-DejaVuSerif.svg) |
-| **F-DejaVuSerif-Bold** | ![F-DejaVuSerif-Bold](F-DejaVuSerif-Bold.svg) |
-| **F-Inconsolata-Regular** | ![F-Inconsolata-Regular](F-Inconsolata-Regular.svg) |
-| **F-Oxanium-Bold** | ![F-Oxanium-Bold](F-Oxanium-Bold.svg) |
-| **F-PressStart2P-Regular** | ![F-PressStart2P-Regular](F-PressStart2P-Regular.svg) |
-| **F-RobotoMono-Bold** | ![F-RobotoMono-Bold](F-RobotoMono-Bold.svg) |
-| **F-RobotoMono-Regular** | ![F-RobotoMono-Regular](F-RobotoMono-Regular.svg) |
-| **F-ShareTechMono-Regular** | ![F-ShareTechMono-Regular](F-ShareTechMono-Regular.svg) |
-| **F-SourceCodePro-Bold** | ![F-SourceCodePro-Bold](F-SourceCodePro-Bold.svg) |
-| **F-SourceCodePro-Regular** | ![F-SourceCodePro-Regular](F-SourceCodePro-Regular.svg) |
-| **F-SpaceMono-Bold** | ![F-SpaceMono-Bold](F-SpaceMono-Bold.svg) |
-| **F-SpaceMono-Regular** | ![F-SpaceMono-Regular](F-SpaceMono-Regular.svg) |
+| **Bungee  (display/wide)** | ![Bungee  (display/wide)](F-Bungee-Regular.svg) |
+| **DejaVu Sans** | ![DejaVu Sans](F-DejaVuSans.svg) |
+| **DejaVu Sans Bold** | ![DejaVu Sans Bold](F-DejaVuSans-Bold.svg) |
+| **DejaVu Sans Mono** | ![DejaVu Sans Mono](F-DejaVuSansMono.svg) |
+| **DejaVu Sans Mono Bold** | ![DejaVu Sans Mono Bold](F-DejaVuSansMono-Bold.svg) |
+| **DejaVu Serif** | ![DejaVu Serif](F-DejaVuSerif.svg) |
+| **DejaVu Serif Bold** | ![DejaVu Serif Bold](F-DejaVuSerif-Bold.svg) |
+| **Inconsolata** | ![Inconsolata](F-Inconsolata-Regular.svg) |
+| **Oxanium Bold  (geometric/sci-fi)** | ![Oxanium Bold  (geometric/sci-fi)](F-Oxanium-Bold.svg) |
+| **Press Start 2P  (pixel/retro)** | ![Press Start 2P  (pixel/retro)](F-PressStart2P-Regular.svg) |
+| **Roboto Mono Bold** | ![Roboto Mono Bold](F-RobotoMono-Bold.svg) |
+| **Roboto Mono** | ![Roboto Mono](F-RobotoMono-Regular.svg) |
+| **Share Tech Mono** | ![Share Tech Mono](F-ShareTechMono-Regular.svg) |
+| **Source Code Pro Bold** | ![Source Code Pro Bold](F-SourceCodePro-Bold.svg) |
+| **Source Code Pro** | ![Source Code Pro](F-SourceCodePro-Regular.svg) |
+| **Space Mono Bold** | ![Space Mono Bold](F-SpaceMono-Bold.svg) |
+| **Space Mono** | ![Space Mono](F-SpaceMono-Regular.svg) |
 
 ## Google Fonts Batch
 
@@ -40,13 +40,13 @@
 | **G-Cousine-Bold** | ![G-Cousine-Bold](G-Cousine-Bold.svg) |
 | **G-Cousine-BoldItalic** | ![G-Cousine-BoldItalic](G-Cousine-BoldItalic.svg) |
 | **G-Cousine-Italic** | ![G-Cousine-Italic](G-Cousine-Italic.svg) |
-| **Cousine-Regular** | ![Cousine-Regular](G-Cousine-Regular.svg) |
-| **CraftyGirls-Regular** | ![CraftyGirls-Regular](G-CraftyGirls-Regular.svg) |
-| **CreepsterCaps-Regular** | ![CreepsterCaps-Regular](G-CreepsterCaps-Regular.svg) |
-| **Crushed-Regular** | ![Crushed-Regular](G-Crushed-Regular.svg) |
-| **FontdinerSwanky-Regular** | ![FontdinerSwanky-Regular](G-FontdinerSwanky-Regular.svg) |
-| **HomemadeApple-Regular** | ![HomemadeApple-Regular](G-HomemadeApple-Regular.svg) |
-| **IrishGrover-Regular** | ![IrishGrover-Regular](G-IrishGrover-Regular.svg) |
-| **jsMath-cmbx10** | ![jsMath-cmbx10](G-jsMath-cmbx10.svg) |
-| **jsMath-cmex10** | ![jsMath-cmex10](G-jsMath-cmex10.svg) |
-| **jsMath-cmmi10** | ![jsMath-cmmi10](G-jsMath-cmmi10.svg) |
+| **G-Cousine-Regular** | ![G-Cousine-Regular](G-Cousine-Regular.svg) |
+| **G-CraftyGirls-Regular** | ![G-CraftyGirls-Regular](G-CraftyGirls-Regular.svg) |
+| **G-CreepsterCaps-Regular** | ![G-CreepsterCaps-Regular](G-CreepsterCaps-Regular.svg) |
+| **G-Crushed-Regular** | ![G-Crushed-Regular](G-Crushed-Regular.svg) |
+| **G-FontdinerSwanky-Regular** | ![G-FontdinerSwanky-Regular](G-FontdinerSwanky-Regular.svg) |
+| **G-HomemadeApple-Regular** | ![G-HomemadeApple-Regular](G-HomemadeApple-Regular.svg) |
+| **G-IrishGrover-Regular** | ![G-IrishGrover-Regular](G-IrishGrover-Regular.svg) |
+| **G-jsMath-cmbx10** | ![G-jsMath-cmbx10](G-jsMath-cmbx10.svg) |
+| **G-jsMath-cmex10** | ![G-jsMath-cmex10](G-jsMath-cmex10.svg) |
+| **G-jsMath-cmmi10** | ![G-jsMath-cmmi10](G-jsMath-cmmi10.svg) |
