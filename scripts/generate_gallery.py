@@ -371,7 +371,31 @@ def _apply_char_fill_to_grid(
         char_rows = density_fill(mask)
     elif fill_name == "sdf":
         from justdoit.effects.fill import sdf_fill
-        char_rows = sdf_fill(mask)
+        from justdoit.core.glyph import mask_to_sdf
+        gamma = kw.pop("gamma", 4.0)  # default: bold interior
+        char_rows = sdf_fill(mask, gamma=gamma)
+        # Modulate brightness by gamma-curved SDF value so interior is full-white
+        # and edge chars are visibly dimmer — creates the crisp edge ring
+        sdf_vals = mask_to_sdf(mask)
+        fg = color if color is not None else (255, 255, 255)
+        result = []
+        for r, row_str in enumerate(char_rows):
+            new_row = []
+            for c, ch in enumerate(row_str):
+                if ch == " ":
+                    new_row.append((" ", None))
+                else:
+                    v = sdf_vals[r][c] if r < len(sdf_vals) and c < len(sdf_vals[r]) else 0.5
+                    brightness = v ** gamma  # same curve as char selection
+                    # Edge chars stay visible but dim; interior hits full white.
+                    # Floor of 0.08 keeps edge chars just barely visible.
+                    brightness = max(0.08, min(1.0, brightness))
+                    rgb = tuple(int(ch_v * brightness) for ch_v in fg)
+                    new_row.append((ch, rgb))
+            result.append(new_row)
+        if color_fn is not None:
+            result = color_fn(result)
+        return result
     elif fill_name == "shape":
         from justdoit.effects.shape_fill import shape_fill
         char_rows = shape_fill(mask)
@@ -922,13 +946,18 @@ def _curated_entries_g09(
 
     # Strategy C — char fills on G09 mask (full resolution)
     _strategy_c = [
-        ("S-G09-density", "G09+F01 — Density (hi-res)", "density"),
-        ("S-G09-sdf",     "G09+F06 — SDF (hi-res)",     "sdf"),
-        ("S-G09-shape",   "G09+F07 — Shape (hi-res)",   "shape"),
+        ("S-G09-density", "G09+F01 — Density (hi-res)", "density", {}),
+        # SDF gamma=4.0: bold solid interior, thin crisp edge ring
+        ("S-G09-sdf",         "G09+F06 — SDF bold interior",      "sdf", {"gamma": 4.0}),
+        # SDF gamma=1.0: linear gradient, classic diffuse outline effect
+        ("S-G09-sdf-outline", "G09+F06 — SDF outline (linear)",   "sdf", {"gamma": 1.0}),
+        # SDF gamma=2.5: mid-point — visible gradient + readable interior
+        ("S-G09-sdf-mid",     "G09+F06 — SDF gradient (gamma 2.5)", "sdf", {"gamma": 2.5}),
+        ("S-G09-shape",   "G09+F07 — Shape (hi-res)",   "shape",  {}),
     ]
-    for stem, label, fill_name in _strategy_c:
-        print(f"    G09 Strategy C: {fill_name} ...")
-        filled = _apply_char_fill_to_grid(base_grid, fill_name)
+    for stem, label, fill_name, fkw in _strategy_c:
+        print(f"    G09 Strategy C: {stem.split('-')[-1]} ...")
+        filled = _apply_char_fill_to_grid(base_grid, fill_name, fill_kwargs=fkw or None)
         add(stem, label, filled)
 
     # Strategy C extensions — colored char fills
@@ -940,6 +969,7 @@ def _curated_entries_g09(
     print("    G09 Strategy C: sdf-neon ...")
     add("S-G09-sdf-neon", "G09+F06 — SDF + neon",
         _apply_char_fill_to_grid(base_grid, "sdf",
+                                 fill_kwargs={"gamma": 4.0},
                                  color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
                                                                           "diagonal",
                                                                           [(0, 255, 200), (255, 0, 255)])))
