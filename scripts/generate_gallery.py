@@ -130,19 +130,21 @@ PROFILES: dict[str, "GalleryProfile"] = {
     ),
     "4k": GalleryProfile(
         name="4k",
-        svg_font_size=72,
+        svg_font_size=12,
         readme_img_width=780,
         output_dir=Path(__file__).parent.parent / "docs" / "gallery-4k",
         use_hd=True,
         hd_target_cols=240,
         canvas_width=3840,
-        canvas_height=1080,
+        canvas_height=2160,
     ),
 }
 
 # Cell dimensions for 4K image pipeline rendering
-_4K_CELL_W = 8
-_4K_CELL_H = 16
+# 4x8px = minimum recognizable ASCII char; on 3840x2160 gives 960x270 = 259,200 cells
+# 40x denser than wide — fills have rich per-cell detail inside each letter
+_4K_CELL_W = 4
+_4K_CELL_H = 8
 
 # Custom palettes for G09 gallery color fills (not in main palette registry)
 _NOISE_PALETTE: list = [(20, 40, 140), (60, 120, 200), (160, 210, 255), (240, 250, 255)]
@@ -307,7 +309,8 @@ def _apply_fill_color_to_grid(
     elif fill_name == "turing":
         from justdoit.effects.color import BIO_PALETTE
         from justdoit.effects.generative import turing_float_grid
-        raw = turing_float_grid(mask, seed=42, scale=1, steps=500, **kw)
+        # steps=200 for G09 large grids (960x270); 500 is only needed for tiny masks
+        raw = turing_float_grid(mask, seed=42, scale=1, steps=200, **kw)
         # Lift floor so dark turing cells stay visible (min dim green, not black)
         float_grid = [[max(0.2, v) for v in row] for row in raw]
         palette = BIO_PALETTE
@@ -345,6 +348,7 @@ def _apply_char_fill_to_grid(
     fill_name: str,
     color: "tuple | None" = None,
     color_fn: "callable | None" = None,
+    fill_kwargs: "dict | None" = None,
 ) -> list:
     """Apply char-replacement fill to G09 mask.
 
@@ -359,6 +363,7 @@ def _apply_char_fill_to_grid(
     """
     mask = _g09_grid_to_mask(base_grid)
 
+    kw = fill_kwargs or {}
     if fill_name == "density":
         from justdoit.effects.fill import density_fill
         char_rows = density_fill(mask)
@@ -370,22 +375,22 @@ def _apply_char_fill_to_grid(
         char_rows = shape_fill(mask)
     elif fill_name == "cells":
         from justdoit.effects.generative import cells_fill
-        char_rows = cells_fill(mask)
+        char_rows = cells_fill(mask, **kw)
     elif fill_name == "rd":
         from justdoit.effects.generative import reaction_diffusion_fill
-        char_rows = reaction_diffusion_fill(mask)
+        char_rows = reaction_diffusion_fill(mask, **kw)
     elif fill_name == "attractor":
         from justdoit.effects.generative import strange_attractor_fill
-        char_rows = strange_attractor_fill(mask)
+        char_rows = strange_attractor_fill(mask, **kw)
     elif fill_name == "slime":
         from justdoit.effects.generative import slime_mold_fill
-        char_rows = slime_mold_fill(mask)
+        char_rows = slime_mold_fill(mask, **kw)
     elif fill_name == "truchet":
         from justdoit.effects.generative import truchet_fill
-        char_rows = truchet_fill(mask)
+        char_rows = truchet_fill(mask, **kw)
     elif fill_name == "lsystem":
         from justdoit.effects.generative import lsystem_fill
-        char_rows = lsystem_fill(mask)
+        char_rows = lsystem_fill(mask, **kw)
     else:
         return base_grid
 
@@ -733,10 +738,10 @@ def _curated_entries_g09(
     entries: list[tuple[str, str, str]] = []
 
     def _to_svg(grid: list) -> str:
-        return grid_to_svg(
-            grid, font_size=svg_font_size,
-            canvas_width=canvas_w, canvas_height=canvas_h,
-        )
+        # Do NOT pin to canvas pixel dimensions — let grid_to_svg auto-size
+        # from char count + font_size. SVG is vector; it scales to any display.
+        # Pinning forces font_size down to ~13px making chars microscopic.
+        return grid_to_svg(grid, font_size=svg_font_size)
 
     def add(stem: str, label: str, grid: list) -> None:
         entries.append((stem, label, _to_svg(grid)))
@@ -885,17 +890,21 @@ def _curated_entries_g09(
                                                                            (200, 240, 255)])))
 
     # Strategy C extensions — previously undiscovered fills
+    # RD (reaction-diffusion) is excluded from G09: O(W*H*steps) pure Python;
+    # at 960x270 even 50 steps = ~13M cell ops. Turing covers the same visual
+    # territory faster via the float-grid path. RD remains in standard/wide.
+    # Slime: 50 steps (vs 150) — trail networks form quickly at high cell density.
+    # Attractor: default (80000 trajectory points, O(1) vs mask size — fast).
     _strategy_c_new = [
-        ("S-G09-cells",     "G09+F03 — Cellular automata", "cells"),
-        ("S-G09-rd",        "G09+F04 — Reaction-diffusion", "rd"),
-        ("S-G09-attractor", "G09+F11 — Strange attractor",  "attractor"),
-        ("S-G09-slime",     "G09+F12 — Slime mold",         "slime"),
-        ("S-G09-truchet",   "G09+F13 — Truchet tiles",      "truchet"),
-        ("S-G09-lsystem",   "G09+F14 — L-system",           "lsystem"),
+        ("S-G09-cells",     "G09+F03 — Cellular automata", "cells",     {}),
+        ("S-G09-attractor", "G09+F11 — Strange attractor",  "attractor", {}),
+        ("S-G09-slime",     "G09+F12 — Slime mold",         "slime",     {"steps": 50}),
+        ("S-G09-truchet",   "G09+F13 — Truchet tiles",      "truchet",   {}),
+        ("S-G09-lsystem",   "G09+F14 — L-system",           "lsystem",   {}),
     ]
-    for stem, label, fill_name in _strategy_c_new:
+    for stem, label, fill_name, fkw in _strategy_c_new:
         print(f"    G09 Strategy C: {fill_name} ...")
-        filled = _apply_char_fill_to_grid(base_grid, fill_name)
+        filled = _apply_char_fill_to_grid(base_grid, fill_name, fill_kwargs=fkw or None)
         add(stem, label, filled)
 
     # Strategy D — spatial transforms in image space (PIL)
