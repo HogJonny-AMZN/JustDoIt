@@ -462,6 +462,163 @@ def effect_transporter(n_frames: int = 48) -> list:
     return frames
 
 
+def effect_living_color(n_frames: int = 120) -> list:
+    """Conway GoL with age-heat coloring — full-grid evolution, wrap boundary."""
+    import random, math
+    from justdoit.effects.color import PALETTE_REGISTRY
+
+    print(f"  Computing G09 base grid...")
+    base_grid = _build_base_grid()
+    rows = len(base_grid)
+    cols = max(len(r) for r in base_grid) if rows else 0
+    ink = [[base_grid[r][c][0] != ' ' for c in range(cols)] for r in range(rows)]
+    ink_cells = [(r, c) for r in range(rows) for c in range(cols) if ink[r][c]]
+
+    from PIL import ImageFont
+    try: png_font = ImageFont.truetype("DejaVuSansMono.ttf", CELL_H - 1)
+    except: png_font = ImageFont.load_default()
+
+    rng = random.Random(42)
+    age_palette = PALETTE_REGISTRY.get("age", [(0,0,255),(0,200,200),(255,200,0),(255,50,0)])
+    max_age = 40
+
+    # Full-grid GoL state
+    state = [[rng.random() < 0.28 for c in range(cols)] for r in range(rows)]
+    age = [[0]*cols for _ in range(rows)]
+
+    def gol_step(s):
+        ns = [[False]*cols for _ in range(rows)]
+        for r in range(rows):
+            for c in range(cols):
+                nb = sum(s[(r+dr)%rows][(c+dc)%cols]
+                         for dr in (-1,0,1) for dc in (-1,0,1) if (dr,dc)!=(0,0))
+                ns[r][c] = nb == 3 if not s[r][c] else nb in (2,3)
+        return ns
+
+    def lerp_palette(pal, t):
+        t = max(0.0, min(1.0, t))
+        seg = t * (len(pal)-1); i = min(int(seg), len(pal)-2); f = seg-i
+        r0,g0,b0=pal[i]; r1,g1,b1=pal[i+1]
+        return (int(r0+(r1-r0)*f), int(g0+(g1-g0)*f), int(b0+(b1-b0)*f))
+
+    # Warm up
+    for _ in range(30):
+        state = gol_step(state)
+
+    frames = []
+    for i in range(n_frames):
+        state = gol_step(state)
+        # Update age
+        for r in range(rows):
+            for c in range(cols):
+                if state[r][c]: age[r][c] = min(max_age, age[r][c]+1)
+                else: age[r][c] = 0
+        # Respawn every 25 frames
+        if (i+1) % 25 == 0:
+            for r,c in ink_cells:
+                if not state[r][c] and rng.random() < 0.12:
+                    state[r][c] = True; age[r][c] = 1
+
+        colored = []
+        for r, row in enumerate(base_grid):
+            new_row = []
+            for c, (ch, _) in enumerate(row):
+                if ch == ' ':
+                    new_row.append((' ', None))
+                elif state[r][c] and ink[r][c]:
+                    # Alive ink cell: age-heat color
+                    t = age[r][c] / max_age
+                    new_row.append((ch, lerp_palette(age_palette, t)))
+                elif ink[r][c]:
+                    # Dead ink cell: dim blue
+                    new_row.append((ch, (20, 20, 80)))
+                else:
+                    new_row.append((' ', None))
+            colored.append(new_row)
+        frames.append(_grid_to_png_bytes(colored, font=png_font))
+        if (i+1) % 24 == 0: print(f"  Frame {i+1}/{n_frames}")
+    return frames
+
+
+def effect_noise_warp(n_frames: int = 72) -> list:
+    """Perlin noise phase-map sine warp — crinkled glass distortion."""
+    from justdoit.effects.generative import noise_float_grid
+    from justdoit.effects.color import SPECTRAL_PALETTE
+    import numpy as np
+
+    print(f"  Computing G09 base grid...")
+    base_grid = _build_base_grid()
+    mask = [[1.0 if ch != ' ' else 0.0 for ch,_ in row] for row in base_grid]
+
+    # Pre-compute noise float grid (static)
+    fg = noise_float_grid(mask, seed=42)
+
+    from PIL import ImageFont
+    try: png_font = ImageFont.truetype("DejaVuSansMono.ttf", CELL_H - 1)
+    except: png_font = ImageFont.load_default()
+
+    full_palette = SPECTRAL_PALETTE + list(reversed(SPECTRAL_PALETTE[1:-1]))
+
+    frames = []
+    for i in range(n_frames):
+        phase = i / n_frames
+        colored = []
+        for r, row in enumerate(base_grid):
+            new_row = []
+            for c, (ch, _) in enumerate(row):
+                if ch == ' ':
+                    new_row.append((' ', None))
+                else:
+                    v = fg[r][c] if r < len(fg) and c < len(fg[r]) else 0.5
+                    t = (v + phase) % 1.0
+                    new_row.append((ch, _lerp_palette(full_palette, t)))
+            colored.append(new_row)
+        frames.append(_grid_to_png_bytes(colored, font=png_font))
+        if (i+1) % 12 == 0: print(f"  Frame {i+1}/{n_frames}")
+
+    return frames  # one pass
+
+
+def effect_slime(n_frames: int = 60) -> list:
+    """Slime mold agent trails build up over time — progressive reveal."""
+    import random
+    from justdoit.effects.color import ESCAPE_PALETTE
+
+    print(f"  Computing G09 base grid...")
+    base_grid = _build_base_grid()
+    rows = len(base_grid)
+    cols = max(len(r) for r in base_grid) if rows else 0
+    ink = [[base_grid[r][c][0] != ' ' for c in range(cols)] for r in range(rows)]
+
+    from PIL import ImageFont
+    try: png_font = ImageFont.truetype("DejaVuSansMono.ttf", CELL_H - 1)
+    except: png_font = ImageFont.load_default()
+
+    # Run slime sim in steps, capture at intervals
+    from justdoit.effects.generative import slime_mold_fill
+    mask = [[1.0 if ink[r][c] else 0.0 for c in range(cols)] for r in range(rows)]
+
+    # Capture at increasing step counts for progressive reveal
+    step_counts = [int(5 + 145 * (i / n_frames)**1.5) for i in range(n_frames)]
+    BIO = [(20,80,20),(40,180,60),(100,255,120),(200,255,200)]
+
+    frames = []
+    for i, steps in enumerate(step_counts):
+        char_rows = slime_mold_fill(mask, steps=steps, seed=42)
+        colored = []
+        for r, row_str in enumerate(char_rows):
+            new_row = []
+            for c, ch in enumerate(row_str):
+                if ch == ' ': new_row.append((' ', None))
+                else:
+                    t = (c / max(cols-1,1) * 0.5 + i / n_frames * 0.5)
+                    new_row.append((ch, _lerp_palette(BIO, t % 1.0)))
+            colored.append(new_row)
+        frames.append(_grid_to_png_bytes(colored, font=png_font))
+        if (i+1) % 12 == 0: print(f"  Frame {i+1}/{n_frames}")
+    return frames
+
+
 EFFECTS = {
     "fractal-julia": (effect_fractal_julia, "Julia set rotating c — fractal morphs each frame", 72),
     "plasma":        (effect_plasma,        "Plasma wave phase cycling",                         60),
@@ -477,54 +634,11 @@ EFFECTS.update({
     "transporter": (effect_transporter, "Transporter materialize — particles coalesce into glyph", 48),
 })
 
-
-def main():
-    parser = argparse.ArgumentParser(description="4K animated PNG generator")
-    parser.add_argument("--effect", default="fractal-julia",
-                        choices=list(EFFECTS.keys()), help="Effect to render")
-    parser.add_argument("--frames", type=int, default=0, help="Override frame count")
-    parser.add_argument("--list",   action="store_true", help="List available effects")
-    parser.add_argument("--fps",    type=float, default=FPS)
-    args = parser.parse_args()
-
-    if args.list:
-        print("Available 4K effects:")
-        for name, (_, desc, frames) in EFFECTS.items():
-            print(f"  {name:20s} {frames} frames — {desc}")
-        return
-
-    fn, desc, default_frames = EFFECTS[args.effect]
-    n_frames = args.frames if args.frames > 0 else default_frames
-
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = OUT_DIR / f"{args.effect}.apng"
-
-    print(f"\n4K Animation: {args.effect}")
-    print(f"  Resolution: {CANVAS_W}x{CANVAS_H}, {GRID_COLS}x{GRID_ROWS} chars, {CELL_W}x{CELL_H}px cells")
-    print(f"  Frames: {n_frames} @ {args.fps}fps")
-    print(f"  Output: {out_path}")
-    print()
-
-    t_start = time.time()
-    frames = fn(n_frames)
-    print(f"\n  {len(frames)} frames rendered in {time.time()-t_start:.1f}s")
-
-    # Save APNG from pre-rendered PNG bytes using PIL
-    print(f"  Saving APNG ({len(frames)} frames)...")
-    from PIL import Image
-    duration_ms = int(1000 / args.fps)
-    pil_frames = [Image.open(io.BytesIO(f)) for f in frames]
-    pil_frames[0].save(
-        out_path,
-        format="PNG",
-        save_all=True,
-        append_images=pil_frames[1:],
-        loop=0,
-        duration=duration_ms,
-        optimize=False,
-    )
-    size_mb = out_path.stat().st_size / 1_048_576
-    print(f"  Saved: {out_path} ({size_mb:.1f}MB, {duration_ms}ms/frame)")
+EFFECTS.update({
+    "living-color": (effect_living_color, "Conway GoL age-heat coloring — wrap boundary, respawn", 120),
+    "noise-warp":   (effect_noise_warp,   "Perlin noise phase-map warp — crinkled glass",             36),
+    "slime":        (effect_slime,        "Slime mold trail networks — progressive reveal",           60),
+})
 
 
 def main():
@@ -532,6 +646,8 @@ def main():
     parser.add_argument("--effect", default="fractal-julia",
                         choices=list(EFFECTS.keys()), help="Effect to render")
     parser.add_argument("--frames", type=int, default=0, help="Override frame count")
+
+
     parser.add_argument("--list",   action="store_true", help="List available effects")
     parser.add_argument("--fps",    type=float, default=FPS)
     args = parser.parse_args()
@@ -578,4 +694,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
