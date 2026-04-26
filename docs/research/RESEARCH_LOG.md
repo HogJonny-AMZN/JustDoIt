@@ -1695,3 +1695,58 @@ first N×4000 points plotted into the grid. 20 frames @ 8fps.
 | 9 | A_LSYS1 | L-system depth unfold animation | 3 | ~30 lines — depth sweep |
 | 10 | A_SHAPE1 | Shape fill char-set cycling | 2 | ~20 lines — vocab sweep |
 | 11 | A_NOISE1 | Noise seed walk animation | 2 | ~20 lines — seed sweep |
+
+## Session 2026-04-26b (Mode A — Novel Technique)
+
+**Technique implemented:** A_SLIME1 — Slime Mold Time-Lapse Animation
+**Sources:** Physarum polycephalum algorithm from N10 (slime_mold_fill) — self-referential implementation building on existing simulation infrastructure
+**New techniques found:** 1 (A_SLIME1 — animation preset exposing slime mold time evolution)
+**Key insight:** The slime mold simulation is most compelling as a time-lapse — a static snapshot looks like noise, but the trajectory from random walks → preferred paths → stable vein networks is the actual phenomenon Physarum exhibits in nature. The single-pass snapshot pattern (_slime_mold_snapshots) mirrors _turing_morphogenesis_snapshots: run the sim once, capture at N checkpoints, never re-simulate. This prevents the O(k*N) cost of calling slime_mold_fill k times independently.
+
+**Implementation notes:**
+- `_slime_mold_snapshots()` companion function in `justdoit/effects/generative.py` (~110 lines)
+  - Runs the Physarum simulation once per glyph, captures normalized trail grids at specified step counts
+  - Internal helpers `_sense_s`, `_diffuse_s`, `_capture_s` avoid name collision with the parent slime_mold_fill's closures
+  - Trail normalized independently at each snapshot (not globally) — captures relative density distribution at each development stage
+- `slime_mold_anim()` preset in `justdoit/animate/presets.py` (~130 lines)
+  - Default snapshot_steps=[5, 15, 30, 50, 75, 100, 130, 160, 200] → 9 frames → 18 with loop
+  - BIO palette (bio) for C11 coloring: dark green veins brightening to lime as density increases
+  - C12 bloom (green, radius=2, falloff=0.75): tight green halo around dense vein intersections
+  - loop=True: formation → dissolution cycle, seamless forward-reverse
+
+**Visual character (CB6 equivalent for Mode A):**
+- Frame 1 (step=5): Interior cells mostly sparse. Scattered `,.` chars — early agent random walks barely visible
+- Frame 3 (step=30): `+;` chars begin to cluster. Paths between neighboring ink cells start forming
+- Frame 5 (step=75): Clear dendritic structure. Major vein corridors visible as `#@` strings
+- Frame 7 (step=130): Network topology stabilized. Dense `@#` veins, lighter `+;` tributaries, sparse `,.` in unvisited areas
+- Frame 9 (step=200): Full mature network. High-density paths concentrated at crossroads, light scatter elsewhere
+- Color: BIO palette maps trail density to brightness. Dense veins = bright lime; sparse areas = dark bio-green. Bloom halos the denser intersections
+- The biological quality is unmistakable — the letterforms look colonized by a living network
+
+**TECHNIQUES.md updates:** A_SLIME1 added as `done 2026-04-26`. A11 corrected to `done 2026-04-26`.
+
+**Priority queue update (next sessions):**
+| Priority | ID | Description | Novelty | Est effort |
+|----------|-----|-------------|---------|------------|
+| 1 | A_CELLS1 | Conway GoL live evolution animation | 4 | ~50 lines — step GoL per frame |
+| 2 | A_SDF1 | SDF gamma pulse — letters breathe | 3 | ~30 lines — parameter sweep |
+| 3 | A_ATTR1 | Strange attractor progressive reveal | 4 | ~50 lines — progressive trajectory |
+| 4 | A_RD1 | Reaction-diffusion growth time-lapse | 4 | ~80 lines — needs step generator |
+| 5 | A_WAVE1 | Wave phase sweep animation (A_F09a) | 3 | ~20 lines — already specced |
+| 6 | X_WARP_PULSE | sine_warp + pulse (amplitude oscillates) | 3 | ~40 lines — param coupling |
+| 7 | X_RD_PLASMA | reaction-diffusion × plasma field | 4 | multi-session |
+| 8 | A_GRAD1 | Gradient hue rotation | 2 | ~25 lines — trivial |
+| 9 | X_LIVING_WRAP | GoL wrap boundary color dynamics | 3 | ~20 lines — variant |
+| 10 | A_F09b | Wave + spectral (C11 consumer) | 3 | ~30 lines |
+
+**Files created/modified:**
+- `justdoit/effects/generative.py` — added `_slime_mold_snapshots()` (~110 lines)
+- `justdoit/animate/presets.py` — added `slime_mold_anim()` (~130 lines)  
+- `scripts/generate_anim_gallery.py` — import + showcase entry for A_SLIME1
+- `tests/test_slime_mold_anim.py` — 16 tests, all passing
+- `docs/gallery/2026-04-26-A_SLIME1.svg` — static frame (step=100, mid-network formation)
+- `docs/anim_gallery/A_SLIME1-slime-mold-anim.cast` — 18 frames @ 4fps
+- `docs/anim_gallery/A_SLIME1-slime-mold-anim.apng` — 18 frames @ 4fps
+- `docs/gallery/README.md` — A_SLIME1 added, count 25→26, techniques 70→71
+- `docs/research/TECHNIQUES.md` — A_SLIME1 added (done), A11 corrected (done)
+- `docs/gallery-fonts/` — 20 more Google Fonts rendered (77 total)

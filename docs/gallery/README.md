@@ -9,7 +9,7 @@ Run `python scripts/demo.py --gallery` to regenerate.
 - [Fill Effects (15)](#fill-effects)
 - [Color Effects (8)](#color-effects)
 - [Spatial & 3D (8)](#spatial--3d)
-- [Daily Techniques (25)](#daily-techniques)
+- [Daily Techniques (26)](#daily-techniques)
 
 ## Fonts
 
@@ -117,7 +117,10 @@ Run `python scripts/demo.py --gallery` to regenerate.
 
 <table>
 <tr>
+<td align="center"><img src="../anim_gallery/A_SLIME1-slime-mold-anim.apng" width="480"><br><sub><b>2026-04-26 · A_SLIME1</b></sub></td>
 <td align="center"><img src="../anim_gallery/X_ISO_NEON-iso-neon-glitch.apng" width="480"><br><sub><b>2026-04-26 · X_Iso_Neon</b></sub></td>
+</tr>
+<tr>
 <td align="center"><img src="../anim_gallery/X_LIVING_COLOR-living-color-age.apng" width="480"><br><sub><b>2026-04-24 · X_Living_Color</b></sub></td>
 </tr>
 <tr>
@@ -169,4 +172,4 @@ Run `python scripts/demo.py --gallery` to regenerate.
 </tr>
 </table>
 
-*Last updated: 2026-04-26 — 70 techniques*
+*Last updated: 2026-04-26 — 71 techniques*

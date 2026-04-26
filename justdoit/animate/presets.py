@@ -4097,3 +4097,165 @@ def transporter(
     if loop:
         for frame in reversed(materialize):
             yield frame
+
+
+# -------------------------------------------------------------------------
+# A_SLIME1 — Slime Mold Time-Lapse Animation
+#
+# Physarum polycephalum agent simulation — runs once per glyph, captures
+# trail snapshots at increasing step counts. Each frame reveals the network
+# at a more developed stage: random walks → traces → veins → full network.
+# A time-lapse of emergence inside ASCII letterforms.
+#
+
+_SLIME_SNAPSHOT_STEPS_DEFAULT = [5, 15, 30, 50, 75, 100, 130, 160, 200]
+_SLIME_ANIM_CHARS = "@#S+;:,. "
+
+
+def slime_mold_anim(
+    text_plain: str,
+    font: str = "block",
+    snapshot_steps: Optional[list] = None,
+    n_agents: int = 200,
+    palette_name: str = "bio",
+    bloom_color_name: Optional[str] = "green",
+    bloom_radius: int = 2,
+    bloom_falloff: float = 0.75,
+    loop: bool = True,
+    seed: Optional[int] = 42,
+) -> "Iterator[str]":
+    """Slime mold Physarum time-lapse animation (A_SLIME1).
+
+    Runs the Physarum polycephalum agent simulation once per glyph, capturing
+    the accumulated trail grid at increasing step counts. Each frame shows the
+    network at a more mature stage of formation:
+      - Early frames: sparse random walks, faint isolated traces
+      - Mid frames: preferred paths emerge, network begins to coalesce
+      - Late frames: stable vein network, high-density paths dominate
+
+    Characters and C11 color are both derived from the trail float grid,
+    giving the network a biological texture (dense veins = dense chars = bright).
+    With loop=True the animation reverses to show network dissolution, producing
+    a seamless formation-dissolution cycle.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param snapshot_steps: Sorted list of step counts to capture.
+        Default: [5, 15, 30, 50, 75, 100, 130, 160, 200].
+    :param n_agents: Number of Physarum agents per glyph (default 200).
+    :param palette_name: C11 color palette from PALETTE_REGISTRY (default 'bio').
+    :param bloom_color_name: C12 bloom color name (default 'green', None to disable).
+    :param bloom_radius: C12 bloom radius in cells (default 2).
+    :param bloom_falloff: C12 bloom falloff per cell (default 0.75).
+    :param loop: If True, append reversed frames for forward-back loop (default True).
+    :param seed: Integer seed for reproducible simulation (default 42).
+    :returns: Iterator of ANSI-colored frame strings showing network formation.
+    """
+    from justdoit.effects.generative import _slime_mold_snapshots
+    from justdoit.effects.color import (
+        fill_float_colorize as _colorize,
+        PALETTE_REGISTRY,
+        BLOOM_COLORS,
+        bloom as _bloom,
+    )
+    from justdoit.core.glyph import glyph_to_mask as _glyph_to_mask
+    from justdoit.fonts import FONTS as _FONTS
+
+    if snapshot_steps is None:
+        snapshot_steps = _SLIME_SNAPSHOT_STEPS_DEFAULT
+
+    palette = PALETTE_REGISTRY.get(palette_name, PALETTE_REGISTRY["bio"])
+    bloom_color = BLOOM_COLORS.get(bloom_color_name) if bloom_color_name else None
+    font_data = _FONTS.get(font, {})
+    text_upper = text_plain.upper()
+    gap = 1
+
+    if not font_data:
+        for _ in snapshot_steps:
+            yield ""
+        return
+
+    sample_glyph = next(iter(font_data.values()))
+    height = len(sample_glyph)
+
+    n_chars = len(_SLIME_ANIM_CHARS)
+
+    def _floats_to_chars_row(float_row: list, ink_row: list) -> str:
+        """Map trail float values to density chars."""
+        line = ""
+        for c_idx, val in enumerate(float_row):
+            if c_idx >= len(ink_row) or not ink_row[c_idx]:
+                line += " "
+            else:
+                # High trail -> dense chars (index 0), low -> sparse chars
+                idx = int(val * (n_chars - 1) + 0.5)
+                idx = max(0, min(n_chars - 1, idx))
+                line += _SLIME_ANIM_CHARS[n_chars - 1 - idx]
+        return line
+
+    # Run one simulation per glyph and collect snapshots (single-pass)
+    glyph_snaps = []
+    glyph_masks = []
+    for ch in text_upper:
+        glyph = font_data.get(ch, font_data.get(" "))
+        if glyph is None:
+            glyph = [" " * 7] * 7
+        ink_chars = "".join({c for row in glyph for c in row if c != " "}) or chr(9608)
+        mask = _glyph_to_mask(glyph, ink_chars=ink_chars)
+        glyph_masks.append(mask)
+        snaps = _slime_mold_snapshots(
+            mask,
+            snapshot_steps=snapshot_steps,
+            n_agents=n_agents,
+            seed=seed,
+        )
+        glyph_snaps.append(snaps)
+
+    frames = []
+    for snap_idx in range(len(snapshot_steps)):
+        combined_floats: list = [[] for _ in range(height)]
+        combined_chars_rows: list = ["" for _ in range(height)]
+
+        for g_idx, mask in enumerate(glyph_masks):
+            snaps = glyph_snaps[g_idx]
+            if snap_idx < len(snaps):
+                _step, snap_ink, fg = snaps[snap_idx]
+            else:
+                glyph_cols = max((len(r) for r in mask), default=0)
+                fg = [[0.0] * glyph_cols for _ in range(height)]
+                snap_ink = [
+                    [mask[r][c] >= 0.5 if c < len(mask[r]) else False
+                     for c in range(glyph_cols)]
+                    for r in range(height)
+                ]
+
+            glyph_cols = max((len(row) for row in mask), default=0)
+
+            for r in range(height):
+                row_floats = list((fg[r] if r < len(fg) else [])[:glyph_cols])
+                while len(row_floats) < glyph_cols:
+                    row_floats.append(0.0)
+                combined_floats[r].extend(row_floats)
+                combined_floats[r].extend([0.0] * gap)
+
+                if r < len(snap_ink):
+                    ink_row = list(snap_ink[r][:glyph_cols])
+                    while len(ink_row) < glyph_cols:
+                        ink_row.append(False)
+                    char_row = _floats_to_chars_row(row_floats, ink_row)
+                else:
+                    char_row = " " * glyph_cols
+                combined_chars_rows[r] += char_row + " " * gap
+
+        char_frame = "\n".join(combined_chars_rows)
+        colored_frame = _colorize(char_frame, combined_floats, palette)
+
+        if bloom_color:
+            colored_frame = _bloom(colored_frame, bloom_color, radius=bloom_radius, falloff=bloom_falloff)
+
+        frames.append(colored_frame)
+
+    if loop and len(frames) > 1:
+        frames = frames + list(reversed(frames))
+
+    yield from frames

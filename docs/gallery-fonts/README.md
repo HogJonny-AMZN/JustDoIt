@@ -2,7 +2,7 @@
 
 > TTF font comparison — each entry shows how that font renders as ASCII art.
 > Rendered at ~160 cols target width, wide-gallery style.
-> **57 fonts rendered** (manual + Google Fonts batch).
+> **77 fonts rendered** (manual + Google Fonts batch).
 
 ## Curated Fonts
 
@@ -47,26 +47,46 @@
 | **G-FontdinerSwanky-Regular** | ![G-FontdinerSwanky-Regular](G-FontdinerSwanky-Regular.svg) |
 | **G-HomemadeApple-Regular** | ![G-HomemadeApple-Regular](G-HomemadeApple-Regular.svg) |
 | **G-IrishGrover-Regular** | ![G-IrishGrover-Regular](G-IrishGrover-Regular.svg) |
-| **JustAnotherHand-Regular** | ![JustAnotherHand-Regular](G-JustAnotherHand-Regular.svg) |
-| **Kosugi-Regular** | ![Kosugi-Regular](G-Kosugi-Regular.svg) |
-| **KosugiMaru-Regular** | ![KosugiMaru-Regular](G-KosugiMaru-Regular.svg) |
-| **Kranky-Regular** | ![Kranky-Regular](G-Kranky-Regular.svg) |
-| **LuckiestGuy-Regular** | ![LuckiestGuy-Regular](G-LuckiestGuy-Regular.svg) |
-| **MaidenOrange-Regular** | ![MaidenOrange-Regular](G-MaidenOrange-Regular.svg) |
-| **Montez-Regular** | ![Montez-Regular](G-Montez-Regular.svg) |
-| **MountainsofChristmas-Bold** | ![MountainsofChristmas-Bold](G-MountainsofChristmas-Bold.svg) |
-| **MountainsofChristmas-Regular** | ![MountainsofChristmas-Regular](G-MountainsofChristmas-Regular.svg) |
-| **OpenSansHebrew-Bold** | ![OpenSansHebrew-Bold](G-OpenSansHebrew-Bold.svg) |
-| **OpenSansHebrew-BoldItalic** | ![OpenSansHebrew-BoldItalic](G-OpenSansHebrew-BoldItalic.svg) |
-| **OpenSansHebrew-ExtraBold** | ![OpenSansHebrew-ExtraBold](G-OpenSansHebrew-ExtraBold.svg) |
-| **OpenSansHebrew-ExtraBoldItalic** | ![OpenSansHebrew-ExtraBoldItalic](G-OpenSansHebrew-ExtraBoldItalic.svg) |
-| **OpenSansHebrew-Italic** | ![OpenSansHebrew-Italic](G-OpenSansHebrew-Italic.svg) |
-| **OpenSansHebrew-Light** | ![OpenSansHebrew-Light](G-OpenSansHebrew-Light.svg) |
-| **OpenSansHebrew-LightItalic** | ![OpenSansHebrew-LightItalic](G-OpenSansHebrew-LightItalic.svg) |
-| **OpenSansHebrew-Regular** | ![OpenSansHebrew-Regular](G-OpenSansHebrew-Regular.svg) |
+| **G-JustAnotherHand-Regular** | ![G-JustAnotherHand-Regular](G-JustAnotherHand-Regular.svg) |
+| **G-Kosugi-Regular** | ![G-Kosugi-Regular](G-Kosugi-Regular.svg) |
+| **G-KosugiMaru-Regular** | ![G-KosugiMaru-Regular](G-KosugiMaru-Regular.svg) |
+| **G-Kranky-Regular** | ![G-Kranky-Regular](G-Kranky-Regular.svg) |
+| **G-LuckiestGuy-Regular** | ![G-LuckiestGuy-Regular](G-LuckiestGuy-Regular.svg) |
+| **G-MaidenOrange-Regular** | ![G-MaidenOrange-Regular](G-MaidenOrange-Regular.svg) |
+| **G-Montez-Regular** | ![G-Montez-Regular](G-Montez-Regular.svg) |
+| **G-MountainsofChristmas-Bold** | ![G-MountainsofChristmas-Bold](G-MountainsofChristmas-Bold.svg) |
+| **G-MountainsofChristmas-Regular** | ![G-MountainsofChristmas-Regular](G-MountainsofChristmas-Regular.svg) |
+| **G-OpenSansHebrew-Bold** | ![G-OpenSansHebrew-Bold](G-OpenSansHebrew-Bold.svg) |
+| **G-OpenSansHebrew-BoldItalic** | ![G-OpenSansHebrew-BoldItalic](G-OpenSansHebrew-BoldItalic.svg) |
+| **G-OpenSansHebrew-ExtraBold** | ![G-OpenSansHebrew-ExtraBold](G-OpenSansHebrew-ExtraBold.svg) |
+| **G-OpenSansHebrew-ExtraBoldItalic** | ![G-OpenSansHebrew-ExtraBoldItalic](G-OpenSansHebrew-ExtraBoldItalic.svg) |
+| **G-OpenSansHebrew-Italic** | ![G-OpenSansHebrew-Italic](G-OpenSansHebrew-Italic.svg) |
+| **G-OpenSansHebrew-Light** | ![G-OpenSansHebrew-Light](G-OpenSansHebrew-Light.svg) |
+| **G-OpenSansHebrew-LightItalic** | ![G-OpenSansHebrew-LightItalic](G-OpenSansHebrew-LightItalic.svg) |
+| **G-OpenSansHebrew-Regular** | ![G-OpenSansHebrew-Regular](G-OpenSansHebrew-Regular.svg) |
+| **OpenSansHebrewCondensed-Bold** | ![OpenSansHebrewCondensed-Bold](G-OpenSansHebrewCondensed-Bold.svg) |
+| **OpenSansHebrewCondensed-BoldItalic** | ![OpenSansHebrewCondensed-BoldItalic](G-OpenSansHebrewCondensed-BoldItalic.svg) |
+| **OpenSansHebrewCondensed-ExtraBold** | ![OpenSansHebrewCondensed-ExtraBold](G-OpenSansHebrewCondensed-ExtraBold.svg) |
+| **OpenSansHebrewCondensed-ExtraBoldItalic** | ![OpenSansHebrewCondensed-ExtraBoldItalic](G-OpenSansHebrewCondensed-ExtraBoldItalic.svg) |
+| **OpenSansHebrewCondensed-Italic** | ![OpenSansHebrewCondensed-Italic](G-OpenSansHebrewCondensed-Italic.svg) |
+| **OpenSansHebrewCondensed-Light** | ![OpenSansHebrewCondensed-Light](G-OpenSansHebrewCondensed-Light.svg) |
+| **OpenSansHebrewCondensed-LightItalic** | ![OpenSansHebrewCondensed-LightItalic](G-OpenSansHebrewCondensed-LightItalic.svg) |
+| **OpenSansHebrewCondensed-Regular** | ![OpenSansHebrewCondensed-Regular](G-OpenSansHebrewCondensed-Regular.svg) |
+| **PermanentMarker-Regular** | ![PermanentMarker-Regular](G-PermanentMarker-Regular.svg) |
+| **Rancho-Regular** | ![Rancho-Regular](G-Rancho-Regular.svg) |
+| **Redressed-Regular** | ![Redressed-Regular](G-Redressed-Regular.svg) |
+| **RobotoSlab[wght]** | ![RobotoSlab[wght]](G-RobotoSlab[wght].svg) |
+| **Rochester-Regular** | ![Rochester-Regular](G-Rochester-Regular.svg) |
+| **RockSalt-Regular** | ![RockSalt-Regular](G-RockSalt-Regular.svg) |
+| **Satisfy-Regular** | ![Satisfy-Regular](G-Satisfy-Regular.svg) |
+| **Schoolbell-Regular** | ![Schoolbell-Regular](G-Schoolbell-Regular.svg) |
+| **Slackey-Regular** | ![Slackey-Regular](G-Slackey-Regular.svg) |
+| **Smokum-Regular** | ![Smokum-Regular](G-Smokum-Regular.svg) |
+| **SpecialElite-Regular** | ![SpecialElite-Regular](G-SpecialElite-Regular.svg) |
+| **Sunshiney-Regular** | ![Sunshiney-Regular](G-Sunshiney-Regular.svg) |
 | **G-jsMath-cmbx10** | ![G-jsMath-cmbx10](G-jsMath-cmbx10.svg) |
 | **G-jsMath-cmex10** | ![G-jsMath-cmex10](G-jsMath-cmex10.svg) |
 | **G-jsMath-cmmi10** | ![G-jsMath-cmmi10](G-jsMath-cmmi10.svg) |
-| **jsMath-cmr10** | ![jsMath-cmr10](G-jsMath-cmr10.svg) |
-| **jsMath-cmsy10** | ![jsMath-cmsy10](G-jsMath-cmsy10.svg) |
-| **jsMath-cmti10** | ![jsMath-cmti10](G-jsMath-cmti10.svg) |
+| **G-jsMath-cmr10** | ![G-jsMath-cmr10](G-jsMath-cmr10.svg) |
+| **G-jsMath-cmsy10** | ![G-jsMath-cmsy10](G-jsMath-cmsy10.svg) |
+| **G-jsMath-cmti10** | ![G-jsMath-cmti10](G-jsMath-cmti10.svg) |
