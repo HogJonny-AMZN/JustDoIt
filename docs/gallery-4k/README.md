@@ -77,11 +77,7 @@
 <td align="center"><img src="S-G09-plasma.png" width="780"><br><sub><b>G09 — Plasma</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="S-G09-sdf-mid.png" width="780"><br><sub><b>G09 — Sdf Mid</b></sub></td>
 <td align="center"><img src="S-G09-sdf-neon.png" width="780"><br><sub><b>G09 — Sdf Neon</b></sub></td>
-</tr>
-<tr>
-<td align="center"><img src="S-G09-sdf-outline.png" width="780"><br><sub><b>G09 — Sdf Outline</b></sub></td>
 <td align="center"><img src="S-G09-sdf.png" width="780"><br><sub><b>G09 — Sdf</b></sub></td>
 </tr>
 <tr>
