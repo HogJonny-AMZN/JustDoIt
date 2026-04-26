@@ -3948,3 +3948,152 @@ def iso_neon_glitch(
         # Each frame gets its own stochastic depth variation
         colored = _colorize_iso_frame(rng)
         yield _bloom(colored, bc, radius=bloom_radius, falloff=bloom_falloff)
+
+
+# -------------------------------------------------------------------------
+def transporter(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 48,
+    seed: int = 42,
+    color: str = "cyan",
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Transporter Materialize animation — particles coalesce into glyph shape (A11).
+
+    Star Trek transporter effect: scattered random particles converge into the
+    final letter shape over the first half of frames (materialize). Second half
+    reverses the process (dematerialize) for a seamless bidirectional loop.
+
+    Algorithm:
+      1. Render text with the chosen font to get glyph masks (ink cells).
+      2. Each ink cell is assigned a random ``lock_in`` frame (seeded). Before
+         lock-in the cell shows a random scatter particle char. After lock-in
+         it resolves through a brightness cascade ``░▒▓█`` to the final dense
+         block char.
+      3. Non-ink cells in the glyph bounding box show dim scatter particles
+         at density ``(1 - t)`` — the ambient sparkle that fades as the letter
+         solidifies.
+      4. When ``loop=True`` the materialize sequence is followed by its reverse
+         (dematerialize) for a seamless loop.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Frames for the materialize half-cycle (default 48).
+        Total frames = 2 * n_frames when loop=True.
+    :param seed: Random seed for reproducible scatter patterns (default 42).
+    :param color: ANSI color key from _NEON_COLORS (default 'cyan').
+    :param loop: If True, append dematerialize (reverse) for seamless loop (default True).
+    :returns: Iterator of ANSI-colored frame strings.
+    """
+    from justdoit.core.rasterizer import render as _render
+
+    if color not in _NEON_COLORS:
+        raise ValueError(f"Unknown color '{color}'. Available: {', '.join(_NEON_COLORS)}")
+
+    neon = _NEON_COLORS[color]
+
+    # Scatter and lock-in character sets
+    _SCATTER_CHARS = ".·∙•◦"
+    _LOCKIN_CASCADE = "░▒▓█"
+
+    # Render the target text to get the glyph mask
+    rendered = _render(text_plain, font=font)
+    grid = _blank_grid(rendered)
+    n_rows = len(grid)
+    n_cols = max(len(row) for row in grid) if n_rows else 0
+
+    # Pad rows to uniform width
+    for row in grid:
+        while len(row) < n_cols:
+            row.append(" ")
+
+    # Identify ink cells (non-space chars in the rendered text)
+    ink_cells = set()
+    for r in range(n_rows):
+        for c in range(n_cols):
+            if grid[r][c] != " ":
+                ink_cells.add((r, c))
+
+    if not ink_cells:
+        # No visible characters — yield empty frames
+        blank = "\n".join("" for _ in range(n_rows))
+        for _ in range(n_frames * (2 if loop else 1)):
+            yield blank
+        return
+
+    # Bounding box of ink cells (scatter zone)
+    min_r = min(r for r, c in ink_cells)
+    max_r = max(r for r, c in ink_cells)
+    min_c = min(c for r, c in ink_cells)
+    max_c = max(c for r, c in ink_cells)
+
+    # Per-ink-cell: assign a random lock_in frame and a scatter char
+    rng = random.Random(seed)
+    cell_lock_in: dict = {}
+    cell_scatter_char: dict = {}
+    for r, c in ink_cells:
+        cell_lock_in[(r, c)] = rng.randint(0, n_frames - 1)
+        cell_scatter_char[(r, c)] = rng.choice(_SCATTER_CHARS)
+
+    # Per non-ink cell in bounding box: assign a scatter char
+    bbox_non_ink: list = []
+    bbox_scatter_char: dict = {}
+    for r in range(min_r, max_r + 1):
+        for c in range(min_c, max_c + 1):
+            if (r, c) not in ink_cells:
+                bbox_non_ink.append((r, c))
+                bbox_scatter_char[(r, c)] = rng.choice(_SCATTER_CHARS)
+
+    def _build_frame(frame_idx: int) -> str:
+        """Build a single materialize frame.
+
+        :param frame_idx: Frame index 0..n_frames-1 (0 = fully scattered).
+        :returns: ANSI-colored multi-line string.
+        """
+        t = frame_idx / max(n_frames - 1, 1)  # 0.0 → 1.0
+        frame_rng = random.Random(seed + frame_idx * 7919)
+
+        out_rows: list = []
+        for r in range(n_rows):
+            out: list = []
+            for c in range(n_cols):
+                if (r, c) in ink_cells:
+                    lock = cell_lock_in[(r, c)]
+                    if frame_idx < lock:
+                        # Before lock-in: show scattered particle
+                        ch = frame_rng.choice(_SCATTER_CHARS)
+                        out.append(neon["dim"] + ch + _RESET)
+                    else:
+                        # After lock-in: brightness cascade toward final char
+                        frames_since = frame_idx - lock
+                        cascade_idx = min(frames_since, len(_LOCKIN_CASCADE) - 1)
+                        ch = _LOCKIN_CASCADE[cascade_idx]
+                        if cascade_idx >= len(_LOCKIN_CASCADE) - 1:
+                            # Fully locked: bright final char
+                            out.append(neon["full"] + ch + _RESET)
+                        else:
+                            out.append(neon["dim"] + ch + _RESET)
+                elif min_r <= r <= max_r and min_c <= c <= max_c:
+                    # Non-ink cell in bounding box: ambient scatter that fades
+                    if frame_rng.random() < (1.0 - t) * 0.4:
+                        ch = bbox_scatter_char.get((r, c), "·")
+                        out.append(neon["off"] + ch + _RESET)
+                    else:
+                        out.append(" ")
+                else:
+                    out.append(" ")
+            out_rows.append("".join(out).rstrip())
+        return "\n".join(out_rows)
+
+    # Build materialize frames (0 → n_frames-1)
+    materialize: list = []
+    for i in range(n_frames):
+        materialize.append(_build_frame(i))
+
+    # Yield materialize, then optionally dematerialize (reverse)
+    for frame in materialize:
+        yield frame
+    if loop:
+        for frame in reversed(materialize):
+            yield frame

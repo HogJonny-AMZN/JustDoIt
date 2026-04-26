@@ -131,7 +131,7 @@ def _build_showcase() -> list[dict]:
 
     :returns: List of showcase entry dicts.
     """
-    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass, plasma_lava_lamp, flame_gradient_color, flame_bloom, bloom_pulse, plasma_bloom, iso_depth_breathe, turing_bio, turing_morphogenesis, plasma_flame, plasma_warp, fractal_color_cycle, turing_warp, flame_iso_bloom, noise_warp, plasma_noise_warp, living_fill, living_color, iso_neon_glitch
+    from justdoit.animate.presets import typewriter, scanline, glitch, pulse, dissolve, neon_glitch, neon_word_glitch, neon_tube_glitch, neon_sign_startup, density_dissolve, plasma_wave, flame_flicker, voronoi_stained_glass, plasma_lava_lamp, flame_gradient_color, flame_bloom, bloom_pulse, plasma_bloom, iso_depth_breathe, turing_bio, turing_morphogenesis, plasma_flame, plasma_warp, fractal_color_cycle, turing_warp, flame_iso_bloom, noise_warp, plasma_noise_warp, living_fill, living_color, iso_neon_glitch, transporter
     from justdoit.core.rasterizer import render
 
     text = render(_TEXT, font="block")
@@ -499,6 +499,14 @@ def _build_showcase() -> list[dict]:
             "name": "Iso Neon Glitch — Isometric Extrusion × Neon Depth Flicker",
             "label": "iso-neon-glitch",
             "frames": lambda: list(iso_neon_glitch(text_plain, n_frames=36, color="cyan", depth=4, bloom_color_name="cyan", bloom_radius=3, bloom_falloff=0.85, seed=42, loop=True)),
+            "fps": 12.0,
+            "loop": True,
+        },
+        {
+            "id": "A11",
+            "name": "Transporter Materialize",
+            "label": "transporter-materialize",
+            "frames": lambda: list(transporter(text_plain, n_frames=48, seed=42, color="cyan", loop=True)),
             "fps": 12.0,
             "loop": True,
         },
