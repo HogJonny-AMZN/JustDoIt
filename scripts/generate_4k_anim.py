@@ -35,11 +35,12 @@ OUT_DIR    = Path(__file__).parent.parent / "docs" / "anim_gallery_4k"
 FPS        = 12.0
 
 
-def _build_base_grid(font_scale: float = 4.0):
+def _build_base_grid(font_scale: float = 1.0):
     """Render TEXT to a 480x135 ASCII grid using G09 image pipeline.
 
-    font_scale=4.0 fills ~479x92 cells of the 480x135 grid — the text
-    spans nearly full width and 68% of the height, maximising effect coverage.
+    font_scale=1.0: largest font that fits the canvas with margins (95% rule).
+    Text is centered in the 3840x2160 canvas with proper padding on all sides.
+    Higher font_scale clips letters — stay at 1.0.
     """
     from justdoit.core.image_pipeline import render_text_as_image
     from justdoit.layout import find_default_ttf
