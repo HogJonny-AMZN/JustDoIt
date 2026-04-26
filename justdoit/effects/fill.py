@@ -53,44 +53,104 @@ def density_fill(mask: list, density_chars: Optional[str] = None) -> list:
 
 
 # -------------------------------------------------------------------------
+def _sdf_remap(
+    v: float,
+    floor: float = 0.0,
+    mid: float = 0.5,
+    high: float = 0.85,
+    power: float = 1.0,
+) -> float:
+    """Piecewise SDF value remapper with configurable floor, mid, high and curve.
+
+    Three zones:
+      v < floor             → 0.0  (clipped — no character rendered)
+      floor ≤ v < mid       → [0.0, 0.5]  outer glow ramp (power curve)
+      mid   ≤ v < high      → [0.5, 1.0]  inner edge ring (power curve)
+      v ≥ high              → 1.0  solid interior (█)
+
+    power > 1: compress low values — sharper transition at floor/mid.
+    power = 1: linear ramps (same as gamma=1.0 but with hard floor/high clip).
+    power < 1: expand low values — softer wider glow.
+
+    :param v: SDF value in [0.0, 1.0].
+    :param floor: Below this → clipped to 0.  (default 0.0 = no clipping)
+    :param mid: Boundary between outer glow and inner ring (default 0.5 = edge)
+    :param high: Above this → solid █ (default 0.85)
+    :param power: Curve exponent for both ramp segments (default 1.0 = linear)
+    :returns: Remapped value in [0.0, 1.0].
+    """
+    if v < floor:
+        return 0.0
+    if v >= high:
+        return 1.0
+    if v < mid:
+        # Outer glow: floor → mid maps to 0.0 → 0.5
+        t = (v - floor) / max(mid - floor, 1e-6)
+        return 0.5 * (t ** power)
+    else:
+        # Inner edge ring: mid → high maps to 0.5 → 1.0
+        t = (v - mid) / max(high - mid, 1e-6)
+        return 0.5 + 0.5 * (t ** power)
+
+
 def sdf_fill(
     mask: list,
     density_chars: Optional[str] = None,
     gamma: float = 1.0,
     threshold: float = 0.0,
+    floor: float = 0.0,
+    mid: float = 0.5,
+    high: float = 0.85,
+    power: float = 1.0,
 ) -> list:
     """Fill using signed distance field — natural outline and shading effect.
 
     Computes the SDF of the mask (edge ≈ 0.5, interior → 1.0, exterior → 0.0),
-    optionally applies a threshold and/or gamma curve, then applies density_fill.
+    then applies one of two mapping modes:
 
-    threshold > 0: cells with SDF >= threshold use the densest char (█);
-    cells below threshold use the normal density ramp. Produces a bold solid
-    interior with a crisp edge ring of lighter chars.
-    e.g. threshold=0.5 fills everything > halfway from edge with █.
+    Piecewise curve mode (floor/mid/high/power):
+      v < floor  → clipped to 0 (no char — hard exterior cutoff)
+      floor→mid  → outer glow ramp [0.0 → 0.5] with power curve
+      mid→high   → inner edge ring [0.5 → 1.0] with power curve
+      v ≥ high   → solid █ interior
+      power > 1 sharpens transitions; power < 1 softens/widens glow.
 
-    gamma > 1.0 (without threshold): biases the ramp toward the interior.
-    gamma=1.0 is linear (default, original behaviour).
+    Legacy gamma mode (when floor=mid=0, high=0.85 defaults not set):
+      Apply v**gamma curve then density_fill.
+
+    threshold > 0: cells ≥ threshold use densest char (█) — hard interior fill.
 
     :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
     :param density_chars: Darkest-to-lightest char sequence (default: DENSITY_CHARS).
-    :param gamma: Curve exponent applied to SDF values before density mapping.
-    :param threshold: SDF threshold above which the densest char is used (0=off).
+    :param gamma: Legacy gamma exponent (used when floor=0 and mid=0).
+    :param threshold: Legacy hard threshold for densest char (0=off).
+    :param floor: Piecewise floor — below this is clipped to 0 (default 0.0).
+    :param mid: Piecewise midpoint — boundary between glow and ring (default 0.5).
+    :param high: Piecewise high — above this is solid interior (default 0.85).
+    :param power: Curve exponent for both ramp segments (default 1.0 = linear).
     :returns: List of strings — one per row, same shape as input mask.
     """
     sdf = mask_to_sdf(mask)
+
+    # Piecewise mode: floor/mid/high/power all defined
+    use_piecewise = (floor > 0.0 or mid != 0.5 or high != 0.85 or power != 1.0)
+    if use_piecewise:
+        sdf = [[
+            _sdf_remap(v, floor=floor, mid=mid, high=high, power=power)
+            for v in row
+        ] for row in sdf]
+        return density_fill(sdf, density_chars)
+
+    # Legacy threshold mode
     if threshold > 0.0:
-        # Threshold mode: solid interior + narrow edge ramp
-        chars = density_chars if density_chars is not None else DENSITY_CHARS
-        densest = chars[0]  # █ when block chars are in the ramp
-        # Build modified SDF: above threshold → 1.0 (maps to densest char)
-        # below threshold → rescale [0, threshold] → [0, 0.9] for edge ramp
-        scale = 0.9 / threshold if threshold > 0 else 1.0
+        scale = 0.9 / threshold
         sdf = [[
             1.0 if v >= threshold else v * scale
             for v in row
         ] for row in sdf]
         return density_fill(sdf, density_chars)
+
+    # Legacy gamma mode
     if gamma != 1.0:
         sdf = [[v ** gamma for v in row] for row in sdf]
     return density_fill(sdf, density_chars)
