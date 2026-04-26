@@ -346,7 +346,7 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 
 ## A06 — Living Fill — Conway Gol
 
-**120 frames** · **10.0fps** · play-once
+**240 frames** · **10.0fps** · play-once
 
 | Variant | Preview | Terminal |
 |---------|---------|----------|
@@ -354,7 +354,7 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 
 ## X_LIVING_COLOR — Living Color — Gol Age-Heat
 
-**144 frames** · **10.0fps** · looping
+**240 frames** · **10.0fps** · looping
 
 | Variant | Preview | Terminal |
 |---------|---------|----------|
@@ -367,3 +367,11 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 | Variant | Preview | Terminal |
 |---------|---------|----------|
 | iso-neon-glitch | ![iso-neon-glitch](X_ISO_NEON-iso-neon-glitch.apng) | [▶ terminal](X_ISO_NEON-iso-neon-glitch.cast) |
+
+## A11 — Transporter Materialize
+
+**96 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| transporter-materialize | ![transporter-materialize](A11-transporter-materialize.apng) | [▶ terminal](A11-transporter-materialize.cast) |

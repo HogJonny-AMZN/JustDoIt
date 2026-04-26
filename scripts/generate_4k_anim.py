@@ -391,6 +391,77 @@ def effect_attractor(n_frames: int = 60) -> list:
     return frames
 
 
+def effect_transporter(n_frames: int = 48) -> list:
+    """Transporter materialize — particles coalesce into glyph at 4K."""
+    import random as _random
+
+    print(f"  Computing G09 base grid...")
+    base_grid = _build_base_grid()
+    mask = [[1.0 if ch != " " else 0.0 for ch, _ in row] for row in base_grid]
+
+    from PIL import ImageFont
+    try: png_font = ImageFont.truetype("DejaVuSansMono.ttf", CELL_H - 1)
+    except: png_font = ImageFont.load_default()
+
+    rows = len(mask)
+    cols = max(len(r) for r in mask) if rows else 0
+    ink = set()
+    for r in range(rows):
+        for c in range(cols):
+            if mask[r][c] >= 0.5:
+                ink.add((r, c))
+
+    if not ink:
+        return []
+
+    min_r = min(r for r, c in ink)
+    max_r = max(r for r, c in ink)
+    min_c = min(c for r, c in ink)
+    max_c = max(c for r, c in ink)
+
+    # Assign lock-in frames and scatter chars
+    rng = _random.Random(42)
+    cell_lock_in = {(r, c): rng.randint(0, n_frames - 1) for r, c in ink}
+
+    # Cyan palette for transporter
+    CYAN_BRIGHT = (0, 255, 255)
+    CYAN_MID    = (0, 180, 200)
+    CYAN_DIM    = (0, 80, 120)
+    CYAN_OFF    = (0, 30, 50)
+    SCATTER_CHARS = ".·∙•◦"
+    LOCKIN_PALETTE = [CYAN_OFF, CYAN_DIM, CYAN_MID, CYAN_BRIGHT]
+
+    # Materialize + dematerialize
+    frame_indices = list(range(n_frames)) + list(reversed(range(n_frames)))
+    frames = []
+    for fi in frame_indices:
+        t = fi / max(n_frames - 1, 1)
+        frame_rng = _random.Random(42 + fi * 7919)
+        colored_grid = []
+        for r, row in enumerate(base_grid):
+            new_row = []
+            for c, (ch, _) in enumerate(row):
+                if (r, c) in ink:
+                    lock = cell_lock_in[(r, c)]
+                    if fi < lock:
+                        sc = frame_rng.choice(SCATTER_CHARS)
+                        new_row.append((sc, CYAN_DIM))
+                    else:
+                        cascade_idx = min(fi - lock, len(LOCKIN_PALETTE) - 1)
+                        new_row.append((ch, LOCKIN_PALETTE[cascade_idx]))
+                elif min_r <= r <= max_r and min_c <= c <= max_c:
+                    if frame_rng.random() < (1.0 - t) * 0.4:
+                        new_row.append(("·", CYAN_OFF))
+                    else:
+                        new_row.append((" ", None))
+                else:
+                    new_row.append((" ", None))
+            colored_grid.append(new_row)
+        frames.append(_grid_to_png_bytes(colored_grid, font=png_font))
+        if (fi + 1) % 12 == 0: print(f"  Frame {len(frames)}/{len(frame_indices)}")
+    return frames
+
+
 EFFECTS = {
     "fractal-julia": (effect_fractal_julia, "Julia set rotating c — fractal morphs each frame", 72),
     "plasma":        (effect_plasma,        "Plasma wave phase cycling",                         60),
@@ -400,9 +471,10 @@ EFFECTS = {
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 EFFECTS.update({
-    "flame":     (effect_flame,     "Flame simulation — continuous heat state, smooth",     48),
-    "voronoi":   (effect_voronoi,   "Voronoi stained glass — palette phase",                 12),
-    "attractor": (effect_attractor, "Strange attractor progressive reveal (Lorenz→Rössler)", 36),
+    "flame":       (effect_flame,       "Flame simulation — continuous heat state, smooth",     48),
+    "voronoi":     (effect_voronoi,     "Voronoi stained glass — palette phase",                 12),
+    "attractor":   (effect_attractor,   "Strange attractor progressive reveal (Lorenz→Rössler)", 36),
+    "transporter": (effect_transporter, "Transporter materialize — particles coalesce into glyph", 48),
 })
 
 
