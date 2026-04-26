@@ -962,13 +962,15 @@ def _curated_entries_g09(
     # that is part of the aesthetic, not an artifact. Keep all 4 gamma variants.
     # SDF piecewise curve: floor/mid/high/power gives bright solid interior,
     # crisp edge ring, and controlled glow halo — better than gamma alone.
-    # Best: floor=0.05, mid=0.5, high=0.85, power=1.0
-    _SDF_BEST = {"floor": 0.05, "mid": 0.5, "high": 0.85, "power": 1.0}
+    _SDF_BEST  = {"floor": 0.05, "mid": 0.5, "high": 0.85, "power": 1.0}
     _SDF_SHARP = {"floor": 0.1,  "mid": 0.5, "high": 0.85, "power": 2.0}
+    _SDF_WIDE  = {"floor": 0.0,  "mid": 0.4, "high": 0.85, "power": 1.5}
     _strategy_c = [
         ("S-G09-density",     "G09+F01 — Density (hi-res)",          "density", {}),
         ("S-G09-sdf",         "G09+F06 — SDF glow",                   "sdf",    _SDF_BEST),
         ("S-G09-sdf-outline", "G09+F06 — SDF sharp",                 "sdf",    _SDF_SHARP),
+        ("S-G09-sdf-mid",     "G09+F06 — SDF wide glow",             "sdf",    _SDF_WIDE),
+        ("S-G09-sdf-mid2",    "G09+F06 — SDF linear (gamma 1.8)",    "sdf",    {"gamma": 1.8}),
         ("S-G09-shape",       "G09+F07 — Shape (hi-res)",            "shape",  {}),
     ]
     for stem, label, fill_name, fkw in _strategy_c:
