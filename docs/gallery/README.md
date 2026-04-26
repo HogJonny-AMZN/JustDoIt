@@ -113,53 +113,52 @@ Run `python scripts/demo.py --gallery` to regenerate.
 ## Daily Techniques
 
 *New technique added each day by the daily agent — newest first.*
+*▶ Animated entries show the APNG from the animation gallery.*
 
 <table>
 <tr>
-<td align="center"><img src="2026-04-26-X_ISO_NEON.svg" width="480"><br><sub><b>2026-04-26 · X_ISO_NEON</b></sub></td>
+<td align="center"><img src="../anim_gallery/X_ISO_NEON-iso-neon-glitch.apng" width="480"><br><sub><b>2026-04-26 · X_Iso_Neon</b></sub></td>
+<td align="center"><img src="../anim_gallery/X_LIVING_COLOR-living-color-age.apng" width="480"><br><sub><b>2026-04-24 · X_Living_Color</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-24-X_LIVING_COLOR.svg" width="480"><br><sub><b>2026-04-24 · X_LIVING_COLOR</b></sub></td>
-<td align="center"><img src="2026-04-23-A06.svg" width="480"><br><sub><b>2026-04-23 · A06</b></sub></td>
+<td align="center"><img src="../anim_gallery/A06-living-fill.apng" width="480"><br><sub><b>2026-04-23 · A06</b></sub></td>
+<td align="center"><img src="../anim_gallery/X_PLASMA_NOISE_WARP-plasma-noise-warp-spectral.apng" width="480"><br><sub><b>2026-04-22 · X_Plasma_Noise_Warp</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-22-X_PLASMA_NOISE_WARP.svg" width="480"><br><sub><b>2026-04-22 · X_Plasma_Noise_Warp</b></sub></td>
+<td align="center"><img src="../anim_gallery/X_NOISE_WARP-noise-warp-spectral.apng" width="480"><br><sub><b>2026-04-21 · X_Noise_Warp</b></sub></td>
+<td align="center"><img src="../anim_gallery/X_FLAME_ISO_BLOOM-flame-iso-bloom-fire.apng" width="480"><br><sub><b>2026-04-20 · X_Flame_Iso_Bloom</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-21-X_NOISE_WARP.svg" width="480"><br><sub><b>2026-04-21 · X_Noise_Warp</b></sub></td>
-<td align="center"><img src="2026-04-20-X_FLAME_ISO_BLOOM.svg" width="480"><br><sub><b>2026-04-20 · X_Flame_Iso_Bloom</b></sub></td>
+<td align="center"><img src="../anim_gallery/X_TURING_WARP-turing-warp-spots.apng" width="480"><br><sub><b>2026-04-19 · X_Turing_Warp</b></sub></td>
+<td align="center"><img src="../anim_gallery/X_FRACTAL_CLASSIC-fractal-escape-escape.apng" width="480"><br><sub><b>2026-04-18 · X_Fractal_Classic</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-19-X_TURING_WARP.svg" width="480"><br><sub><b>2026-04-19 · X_Turing_Warp</b></sub></td>
-<td align="center"><img src="2026-04-18-X_FRACTAL_CLASSIC.svg" width="480"><br><sub><b>2026-04-18 · X_Fractal_Classic</b></sub></td>
+<td align="center"><img src="../anim_gallery/X_PLASMA_WARP-plasma-warp-spectral.apng" width="480"><br><sub><b>2026-04-17 · X_Plasma_Warp</b></sub></td>
+<td align="center"><img src="../anim_gallery/A08d-plasma-flame.apng" width="480"><br><sub><b>2026-04-17 · A08D</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-17-X_PLASMA_WARP.svg" width="480"><br><sub><b>2026-04-17 · X_Plasma_Warp</b></sub></td>
-<td align="center"><img src="2026-04-17-A08d.svg" width="480"><br><sub><b>2026-04-17 · A08D</b></sub></td>
+<td align="center"><img src="../anim_gallery/X_TURING_BIO-turing-bio-spots.apng" width="480"><br><sub><b>2026-04-15 · X_Turing_Bio</b></sub></td>
+<td align="center"><img src="../anim_gallery/A_N09a-turing-morphogenesis-spots.apng" width="480"><br><sub><b>2026-04-15 · A_N09A</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-15-X_TURING_BIO.svg" width="480"><br><sub><b>2026-04-15 · X_Turing_Bio</b></sub></td>
-<td align="center"><img src="2026-04-15-A_N09a.svg" width="480"><br><sub><b>2026-04-15 · A_N09A</b></sub></td>
+<td align="center"><img src="../anim_gallery/A_ISO1-iso-depth-breathe.apng" width="480"><br><sub><b>2026-04-14 · A_Iso1</b></sub></td>
+<td align="center"><img src="../anim_gallery/X_PLASMA_BLOOM-plasma-bloom-spectral.apng" width="480"><br><sub><b>2026-04-11 · X_Plasma_Bloom</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-14-A_ISO1.svg" width="480"><br><sub><b>2026-04-14 · A_Iso1</b></sub></td>
-<td align="center"><img src="2026-04-11-X_PLASMA_BLOOM.svg" width="480"><br><sub><b>2026-04-11 · X_Plasma_Bloom</b></sub></td>
+<td align="center"><img src="../anim_gallery/A_BLOOM1-bloom-pulse-fire.apng" width="480"><br><sub><b>2026-04-10 · A_Bloom1</b></sub></td>
+<td align="center"><img src="../anim_gallery/X_FLAME_BLOOM-flame-bloom.apng" width="480"><br><sub><b>2026-04-09 · X_Flame_Bloom</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-10-A_BLOOM1.svg" width="480"><br><sub><b>2026-04-10 · A_Bloom1</b></sub></td>
-<td align="center"><img src="2026-04-09-X_FLAME_BLOOM.svg" width="480"><br><sub><b>2026-04-09 · X_Flame_Bloom</b></sub></td>
+<td align="center"><img src="../anim_gallery/A08c-flame-gradient-color.apng" width="480"><br><sub><b>2026-04-09 · A08C</b></sub></td>
+<td align="center"><img src="../anim_gallery/X_NEON_BLOOM-neon-bloom-cyan.apng" width="480"><br><sub><b>2026-04-08 · X_Neon_Bloom</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-09-A08c.svg" width="480"><br><sub><b>2026-04-09 · A08C</b></sub></td>
-<td align="center"><img src="2026-04-08-X_NEON_BLOOM.svg" width="480"><br><sub><b>2026-04-08 · X_Neon_Bloom</b></sub></td>
+<td align="center"><img src="../anim_gallery/A_VOR1-voronoi-stained-glass-spectral.apng" width="480"><br><sub><b>2026-04-06 · A_Vor1</b></sub></td>
+<td align="center"><img src="../anim_gallery/A10c-plasma-lava-lamp.apng" width="480"><br><sub><b>2026-04-06 · A10C</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="2026-04-06-A_VOR1.svg" width="480"><br><sub><b>2026-04-06 · A_Vor1</b></sub></td>
-<td align="center"><img src="2026-04-06-A10c.svg" width="480"><br><sub><b>2026-04-06 · A10C</b></sub></td>
-</tr>
-<tr>
-<td align="center"><img src="2026-04-04-A08.svg" width="480"><br><sub><b>2026-04-04 · A08</b></sub></td>
-<td align="center"><img src="2026-04-03-A10.svg" width="480"><br><sub><b>2026-04-03 · A10</b></sub></td>
+<td align="center"><img src="../anim_gallery/A08-flame-flicker.apng" width="480"><br><sub><b>2026-04-04 · A08</b></sub></td>
+<td align="center"><img src="../anim_gallery/A10-plasma-wave.apng" width="480"><br><sub><b>2026-04-03 · A10</b></sub></td>
 </tr>
 <tr>
 <td align="center"><img src="2026-04-02-F07.svg" width="480"><br><sub><b>2026-04-02 · F07</b></sub></td>
