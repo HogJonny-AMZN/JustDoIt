@@ -957,16 +957,17 @@ def _curated_entries_g09(
     add("S-G09-noise-radial", "G09+F02 — Noise + radial", noise_grid)
 
     # Strategy C — char fills on G09 mask (full resolution)
+    # SDF variants use gamma curves (not threshold) — produces smooth density
+    # gradient that reads well at any scale (incl. web thumbnail).
+    # gamma=1.0: linear, classic diffuse glow (best at web scale)
+    # gamma=1.8: slightly biased toward interior, still visible gradient
+    # gamma=3.0: bold interior with thin visible edge ring at 4K
     _strategy_c = [
-        ("S-G09-density", "G09+F01 — Density (hi-res)", "density", {}),
-        # SDF gamma=4.0: bold solid interior, thin crisp edge ring
-        # SDF threshold=0.3: solid █ interior, crisp edge ramp
-        ("S-G09-sdf",         "G09+F06 — SDF bold interior",      "sdf", {"threshold": 0.3}),
-        # SDF gamma=1.0: linear gradient, classic diffuse outline effect
-        ("S-G09-sdf-outline", "G09+F06 — SDF outline (linear)",   "sdf", {"gamma": 1.0}),
-        # SDF threshold=0.6: thinner edge ring, tighter threshold
-        ("S-G09-sdf-mid",     "G09+F06 — SDF thin ring (threshold 0.6)", "sdf", {"threshold": 0.6}),
-        ("S-G09-shape",   "G09+F07 — Shape (hi-res)",   "shape",  {}),
+        ("S-G09-density",     "G09+F01 — Density (hi-res)",        "density", {}),
+        ("S-G09-sdf",         "G09+F06 — SDF glow (linear)",       "sdf",     {"gamma": 1.0}),
+        ("S-G09-sdf-outline", "G09+F06 — SDF bold (gamma 1.8)",   "sdf",     {"gamma": 1.8}),
+        ("S-G09-sdf-mid",     "G09+F06 — SDF intense (gamma 3.0)","sdf",     {"gamma": 3.0}),
+        ("S-G09-shape",       "G09+F07 — Shape (hi-res)",          "shape",   {}),
     ]
     for stem, label, fill_name, fkw in _strategy_c:
         print(f"    G09 Strategy C: {stem.split('-')[-1]} ...")
@@ -980,18 +981,15 @@ def _curated_entries_g09(
                                  color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
                                                                           "horizontal", FIRE_PALETTE)))
     print("    G09 Strategy C: sdf-neon ...")
-    # SDF neon: ALL ink cells colored by diagonal gradient.
-    # Interior gets full-bright color, edge gets same color at full brightness.
-    # The SDF gamma=1 outline variant shows the edge gradient naturally.
-    # This variant: pure color fill across all ink, using block chars for solidity.
-    _neon_grid = _apply_char_fill_to_grid(
-        base_grid, "sdf",
-        fill_kwargs={"threshold": 0.3},
-        color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
-                                                  "diagonal",
-                                                  [(0, 255, 200), (255, 80, 255)])
-    )
-    add("S-G09-sdf-neon", "G09+F06 — SDF + neon", _neon_grid)
+    # SDF neon: gamma=1.0 diffuse glow + diagonal cyan→magenta gradient.
+    # Chars vary by SDF density (light edge, dense interior);
+    # color varies by position — the density gradient reads as a colored glow.
+    add("S-G09-sdf-neon", "G09+F06 — SDF + neon",
+        _apply_char_fill_to_grid(base_grid, "sdf",
+                                 fill_kwargs={"gamma": 1.0},
+                                 color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
+                                                                          "diagonal",
+                                                                          [(0, 255, 200), (255, 80, 255)])))
     print("    G09 Strategy C: shape-ocean ...")
     add("S-G09-shape-ocean", "G09+F07 — Shape + ocean",
         _apply_char_fill_to_grid(base_grid, "shape",
