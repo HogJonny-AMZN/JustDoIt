@@ -1609,3 +1609,89 @@ color: compute spatial geometry once, animate color independently.
 | 7 | X_LIVING_COLOR_WRAP (GoL wrap boundary) | X_LIVING_WRAP | 3 | `idea` |
 | 8 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
 | 9 | Wave Interference Animation | A_F09a | 3 | `idea` |
+
+## Research Note 2026-04-26 — Animation Gallery Expansion Backlog
+
+**Flagged by:** Jonny — "I'd like to see a LOT more of the static gallery examples
+end up in the animated gallery; especially ones that deserve animation to really
+be seen properly, like slime or sim modes."
+
+### Background
+
+The static gallery has ~59 fill/color/spatial entries. The anim gallery has 45
+entries, but most are variants of plasma/flame/neon/turing. A large class of fills
+exist ONLY as static snapshots even though they are simulation-based and their
+time-evolution is the most interesting thing about them.
+
+### Priority tier 1 — Simulation fills (the whole POINT is the time evolution)
+
+These look like noise in a static frame. Animated, they reveal their nature:
+
+| ID | Preset | What animates | Approach |
+|----|--------|---------------|----------|
+| A_SLIME1 | `slime_mold` | Agents build trail networks over time | Run sim for N steps, capture frame every K steps. Agents spread, trails form, networks stabilize. Time-lapse of emergence. |
+| A_CELLS1 | `cells_fill` (GoL) | Life/death cycle of cells per frame | Step GoL forward 1 generation per frame. Start random, watch stable structures form. |
+| A_RD1 | `reaction_diffusion` | Coral/maze patterns grow from noise | Capture every 10th step of RD sim 0→200. Watch the Turing-pattern form from blank noise. |
+| A_ATTR1 | `strange_attractor` | Attractor trajectory accumulates | Progressive reveal: frame N shows first N×K trajectory points. Lorenz basin emerges from chaos. |
+
+### Priority tier 2 — Fill animations with clear motion logic
+
+Static fills that have an obvious time-dimension:
+
+| ID | Preset | What animates | Approach |
+|----|--------|---------------|----------|
+| A_SDF1 | `sdf_fill` | Edge ring pulses / letters breathe | Oscillate gamma 1.0→4.0→1.0 per frame. Letters cycle hollow-outline → bold-interior → hollow. |
+| A_WAVE1 | `wave_fill` | Wave phase sweep (moiré bands flow) | Already specced as A_F09a. Step phase1/phase2 through 0→2π. 36 frames, 12fps. |
+| A_GRAD1 | `gradient` | Hue rotation through letterforms | Rotate hue angle per frame (HSV). Full rainbow cycle. 48 frames, 12fps. |
+| A_TRUCK1 | `truchet` | Tiles rotate/flip → optical illusion flow | Per-tile rotation offset driven by sine wave per frame. Flowing river of tiles. |
+| A_LSYS1 | `lsystem` | Branching depth unfolds frame by frame | Frame N shows L-system at depth N. Grow from depth 1 (stem) → 5 (full tree). |
+
+### Priority tier 3 — Char-set cycling
+
+| ID | Preset | What animates | Notes |
+|----|--------|---------------|-------|
+| A_SHAPE1 | `shape_fill` | Cycle through char vocabularies per frame | Each frame uses next char set (dense → medium → sparse → back). Morph effect. |
+| A_NOISE1 | `noise_fill` | Noise seed walks per frame | Re-seed noise each frame with seed+t. Boiling/shifting texture. Different from noise_warp (this is fill not spatial). |
+
+### Implementation notes
+
+**Slime mold (A_SLIME1):** `slime_mold_fill(mask, steps=150)` runs the full sim internally.
+Need to expose step-by-step: extract the simulation loop, yield intermediate states.
+OR: run multiple sims with fewer steps (10, 30, 60, 100, 150) and treat each as a frame.
+Fast path: just run with steps=10,20,...,150 — 15 frames at 5fps = 3sec loop.
+
+**Conway GoL (A_CELLS1):** `cells_fill` uses `GoL` with `steps=4` (frozen snapshot).
+Expose the GoL sim loop: step 1 frame at a time, render to chars each step.
+~30 frames at 6fps. Start from random seed, run 30 generations.
+
+**RD animation (A_RD1):** `reaction_diffusion_fill` is O(W×H×steps) — 200 steps at
+480×135 = 13M ops, ~45s. Too slow to run per frame. Instead: run ONCE, capture
+every Nth step internally. Requires exposing a generator variant.
+Alternative: run at reduced grid size (just the glyph mask cells), ~64K cells,
+~0.3s per frame at 200 steps. Could do 20 frames × 10 steps = 200 total steps.
+
+**Strange attractor (A_ATTR1):** Already fast (trajectory points, not grid sim).
+`strange_attractor_fill` runs 80K trajectory steps. Progressive: frame N shows
+first N×4000 points plotted into the grid. 20 frames @ 8fps.
+
+**SDF pulse (A_SDF1):** Simplest of all. No sim. Pure parameter sweep.
+`gamma = 1.0 + 3.0 * 0.5 * (1 - cos(2π × t/n_frames))`  → smooth 1→4→1 oscillation.
+36 frames, 12fps = 3sec loop. Each frame: sdf_fill(mask, gamma=gamma_t).
+
+**Wave animation (A_WAVE1):** Already specced in backlog (A_F09a). ~20 lines.
+
+### Priority queue additions
+
+| Priority | ID | Description | Novelty | Est effort |
+|----------|-----|-------------|---------|------------|
+| 1 | A_SLIME1 | Slime mold time-lapse animation | 4 | ~60 lines — expose step loop |
+| 2 | A_CELLS1 | Conway GoL live evolution animation | 4 | ~50 lines — step GoL per frame |
+| 3 | A_SDF1 | SDF gamma pulse — letters breathe | 3 | ~30 lines — parameter sweep |
+| 4 | A_ATTR1 | Strange attractor progressive reveal | 4 | ~50 lines — progressive trajectory |
+| 5 | A_RD1 | Reaction-diffusion growth time-lapse | 4 | ~80 lines — needs step generator |
+| 6 | A_WAVE1 | Wave phase sweep animation (A_F09a) | 3 | ~20 lines — already specced |
+| 7 | A_GRAD1 | Gradient hue rotation | 2 | ~25 lines — trivial |
+| 8 | A_TRUCK1 | Truchet tile flow animation | 3 | ~40 lines — sine-driven tile rotation |
+| 9 | A_LSYS1 | L-system depth unfold animation | 3 | ~30 lines — depth sweep |
+| 10 | A_SHAPE1 | Shape fill char-set cycling | 2 | ~20 lines — vocab sweep |
+| 11 | A_NOISE1 | Noise seed walk animation | 2 | ~20 lines — seed sweep |
