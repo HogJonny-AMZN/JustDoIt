@@ -745,10 +745,12 @@ def _g09_transform_entry(
     :param grid_rows: Grid row count (for fill functions).
     :returns: list[list[(char, (r,g,b)|None)]].
     """
+    import string as _s
     from justdoit.core.image_pipeline import render_pil_image_as_ascii
+    _charset = "█▓▒░" + _s.printable[:95]
 
     transformed = transform_fn(text_pil)
-    grid = render_pil_image_as_ascii(transformed, cell_w, cell_h, color=False)
+    grid = render_pil_image_as_ascii(transformed, cell_w, cell_h, color=False, charset=_charset)
     if post_fill:
         cols = grid_cols if grid_cols > 0 else (len(grid[0]) if grid else 0)
         rows = grid_rows if grid_rows > 0 else len(grid)
@@ -756,7 +758,7 @@ def _g09_transform_entry(
     elif post_color == "rainbow":
         grid = _grid_rainbow_color(grid)
     else:
-        grid = _apply_uniform_color(grid, (220, 220, 220))
+        grid = _apply_uniform_color(grid, (255, 255, 255))
     return grid
 
 
@@ -791,10 +793,17 @@ def _curated_entries_g09(
 
     print(f"    G09 base grid: {grid_cols}x{grid_rows} chars ({canvas_w}x{canvas_h}px canvas)")
 
+    # Prepend Unicode block elements to the charset so solid-white interior cells
+    # map to █ (density=1.0) rather than M/E (density~0.35).
+    # Without this, every interior cell is ~35% coverage — the "dim" appearance.
+    import string as _string
+    _4K_CHARSET = "█▓▒░" + _string.printable[:95]
+
     base_grid = render_text_as_image(
         text, font_path,
         output_cols=grid_cols, output_rows=grid_rows,
         cell_w=cell_w, cell_h=cell_h,
+        charset=_4K_CHARSET,
         color=False,
         fg_color=(255, 255, 255),
         bg_color=(0, 0, 0),
