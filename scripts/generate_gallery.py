@@ -1303,14 +1303,38 @@ def _write_readme(profile: GalleryProfile, entries: list[tuple[str, str, str]]) 
         lines.append("")
 
     # --- Daily section ---
+    # For animated techniques, prefer the APNG from anim_gallery/ over the static SVG.
+    # APNGs are in docs/anim_gallery/; relative path from gallery/ is ../anim_gallery/.
+    # Match by technique ID embedded in the APNG filename: <ID>-<label>.apng
+    anim_gallery_dir = gallery_dir.parent / "anim_gallery"
+    _apng_by_id: dict = {}
+    if anim_gallery_dir.exists():
+        for apng in anim_gallery_dir.glob("*.apng"):
+            # stem format: <ID>-<label>  e.g. X_ISO_NEON-iso-neon-glitch
+            tech_id = apng.stem.split("-")[0].upper()  # e.g. X_ISO_NEON
+            # Keep only one APNG per ID (first alphabetically = preferred variant)
+            if tech_id not in _apng_by_id:
+                _apng_by_id[tech_id] = apng
+
+    def _daily_img(svg_path: Path) -> str:
+        """Return img src — APNG path if available, SVG filename otherwise."""
+        # Extract tech ID from daily SVG stem: YYYY-MM-DD-<ID>  e.g. 2026-04-26-X_ISO_NEON
+        parts = svg_path.stem.split("-", 3)
+        tech_id = parts[3].upper() if len(parts) >= 4 else ""
+        if tech_id in _apng_by_id:
+            return f"../anim_gallery/{_apng_by_id[tech_id].name}"
+        return svg_path.name
+
     if daily:
         lines += [
             "## Daily Techniques",
             "",
             "*New technique added each day by the daily agent — newest first.*",
+            "*▶ Animated entries show the APNG from the animation gallery.*",
             "",
         ]
-        daily_pairs = [(_p.name, _daily_label(_p.stem)) for _p in daily]
+        # Build pairs with APNG where available
+        daily_pairs = [(_daily_img(_p), _daily_label(_p.stem)) for _p in daily]
         lines += _table(daily_pairs, img_width=profile.readme_img_width)
         lines.append("")
 
