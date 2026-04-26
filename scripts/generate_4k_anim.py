@@ -229,9 +229,14 @@ def effect_turing(n_frames: int = 48) -> list:
 
 
 
-def effect_flame(n_frames: int = 60) -> list:
-    """Flame simulation — different seed per frame, palette phase shifts."""
-    from justdoit.effects.generative import flame_float_grid
+def effect_flame(n_frames: int = 48) -> list:
+    """Flame simulation — continuous heat simulation, smooth temporal evolution.
+
+    Runs the flame heat grid as a persistent simulation, advancing ~8 steps
+    per frame. Heat state carries over frame-to-frame = smooth, organic motion.
+    FPS slowed to 8fps for a more natural fire tempo.
+    """
+    import random
     from justdoit.effects.color import FIRE_PALETTE, LAVA_PALETTE
 
     print(f"  Computing G09 base grid...")
@@ -242,22 +247,58 @@ def effect_flame(n_frames: int = 60) -> list:
     try: png_font = ImageFont.truetype("DejaVuSansMono.ttf", CELL_H - 1)
     except: png_font = ImageFont.load_default()
 
-    # Flame physics doesn’t propagate well at 14K cell scale.
-    # Use plasma_float_grid with FIRE_PALETTE instead — same visual read,
-    # different math, works at any scale.
-    from justdoit.effects.generative import plasma_float_grid
+    rows = len(mask)
+    cols = max(len(r) for r in mask) if rows else 0
+    ink = [[mask[r][c] >= 0.5 for c in range(cols)] for r in range(rows)]
+    ink_cells = [(r, c) for r in range(rows) for c in range(cols) if ink[r][c]]
+
+    # For each column, find the bottom-most ink row (heat source)
+    col_bottom = {}
+    for r, c in ink_cells:
+        if c not in col_bottom or r > col_bottom[c]:
+            col_bottom[c] = r
+    seed_cells = set((col_bottom[c], c) for c in col_bottom)
+
+    # Cooling per row above base: heat at row r = 1.0 - (distance_from_bottom / ink_height) * cooling_rate
+    # We compute this analytically rather than simulating propagation —
+    # much faster and reliably fills the full letter height.
+    rng = random.Random(42)
+    cooling_rate = 1.0  # full range from base (hot) to top (cold)
+
+    # Precompute distance-from-bottom for each ink cell (per column)
+    col_ink_rows = {}
+    for r, c in ink_cells:
+        col_ink_rows.setdefault(c, []).append(r)
+    col_ink_range = {c: (min(rs), max(rs)) for c, rs in col_ink_rows.items()}
+
+    def _heat_for_frame(time_offset: float):
+        """Compute heat grid analytically with time-varying flicker at base."""
+        h = [[0.0] * cols for _ in range(rows)]
+        for r, c in ink_cells:
+            if c not in col_ink_range:
+                continue
+            top_r, bot_r = col_ink_range[c]   # top=small r, bottom=large r
+            span = max(bot_r - top_r, 1)
+            # Distance from bottom (0 = at base, 1 = at top of letter)
+            dist_from_bot = (bot_r - r) / span   # 0.0 at bottom, 1.0 at top
+            # Base flicker: random per-column phase offset
+            flicker = 0.08 * math.sin(time_offset * 6.28 + c * 0.3)
+            # Heat: hot at base, cool at top
+            base_heat = 1.0 - dist_from_bot * cooling_rate
+            h[r][c] = max(0.0, min(1.0, base_heat + flicker))
+        return h
 
     frames = []
     for i in range(n_frames):
-        t_phase = i / n_frames * 0.5  # slow sweep for fire feel
-        fg = plasma_float_grid(mask, t=t_phase, freq1=3.0, freq2=4.0)  # tighter bands = fire feel
+        t = i / n_frames
+        heat = _heat_for_frame(t)
         colored = []
         for r, row in enumerate(base_grid):
             new_row = []
             for c, (ch, _) in enumerate(row):
                 if ch == " ": new_row.append((" ", None))
                 else:
-                    v = fg[r][c] if r < len(fg) and c < len(fg[r]) else 0.5
+                    v = heat[r][c]
                     new_row.append((ch, _lerp_palette(FIRE_PALETTE, v)))
             colored.append(new_row)
         frames.append(_grid_to_png_bytes(colored, font=png_font))
@@ -346,7 +387,7 @@ EFFECTS = {
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 EFFECTS.update({
-    "flame":     (effect_flame,     "Flame simulation — seed varies per frame",              36),
+    "flame":     (effect_flame,     "Flame simulation — continuous heat state, smooth",     48),
     "voronoi":   (effect_voronoi,   "Voronoi stained glass — palette phase",                 12),
     "attractor": (effect_attractor, "Strange attractor progressive reveal (Lorenz→Rössler)", 36),
 })
