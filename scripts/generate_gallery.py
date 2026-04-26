@@ -957,15 +957,15 @@ def _curated_entries_g09(
     add("S-G09-noise-radial", "G09+F02 — Noise + radial", noise_grid)
 
     # Strategy C — char fills on G09 mask (full resolution)
-    # SDF note: sdf_fill produces chars for BOTH ink cells AND exterior-glow cells
-    # (cells near the letter boundary get non-zero SDF values). This creates the
-    # natural glow halo visible in web thumbnails. gamma controls glow width:
-    # gamma=1.0: wide glow (too diffuse at web scale, nearly invisible)
-    # gamma=1.8: balanced glow + readable text — the sweet spot
+    # SDF renders chars for BOTH ink AND exterior-glow cells (distance falloff).
+    # At web scale the exterior cells downscale into a geometric halo pattern
+    # that is part of the aesthetic, not an artifact. Keep all 4 gamma variants.
     _strategy_c = [
-        ("S-G09-density",     "G09+F01 — Density (hi-res)",    "density", {}),
-        ("S-G09-sdf",         "G09+F06 — SDF glow (gamma 1.8)", "sdf",   {"gamma": 1.8}),
-        ("S-G09-shape",       "G09+F07 — Shape (hi-res)",      "shape",   {}),
+        ("S-G09-density",     "G09+F01 — Density (hi-res)",         "density", {}),
+        ("S-G09-sdf",         "G09+F06 — SDF glow (linear)",         "sdf",    {"gamma": 1.0}),
+        ("S-G09-sdf-outline", "G09+F06 — SDF outline (gamma 1.8)",  "sdf",    {"gamma": 1.8}),
+        ("S-G09-sdf-mid",     "G09+F06 — SDF bold (gamma 3.0)",     "sdf",    {"gamma": 3.0}),
+        ("S-G09-shape",       "G09+F07 — Shape (hi-res)",           "shape",  {}),
     ]
     for stem, label, fill_name, fkw in _strategy_c:
         print(f"    G09 Strategy C: {stem.split('-')[-1]} ...")
@@ -979,28 +979,15 @@ def _curated_entries_g09(
                                  color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
                                                                           "horizontal", FIRE_PALETTE)))
     print("    G09 Strategy C: sdf-neon ...")
-    # SDF neon: gamma=1.8 glow + diagonal cyan→magenta gradient on INK CELLS ONLY.
-    # We mask the color_fn result back to ink cells to avoid painting the exterior
-    # SDF falloff zone (which produces the canvas-filling gradient soup).
-    _sdf_neon_base = _apply_char_fill_to_grid(base_grid, "sdf", fill_kwargs={"gamma": 1.8})
-    _ink_mask_neon = {(r, c) for r, row in enumerate(base_grid) for c, (ch, _) in enumerate(row) if ch != " "}
-    _neon_pal = [(0, 255, 200), (255, 80, 255)]
-    _sdf_neon_colored = []
-    for _r, _row in enumerate(_sdf_neon_base):
-        _new_row = []
-        for _c, (_ch, _rgb) in enumerate(_row):
-            if _ch == " " or (_r, _c) not in _ink_mask_neon:
-                # Non-ink or exterior SDF glow: keep as-is (space or dim glow char)
-                _new_row.append((_ch, _rgb))
-            else:
-                # Ink cell: apply neon gradient color
-                _t = (_c / max(grid_cols - 1, 1) * 0.6 + _r / max(grid_rows - 1, 1) * 0.4)
-                _t = max(0.0, min(1.0, _t))
-                _r0, _g0, _b0 = _neon_pal[0]; _r1, _g1, _b1 = _neon_pal[1]
-                _neon_rgb = (int(_r0+(_r1-_r0)*_t), int(_g0+(_g1-_g0)*_t), int(_b0+(_b1-_b0)*_t))
-                _new_row.append((_ch, _neon_rgb))
-        _sdf_neon_colored.append(_new_row)
-    add("S-G09-sdf-neon", "G09+F06 — SDF + neon", _sdf_neon_colored)
+    # SDF neon: gamma=1.8 + diagonal cyan→magenta on ALL cells (ink + exterior glow).
+    # The exterior SDF falloff cells downscale into the beautiful geometric hex halo
+    # visible at web scale — this is intentional, not an artifact.
+    add("S-G09-sdf-neon", "G09+F06 — SDF + neon",
+        _apply_char_fill_to_grid(base_grid, "sdf",
+                                 fill_kwargs={"gamma": 1.8},
+                                 color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
+                                                                          "diagonal",
+                                                                          [(0, 255, 200), (255, 80, 255)])))
     print("    G09 Strategy C: shape-ocean ...")
     add("S-G09-shape-ocean", "G09+F07 — Shape + ocean",
         _apply_char_fill_to_grid(base_grid, "shape",
