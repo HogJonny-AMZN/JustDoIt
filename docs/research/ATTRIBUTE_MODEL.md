@@ -308,7 +308,7 @@ FONT shape  ──→  FILL behavior        [SDF font → smoother masks → smo
 |----|-------------|-------|
 | A_F09a | F09 wave + phase animation | 20 lines |
 | A_ISO1 | S03 iso + depth animation | iso depth swept per frame, letters breathe | **done 2026-04-14** |
-| X_ISO_NEON | S03 iso + A03 neon on extrusion face only | depth chars flicker, front face stable |
+| X_ISO_NEON | S03 iso + A03 neon on extrusion face only | depth chars flicker, front face stable | **done 2026-04-26**
 | X_WARP_PULSE | S01 sine_warp + A04 pulse | amplitude oscillates - text breathes AND waves |
 
 ### C11 infrastructure - DONE (2026-04-06)
