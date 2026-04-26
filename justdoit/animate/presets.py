@@ -3393,9 +3393,12 @@ def living_fill(
     font: str = "block",
     n_frames: int = 120,
     seed: int = 42,
-    alive_prob: float = 0.4,
+    alive_prob: float = 0.28,
     color: Optional[str] = None,
     loop: bool = False,
+    boundary: str = "wrap",
+    respawn_interval: int = 20,
+    respawn_prob: float = 0.15,
 ) -> Iterator[str]:
     """Living Fill animation — Conway's Game of Life inside glyph masks (A06).
 
@@ -3408,13 +3411,20 @@ def living_fill(
     fill texture, this preset yields continuously evolving frames where the CA
     state is always changing.
 
-    GoL rules: B3/S23 (standard Conway). Boundary cells treat exterior as dead.
+    GoL rules: B3/S23 (standard Conway).
+    boundary='wrap': toroidal grid (cells at edges see opposite edge) — sustains
+    gliders, oscillators, and long-lived dynamics that die in bounded grids.
+    boundary='dead': original behaviour (exterior treated as dead).
+    respawn: periodically re-seed dead ink cells to prevent total extinction.
 
     :param text_plain: Plain text to render (e.g. 'JUST DO IT').
     :param font: Font name for rendering (default 'block').
     :param n_frames: Number of GoL generations / frames to yield (default 120).
     :param seed: Integer seed for reproducible initial state (default 42).
-    :param alive_prob: Probability each interior cell starts alive (default 0.4).
+    :param alive_prob: Probability each interior cell starts alive (default 0.28 — critical density).
+    :param boundary: 'wrap' (toroidal, default) or 'dead' (exterior=dead, original).
+    :param respawn_interval: Re-seed dead ink cells every N frames (default 20).
+    :param respawn_prob: Probability of re-seeding each dead ink cell (default 0.15).
     :param color: Optional ANSI color name applied to each frame (e.g. 'green').
     :param loop: If True, yield frames forward then reversed for seamless loop (default False).
     :returns: Iterator of frame strings — one per GoL generation.
@@ -3436,14 +3446,19 @@ def living_fill(
     # 2. Build ink mask — any non-space cell is interior
     ink = [[base_rows[r][c] != " " for c in range(width)] for r in range(height)]
 
-    # 3. Seed GoL state randomly inside ink cells
-    state = [[ink[r][c] and rng.random() < alive_prob
-              for c in range(width)]
+    # 3. Seed GoL state across the FULL grid (not just ink cells).
+    # GoL runs on the whole grid; ink mask is a visibility window only.
+    # This prevents rapid extinction in narrow letter strokes — the CA
+    # has the full terminal width to sustain gliders and oscillators.
+    state = [[rng.random() < alive_prob for c in range(width)]
              for r in range(height)]
 
     # -------------------------------------------------------------------------
     def _gol_step(s: list) -> list:
-        """Advance GoL one generation.  B3/S23, exterior treated as dead.
+        """Advance GoL one generation. B3/S23.
+
+        boundary='wrap': toroidal — edges wrap to opposite side.
+        boundary='dead': exterior is dead (original behaviour).
 
         :param s: Current boolean state grid.
         :returns: Next generation boolean state grid.
@@ -3451,16 +3466,18 @@ def living_fill(
         ns = [[False] * width for _ in range(height)]
         for r in range(height):
             for c in range(width):
-                if not ink[r][c]:
-                    continue
                 alive_nb = 0
                 for dr in (-1, 0, 1):
                     for dc in (-1, 0, 1):
                         if dr == 0 and dc == 0:
                             continue
-                        nr, nc = r + dr, c + dc
-                        if 0 <= nr < height and 0 <= nc < width and s[nr][nc]:
-                            alive_nb += 1
+                        if boundary == "wrap":
+                            nr, nc = (r + dr) % height, (c + dc) % width
+                            alive_nb += s[nr][nc]
+                        else:
+                            nr, nc = r + dr, c + dc
+                            if 0 <= nr < height and 0 <= nc < width and s[nr][nc]:
+                                alive_nb += 1
                 if s[r][c]:
                     ns[r][c] = alive_nb in (2, 3)
                 else:
@@ -3518,10 +3535,17 @@ def living_fill(
         return frame_str
 
     # 4. Generate frames — each frame advances GoL one step
+    # Respawn: periodically re-seed dead ink cells to prevent extinction.
     frames = []
-    for _ in range(n_frames):
+    for i in range(n_frames):
         frames.append(_state_to_frame(state))
         state = _gol_step(state)
+        # Respawn dead ink cells every respawn_interval frames
+        if respawn_interval > 0 and (i + 1) % respawn_interval == 0:
+            for r in range(height):
+                for c in range(width):
+                    if ink[r][c] and not state[r][c] and rng.random() < respawn_prob:
+                        state[r][c] = True
 
     if loop:
         frames = frames + list(reversed(frames))
@@ -3564,15 +3588,18 @@ _LIVING_COLOR_DEAD: str = "·"
 def living_color(
     text_plain: str,
     font: str = "block",
-    n_frames: int = 72,
+    n_frames: int = 120,
     seed: int = 42,
-    alive_prob: float = 0.4,
-    max_age: int = 20,
+    alive_prob: float = 0.28,
+    max_age: int = 30,
     palette_name: str = "age",
     bloom_color_name: Optional[str] = "cyan",
     bloom_radius: int = 2,
     bloom_falloff: float = 0.70,
     loop: bool = True,
+    boundary: str = "wrap",
+    respawn_interval: int = 25,
+    respawn_prob: float = 0.12,
 ) -> Iterator[str]:
     """Living Color animation — Conway GoL with C11 age-heat coloring (X_LIVING_COLOR).
 
@@ -3633,9 +3660,10 @@ def living_color(
     # 2. Build ink mask — any non-space cell is interior
     ink = [[base_rows[r][c] != " " for c in range(width)] for r in range(height)]
 
-    # 3. Seed GoL state and age counters randomly inside ink cells
+    # 3. Seed GoL state across the FULL grid (not just ink cells).
+    # GoL runs on the whole grid; ink mask is a visibility window only.
     state = [
-        [ink[r][c] and rng.random() < alive_prob for c in range(width)]
+        [rng.random() < alive_prob for c in range(width)]
         for r in range(height)
     ]
 
@@ -3649,7 +3677,10 @@ def living_color(
 
     # -------------------------------------------------------------------------
     def _gol_step(s: list) -> list:
-        """Advance GoL one generation.  B3/S23, exterior treated as dead.
+        """Advance GoL one generation. B3/S23.
+
+        boundary='wrap': toroidal — wrap to opposite edge.
+        boundary='dead': exterior treated as dead.
 
         :param s: Current boolean state grid.
         :returns: Next generation boolean state grid.
@@ -3664,9 +3695,13 @@ def living_color(
                     for dc in (-1, 0, 1):
                         if dr == 0 and dc == 0:
                             continue
-                        nr, nc = r + dr, c + dc
-                        if 0 <= nr < height and 0 <= nc < width and s[nr][nc]:
-                            alive_nb += 1
+                        if boundary == "wrap":
+                            nr, nc = (r + dr) % height, (c + dc) % width
+                            alive_nb += s[nr][nc]
+                        else:
+                            nr, nc = r + dr, c + dc
+                            if 0 <= nr < height and 0 <= nc < width and s[nr][nc]:
+                                alive_nb += 1
                 if s[r][c]:
                     ns[r][c] = alive_nb in (2, 3)
                 else:
@@ -3762,7 +3797,7 @@ def living_color(
 
     # 4. Generate frames
     frames = []
-    for _ in range(n_frames):
+    for i in range(n_frames):
         char_text = _state_to_chars(state, age)
         age_float_grid = _build_age_float_grid(state, age)
 
@@ -3781,6 +3816,14 @@ def living_color(
         new_state = _gol_step(state)
         age = _update_age(new_state, age)
         state = new_state
+
+        # Respawn: re-seed dead ink cells periodically to prevent extinction
+        if respawn_interval > 0 and (i + 1) % respawn_interval == 0:
+            for r in range(height):
+                for c in range(width):
+                    if ink[r][c] and not state[r][c] and rng.random() < respawn_prob:
+                        state[r][c] = True
+                        age[r][c] = 1
 
     if loop:
         frames = frames + list(reversed(frames))
