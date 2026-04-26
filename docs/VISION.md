@@ -13,7 +13,7 @@ Not the best *terminal* font renderer. The best font renderer. Full stop. One th
 That means:
 - Every effect is configurable, composable, and production-quality
 - Framerates are not assumed — 24fps is a default, 60fps is worth trying, the effect decides
-- The rendering pipeline is substrate-agnostic: terminal today, WebGL tomorrow, GPU shader next week
+- The rendering pipeline is substrate-agnostic: terminal today, SVG/PNG today, WebGL tomorrow
 - When someone needs to render text with maximum expressiveness — in *any* medium — this is what they reach for
 - The kind of thing that ends up as a dependency in other people's serious tools
 
@@ -26,9 +26,11 @@ The ASCII/ANSI aesthetic is the *foundation*, not the ceiling. The terminal is w
 ```
 Terminal         ← prove it here first. hardest constraints. most honest feedback.
     ↓
-Browser / HTML   ← same pipeline, richer color, DOM output
+SVG / PNG        ← vector and raster export, shareable artifacts (WORKING)
     ↓
-SVG / PNG        ← vector and raster export, shareable artifacts
+4K PNG           ← true 3840×2160 pixel renders, image-pipeline path (WORKING)
+    ↓
+Browser / HTML   ← same pipeline, richer color, DOM output
     ↓
 WebGL / GPU      ← particle volume fills, 3D extrusion, real-time at scale
     ↓
@@ -39,172 +41,131 @@ Terminal-first is a *discipline*, not a limitation. Every effect that works in 2
 
 ---
 
----
+## What We've Learned Building It
 
-## What It Is Now
+### The Image Pipeline Is the Real Power Move
 
-A **static renderer**: hardcoded glyph arrays → concatenate rows → ANSI color. Clean, zero-dependency, single file. It works. But the ceiling is low.
+The biggest architectural insight to emerge in practice: **stop generating ANSI strings and start generating images**. The `image_to_ascii_fast()` path (PIL canvas → 6-zone char matching → grid → PNG/SVG) is where quality actually lives. It gives:
 
----
+- Real glyph contours at any resolution, not block-font approximations
+- The ability to use *any* PIL image as source — photos, generated textures, 3D renders
+- Substrate-agnostic output: the same grid feeds SVG, PNG, terminal, or anything else
+- True 4K output at 3840×2160 with 480×135 char grids that are pixel-perfect at native resolution
 
-## The Mental Model Shift: Glyphs as Masks
+The 6-zone shape-matching DB (char_db.py) enables this. It's the bridge between pixels and characters — each cell of the image gets mapped to the ASCII character whose ink density best matches the source cell.
 
-The key insight that unlocks almost everything: stop thinking of glyphs as strings of characters and start thinking of them as **2D boolean masks** — a grid of "ink" vs "empty." Once you have that abstraction, you can *fill* the mask with anything.
+**Key caveat discovered:** The DB works for *photographic* sources where cell luminance varies continuously. It breaks for *solid-color* sources (white text on black) because all interior cells map to the same char. The fix: use the glyph-dict path for char selection, the image pipeline for color. This is the unsolved tension in the current 4K renders.
 
-Right now the fill is always `██`. It doesn't have to be.
+### The Terminal Constraint Is a Feature, Not a Bug
 
----
+We set out to "prove ideas in the terminal first." What we discovered is more interesting: the terminal cell grid is a creative medium in its own right, with rules that produce effects impossible in normal graphics:
 
-## Fill Strategies
+- Fill effects inside glyph masks produce **text that contains another texture** — fractal letterforms, Turing patterns growing inside the J, plasma fields mapped to character density. No conventional font renderer does this.
+- The char-as-pixel abstraction forces you to think about **ink density**, not color — which leads to visual effects that read differently from normal graphics and are genuinely novel aesthetic territory.
+- Animation inside glyph masks (living_fill, turing_bio, plasma_wave) produces effects where the **letter is alive** — the content of the letterform evolves independently of its shape. This is not a thing that exists outside ASCII art.
 
-Once glyphs are masks, the fill becomes a creative dimension:
+### Simulation Fills Need Animation to Be Seen
 
-- **Density-mapped ASCII** — `@`, `#`, `%`, `+`, `-`, `.`, ` ` — lighter characters near glyph edges, heavier toward the center. Instant pseudo-shading.
-- **Noise fill** — Perlin/Simplex noise drives which character gets placed. Every render is slightly different. Same text, never the same output twice.
-- **Reaction-diffusion** — run a Gray-Scott simulation inside the glyph boundary. The fill *grows* like a living pattern.
-- **Cellular automata** — seed Conway's Game of Life inside the mask, evolve N steps, freeze it, render. The letter is legible but *alive*.
-- **Fractal fill** — Mandelbrot escape time mapped to character density inside glyph bounds.
-- **SDF-based fill** — distance from glyph edge drives character selection. Natural outline/glow effects.
+Slime mold, Conway's GoL, reaction-diffusion, strange attractors — these are *time-based phenomena*. A static snapshot is meaningless. The evolution IS the content. Every simulation fill should have a matching animated preset. This wasn't obvious at the start; it took building the static gallery and staring at boring snapshots to realize it. The animation backlog exists because of this lesson.
 
----
+### 4K Is PNG, Not SVG
 
-## Font Generation
+SVG is vector and scales infinitely, which sounds right for "4K gallery." But in practice, SVG renders characters as fonts — each char is a `<text>` element rendered by the browser at whatever size the SVG declares. When you try to fit 480 chars into 3840px, each char is 8px wide and the font rendering engine makes them look terrible at browser zoom levels.
 
-Right now fonts are hand-authored arrays. That scales badly. Better:
+The right model: **4K = a literal 3840×2160 PNG** where each pixel is a real pixel. Chars are rendered at 8×16px using PIL/ImageDraw at actual pixel resolution. Zoom into a letter at 1:1 and you see a detailed texture of ASCII characters. That's what 4K means for this project.
 
-### 1. Bitmap Font Import
-Load any `.bmp` or `.png` sprite sheet (free pixel fonts are everywhere), threshold pixels → ASCII. Instant access to thousands of existing fonts.
+### Font Choice Matters More Than Expected
 
-### 2. TTF/OTF → ASCII
-Use PIL/Pillow (or freetype-py) to render any system font at low resolution, then map pixel brightness → ASCII density character. **Infinite fonts for free** — anything installed on the system.
+`DejaVuSansMono` was the default because it's the most commonly available monospace TTF on Linux. But `RobotoMono-Bold` renders dramatically better for ASCII art — the strokes are heavier, the letterforms are more distinct, and the bold weight means more ink coverage per cell which reads better in the char-density fills. The font gallery (3,861 Google Fonts, 20/day rendering) exists because we want to know empirically which fonts make the best ASCII art source material.
 
-### 3. FIGlet Compatibility
-FIGlet (`.flf` format) has a massive community font library — 400+ fonts. Write a parser and unlock all of them instantly.
+### 3D Without Geometry Is Always an Approximation
 
-### 4. Procedural / Mathematical Fonts
-Describe letterforms as signed distance fields (SDFs) or Bézier curves. Rasterize to a grid at any resolution. Scale-independent, mathematically precise. **Genuinely novel territory** in pure-Python ASCII art.
+The current isometric extrusion (`_pil_isometric`) works by shifting a 2D PIL image and dimming it — a geometric approximation. The side faces look like a dimmed copy of the front face, not like actual side planes with correct per-face shading. The right path is `ttf2mesh` (G11) — tessellate glyph geometry into real 3D triangles, rasterize with a numpy Z-buffer. That's what gives correct occlusion, per-face lighting, and side faces that look like side faces. It's in the queue.
 
 ---
 
-## Effect Pipeline
-
-Right now: `render → colorize → print`. Linear, no composition.
-
-The target architecture is a **stage pipeline** where each step is swappable:
-
-```
-text
-  → glyph lookup / generation
-  → rasterize to pixel grid
-  → spatial effects  (warp, distort, rotate, perspective)
-  → fill pass        (noise, gradient, pattern, cellular, fractal)
-  → composite layers (background, shadow, outline, glow)
-  → colorize         (flat, gradient, per-char, rainbow, palette)
-  → output target    (terminal, file, HTML, SVG, PNG)
-```
-
----
-
-## Spatial Effects
-
-Once you have a pixel grid, you can do math on it:
-
-- **Sine wave warp** — oscillate rows horizontally. Text that looks like it's on a flag or water.
-- **Perspective / vanishing point** — fake 3D tilt. Text receding into the horizon.
-- **Isometric extrusion** — take a 2D glyph, extrude it in isometric space. Chunky 3D block letters with shaded faces. 🏆 *Showstopper feature.*
-- **Radial distortion** — fisheye or pinch effect on the whole text block.
-- **Ripple / interference** — overlapping sine waves creating moiré-like patterns.
-
----
-
-## Color as a Dimension
-
-Current model: one flat color per render.
-
-Target:
-- **Gradient fills** — horizontal, vertical, radial, diagonal gradients using 256-color or true-color ANSI
-- **Per-glyph palettes** — each letter gets its own color, smooth transitions between them
-- **Depth-based color** — combine with 3D extrusion: top face bright, side face mid, shadow dark
-- **Heat map** — color driven by a noise field, independent of text shape
-- **Palette import** — load a color palette from an image or hex list
-
----
-
-## Animation
-
-Terminal ANSI supports cursor movement — you can redraw frames:
-
-- **Typewriter** — characters appear one at a time
-- **Scanline reveal** — text builds top to bottom
-- **Glitch** — randomly corrupt characters, snap back
-- **Pulse** — brightness oscillates with color cycling
-- **Particle dissolve** — characters drift and scatter on exit
-- **Living fill** — cellular automata or reaction-diffusion animating *inside* the glyph mask in real time
-
----
-
-## Output Targets
-
-Beyond the terminal:
-- **HTML/CSS** — `<pre>` with inline styles. Shareable, embeddable.
-- **SVG** — each character as a positioned `<text>` element. Vector, scalable.
-- **PNG/image** — PIL rasterization. Game assets, thumbnails, social.
-- **ANSI file** — `.ans` format, compatible with old-school ANSI art viewers.
-- **GIF** — animated output for the web.
-
----
-
-## Target Package Architecture
+## Architecture: What's Real Now
 
 ```
 justdoit/
   core/
-    glyph.py          # mask representation (2D boolean grid)
-    rasterizer.py     # text → pixel grid
-    pipeline.py       # stage chaining
+    glyph.py          # mask representation, SDF computation
+    char_db.py        # 6-zone shape-vector DB for image→ASCII
+    image_sampler.py  # image_to_ascii_fast() — vectorized, numpy
+    image_pipeline.py # render_text_as_image, grid_to_svg, grid_to_ansi
+    rasterizer.py     # text → ANSI string (glyph-dict path)
   fonts/
-    builtin/          # block, slim, + more hand-crafted
-    figlet.py         # .flf parser (400+ community fonts)
-    bitmap.py         # sprite sheet importer
-    ttf.py            # freetype/PIL renderer (infinite fonts)
-    sdf.py            # mathematical / procedural font gen
+    builtin/          # block, slim
+    figlet.py         # .flf parser, 400+ community fonts ✓
+    ttf.py            # PIL TTF rasterizer ✓
   effects/
-    spatial.py        # warp, perspective, isometric extrusion
-    fill.py           # noise, SDF, cellular, fractal fills
-    color.py          # gradients, palettes, depth-based color
-    composite.py      # shadow, outline, glow, layer blending
+    spatial.py        # warp, perspective, shear, isometric (string path)
+    fill.py           # density, SDF (with gamma curve), shape
+    color.py          # gradients, palettes, C11 fill_float_colorize
+    generative.py     # flame, plasma, turing, voronoi, noise, wave,
+                      # fractal, RD, slime, attractor, truchet, lsystem,
+                      # living_fill, living_color
   animate/
-    player.py         # frame loop, terminal ANSI control
-    presets.py        # typewriter, glitch, dissolve, pulse
+    presets.py        # 45+ animation presets
   output/
-    terminal.py       # ANSI print
-    html.py
-    svg.py
-    image.py          # PNG via PIL
-    ansi_file.py
-  cli.py              # argparse entry point (backwards-compatible)
+    svg.py            # grid → SVG (with padding, auto-size)
+    apng.py           # animated PNG output
+    cast.py           # asciinema .cast output
+  scripts/
+    generate_gallery.py      # standard/wide/4K gallery generation
+    generate_anim_gallery.py # APNG + .cast animation gallery
+    generate_font_gallery.py # TTF font comparison gallery (20/day batch)
+    download_google_fonts.py # 3,861 Google Fonts download + manifest
+    debug_pipeline.py        # visual pipeline inspection (crop-to-content)
 ```
 
----
-
-## The Bites
-
-1. **Refactor** — restructure `justdoit.py` into the package layout above. No new features. Clean foundation.
-2. **Glyph mask abstraction** + density fill (`@#%+-.` shading). Immediately impressive output.
-3. **FIGlet parser** — unlock 400+ community fonts instantly.
-4. **TTF/PIL import** — infinite font support.
-5. **Gradient color system** — true-color ANSI, per-glyph palettes.
-6. **Spatial effects** — sine warp, perspective tilt.
-7. **Isometric 3D extrusion** — the showstopper. *(genuinely novel in pure Python)*
-8. **Animation engine** — frame loop, typewriter, glitch, pulse.
-9. **HTML/SVG/PNG output** targets.
-10. **Cellular / noise fills** — the truly weird, generative, never-same-twice stuff.
+**What "done" means at each layer:**
+- Terminal: ✅ Full ANSI, 256-color and true-color, animatable
+- SVG: ✅ Per-char `<text>` elements, auto-sized with padding
+- PNG (4K): ✅ 3840×2160 true-pixel, PIL ImageDraw, 8×16px cells
+- APNG: ✅ Animated PNG export, all presets
+- asciinema .cast: ✅ All presets
 
 ---
 
-## North Star
+## The Technique Registry
 
-> A Python package where you hand it a string and a configuration, and it produces output ranging from "functional terminal banner" to "generative art piece" to "3D particle volume fill rendered in WebGL" — from one tool, one pipeline, one mental model.
+As of 2026-04-26: **70 techniques** across 8 axes:
+
+| Axis | Count | Examples |
+|------|-------|---------|
+| Fonts (G) | 11 done + 8 idea | block, slim, FIGlet (400+ fonts), TTF (3,861 Google), image pipeline |
+| Fills (F) | 9 done + 1 idea | density, SDF (gamma curve), shape, noise, cells, wave, fractal, voronoi |
+| Color (C) | 13 done + 6 idea | gradient, radial, palette, C11 float-colorize, C12 bloom, C13 HDR |
+| Spatial (S) | 8 done + 7 idea | sine warp, perspective, shear, isometric, image-space transforms |
+| Animation (A) | 13 done + 11 idea | typewriter, glitch, dissolve, plasma, flame, turing, neon, GoL |
+| Generative (N) | 6 done + 0 idea | Turing FHN (spots/stripes/maze/morphogenesis), slime, attractor |
+| Output (O) | 5 done + 3 idea | terminal, SVG, PNG, APNG, .cast |
+| Cross-breeds (X) | 15 done | flame×iso×bloom, turing×warp, plasma×noise, GoL×age-color |
+
+**Animation backlog:** 11 sim-based animations need to be built — slime, GoL, RD, attractor, SDF pulse, wave sweep, gradient hue rotation, truchet flow, L-system unfold, shape cycling, noise walk. Most are 20-80 lines each.
+
+---
+
+## The Specific Gaps (2026-04-26)
+
+Things we now know are wrong or missing that weren't on the original vision:
+
+1. **Interior char variety** — solid-white source images map all interior cells to the same char (M at 8×16px). The 6-zone DB is shape-matching, not density-ranking. Need a luminance-sorted fallback for uniform-luminance regions, or use glyph-dict path for chars and image pipeline only for color.
+
+2. **Simulation animations** — slime, GoL, RD, attractor all look like noise as static SVGs. The animation IS the content. These should never have been added to the static gallery without a matching animated preset.
+
+3. **3D is geometry, not transforms** — PIL affine transforms are approximations. ttf2mesh + numpy Z-buffer is the real path. G11 in queue.
+
+4. **Font selection matters** — the font gallery (3,861 fonts, 20/day) exists to answer empirically which fonts make the best ASCII art source. RobotoMono-Bold is the current best; this will evolve.
+
+5. **Gallery is a living thing** — the daily gallery should show APNGs, not static SVGs, for animated techniques. Fixed. The gallery README now auto-links to APNGs when they exist.
+
+---
+
+## The Remaining North Star
+
+> A Python package where you hand it a string and a configuration, and it produces output ranging from "functional terminal banner" to "generative art piece" to "3D particle volume fill rendered in real-time" — from one tool, one pipeline, one mental model.
 
 Terminal-first. Substrate-agnostic. The best font rendering codebase on earth.
 
@@ -212,5 +173,8 @@ The kind of thing that ends up on Hacker News, gets starred 10k times, and ships
 
 ---
 
-*Vision drafted 2026-03-23 in conversation between Jonny Galloway and NumberOne.*  
+*Vision drafted 2026-03-23 in conversation between Jonny Galloway and NumberOne.*
 *Expanded 2026-03-30 — terminal is the proving ground, not the ceiling.*
+*Major revision 2026-04-26 — updated to reflect what was actually learned building it:*
+*image pipeline as the real power move; 4K = PNG not SVG; font choice matters;*
+*3D needs geometry not transforms; simulation fills need animation.*
