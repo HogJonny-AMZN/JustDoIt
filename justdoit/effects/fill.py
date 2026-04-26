@@ -21,7 +21,10 @@ __author__ = ["jGalloway"]
 _LOGGER = _logging.getLogger(_MODULE_NAME)
 
 # Darkest to lightest — 12 density levels.
-DENSITY_CHARS: str = "@#S%?*+;:,. "
+# Density ramp: densest (full coverage) → lightest → space
+# Block elements prepended so solid-interior cells map to █ (100% coverage)
+# rather than @ (~34% coverage). Makes fills appear bright and solid.
+DENSITY_CHARS: str = "\u2588\u2593\u2592\u2591@#S%?*+;:,. "
 
 
 # -------------------------------------------------------------------------
@@ -54,22 +57,40 @@ def sdf_fill(
     mask: list,
     density_chars: Optional[str] = None,
     gamma: float = 1.0,
+    threshold: float = 0.0,
 ) -> list:
     """Fill using signed distance field — natural outline and shading effect.
 
     Computes the SDF of the mask (edge ≈ 0.5, interior → 1.0, exterior → 0.0),
-    applies an optional gamma curve, then applies density_fill.
+    optionally applies a threshold and/or gamma curve, then applies density_fill.
 
-    gamma > 1.0 biases the gradient toward the interior (more full-density chars
-    in the centre, sharper falloff at edges). gamma=2.5-3.0 gives a bold interior
-    with a narrow edge ring. gamma=1.0 is linear (default, existing behaviour).
+    threshold > 0: cells with SDF >= threshold use the densest char (█);
+    cells below threshold use the normal density ramp. Produces a bold solid
+    interior with a crisp edge ring of lighter chars.
+    e.g. threshold=0.5 fills everything > halfway from edge with █.
+
+    gamma > 1.0 (without threshold): biases the ramp toward the interior.
+    gamma=1.0 is linear (default, original behaviour).
 
     :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
     :param density_chars: Darkest-to-lightest char sequence (default: DENSITY_CHARS).
     :param gamma: Curve exponent applied to SDF values before density mapping.
+    :param threshold: SDF threshold above which the densest char is used (0=off).
     :returns: List of strings — one per row, same shape as input mask.
     """
     sdf = mask_to_sdf(mask)
+    if threshold > 0.0:
+        # Threshold mode: solid interior + narrow edge ramp
+        chars = density_chars if density_chars is not None else DENSITY_CHARS
+        densest = chars[0]  # █ when block chars are in the ramp
+        # Build modified SDF: above threshold → 1.0 (maps to densest char)
+        # below threshold → rescale [0, threshold] → [0, 0.9] for edge ramp
+        scale = 0.9 / threshold if threshold > 0 else 1.0
+        sdf = [[
+            1.0 if v >= threshold else v * scale
+            for v in row
+        ] for row in sdf]
+        return density_fill(sdf, density_chars)
     if gamma != 1.0:
         sdf = [[v ** gamma for v in row] for row in sdf]
     return density_fill(sdf, density_chars)

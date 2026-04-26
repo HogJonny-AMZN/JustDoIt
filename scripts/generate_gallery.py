@@ -372,8 +372,9 @@ def _apply_char_fill_to_grid(
     elif fill_name == "sdf":
         from justdoit.effects.fill import sdf_fill
         from justdoit.core.glyph import mask_to_sdf
-        gamma = kw.pop("gamma", 4.0)  # default: bold interior
-        char_rows = sdf_fill(mask, gamma=gamma)
+        gamma     = kw.pop("gamma",     1.0)
+        threshold = kw.pop("threshold", 0.0)
+        char_rows = sdf_fill(mask, gamma=gamma, threshold=threshold)
         # Modulate brightness by gamma-curved SDF value so interior is full-white
         # and edge chars are visibly dimmer — creates the crisp edge ring
         sdf_vals = mask_to_sdf(mask)
@@ -386,10 +387,12 @@ def _apply_char_fill_to_grid(
                     new_row.append((" ", None))
                 else:
                     v = sdf_vals[r][c] if r < len(sdf_vals) and c < len(sdf_vals[r]) else 0.5
-                    brightness = v ** gamma  # same curve as char selection
-                    # Edge chars stay visible but dim; interior hits full white.
-                    # Floor of 0.08 keeps edge chars just barely visible.
-                    brightness = max(0.08, min(1.0, brightness))
+                    if threshold > 0.0:
+                        # Threshold mode: interior is full bright, edge ramps down
+                        brightness = 1.0 if v >= threshold else max(0.08, v / threshold)
+                    else:
+                        brightness = v ** gamma
+                        brightness = max(0.08, min(1.0, brightness))
                     rgb = tuple(int(ch_v * brightness) for ch_v in fg)
                     new_row.append((ch, rgb))
             result.append(new_row)
@@ -957,11 +960,12 @@ def _curated_entries_g09(
     _strategy_c = [
         ("S-G09-density", "G09+F01 — Density (hi-res)", "density", {}),
         # SDF gamma=4.0: bold solid interior, thin crisp edge ring
-        ("S-G09-sdf",         "G09+F06 — SDF bold interior",      "sdf", {"gamma": 4.0}),
+        # SDF threshold=0.3: solid █ interior, crisp edge ramp
+        ("S-G09-sdf",         "G09+F06 — SDF bold interior",      "sdf", {"threshold": 0.3}),
         # SDF gamma=1.0: linear gradient, classic diffuse outline effect
         ("S-G09-sdf-outline", "G09+F06 — SDF outline (linear)",   "sdf", {"gamma": 1.0}),
-        # SDF gamma=2.5: mid-point — visible gradient + readable interior
-        ("S-G09-sdf-mid",     "G09+F06 — SDF gradient (gamma 2.5)", "sdf", {"gamma": 2.5}),
+        # SDF threshold=0.6: thinner edge ring, tighter threshold
+        ("S-G09-sdf-mid",     "G09+F06 — SDF thin ring (threshold 0.6)", "sdf", {"threshold": 0.6}),
         ("S-G09-shape",   "G09+F07 — Shape (hi-res)",   "shape",  {}),
     ]
     for stem, label, fill_name, fkw in _strategy_c:
@@ -978,7 +982,7 @@ def _curated_entries_g09(
     print("    G09 Strategy C: sdf-neon ...")
     add("S-G09-sdf-neon", "G09+F06 — SDF + neon",
         _apply_char_fill_to_grid(base_grid, "sdf",
-                                 fill_kwargs={"gamma": 4.0},
+                                 fill_kwargs={"threshold": 0.3},
                                  color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
                                                                           "diagonal",
                                                                           [(0, 255, 200), (255, 0, 255)])))
