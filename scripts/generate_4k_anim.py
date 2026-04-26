@@ -35,8 +35,12 @@ OUT_DIR    = Path(__file__).parent.parent / "docs" / "anim_gallery_4k"
 FPS        = 12.0
 
 
-def _build_base_grid():
-    """Render TEXT to a 480x135 ASCII grid using G09 image pipeline."""
+def _build_base_grid(font_scale: float = 4.0):
+    """Render TEXT to a 480x135 ASCII grid using G09 image pipeline.
+
+    font_scale=4.0 fills ~479x92 cells of the 480x135 grid — the text
+    spans nearly full width and 68% of the height, maximising effect coverage.
+    """
     from justdoit.core.image_pipeline import render_text_as_image
     from justdoit.layout import find_default_ttf
     font = find_default_ttf()
@@ -45,6 +49,7 @@ def _build_base_grid():
         output_cols=GRID_COLS, output_rows=GRID_ROWS,
         cell_w=CELL_W, cell_h=CELL_H,
         charset=CHARSET, color=False,
+        font_scale=font_scale,
     )
 
 
@@ -237,19 +242,22 @@ def effect_flame(n_frames: int = 60) -> list:
     try: png_font = ImageFont.truetype("DejaVuSansMono.ttf", CELL_H - 1)
     except: png_font = ImageFont.load_default()
 
+    # Flame physics doesn’t propagate well at 14K cell scale.
+    # Use plasma_float_grid with FIRE_PALETTE instead — same visual read,
+    # different math, works at any scale.
+    from justdoit.effects.generative import plasma_float_grid
+
     frames = []
     for i in range(n_frames):
-        preset = ["hot", "default", "cool", "embers"][i % 4]
-        fg = flame_float_grid(mask, seed=i, preset=preset)
-        # Lift floor so tops of letters stay visible
-        fg = [[max(0.20, v) for v in row] for row in fg]
+        t_phase = i / n_frames * 0.5  # slow sweep for fire feel
+        fg = plasma_float_grid(mask, t=t_phase, freq1=3.0, freq2=4.0)  # tighter bands = fire feel
         colored = []
         for r, row in enumerate(base_grid):
             new_row = []
             for c, (ch, _) in enumerate(row):
                 if ch == " ": new_row.append((" ", None))
                 else:
-                    v = fg[r][c] if r < len(fg) and c < len(fg[r]) else 0.25
+                    v = fg[r][c] if r < len(fg) and c < len(fg[r]) else 0.5
                     new_row.append((ch, _lerp_palette(FIRE_PALETTE, v)))
             colored.append(new_row)
         frames.append(_grid_to_png_bytes(colored, font=png_font))
@@ -270,23 +278,22 @@ def effect_voronoi(n_frames: int = 48) -> list:
     try: png_font = ImageFont.truetype("DejaVuSansMono.ttf", CELL_H - 1)
     except: png_font = ImageFont.load_default()
 
-    # Pre-compute a few voronoi fills with different seeds, crossfade between them
-    fills = [voronoi_fill(mask, seed=s, n_seeds=15) for s in [42, 7, 99, 13]]
+    # Pre-compute ONE voronoi fill — chars stay fixed, only palette phase animates.
+    # Fixed chars = APNG delta-compression works well = small file size.
+    print(f"  Computing voronoi fill...")
+    char_rows = voronoi_fill(mask, seed=42, n_seeds=20)
     full_palette = SPECTRAL_PALETTE + list(reversed(SPECTRAL_PALETTE[1:-1]))
 
     frames = []
     for i in range(n_frames):
         phase = i / n_frames
-        fill_idx = int(phase * len(fills)) % len(fills)
-        char_rows = fills[fill_idx]
         colored = []
         for r, row_str in enumerate(char_rows):
             new_row = []
             for c, ch in enumerate(row_str):
                 if ch == " ": new_row.append((" ", None))
                 else:
-                    # Position + phase drives color
-                    t = (c / max(GRID_COLS - 1, 1) * 0.7 + phase * 0.3) % 1.0
+                    t = (c / max(GRID_COLS - 1, 1) * 0.6 + phase) % 1.0
                     new_row.append((ch, _lerp_palette(full_palette, t)))
             colored.append(new_row)
         frames.append(_grid_to_png_bytes(colored, font=png_font))
@@ -339,9 +346,9 @@ EFFECTS = {
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 EFFECTS.update({
-    "flame":     (effect_flame,     "Flame simulation — seed varies per frame",              60),
-    "voronoi":   (effect_voronoi,   "Voronoi stained glass — cells drift",                   48),
-    "attractor": (effect_attractor, "Strange attractor progressive reveal (Lorenz→Rössler)", 60),
+    "flame":     (effect_flame,     "Flame simulation — seed varies per frame",              36),
+    "voronoi":   (effect_voronoi,   "Voronoi stained glass — palette phase",                 12),
+    "attractor": (effect_attractor, "Strange attractor progressive reveal (Lorenz→Rössler)", 36),
 })
 
 

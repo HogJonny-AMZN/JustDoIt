@@ -1,7 +1,8 @@
 # 4K Animation Gallery
 
 > True 3840×2160 animated PNG renders — 480×135 char grid, 8×16px cells @ 12fps.
-> Animations play inline. Download for full 4K fidelity.
+> Text fills the full canvas width (font_scale=4.0 — ~479×92 cells of ink).
+> Download for full 4K fidelity; plays inline in browser.
 > Generate: `uv run python scripts/generate_4k_anim.py --effect <name>`
 
 ---
@@ -10,7 +11,7 @@
 
 ![fractal-julia](fractal-julia.apng)
 
-*72 frames · 4.5MB · Julia set c parameter orbits the complex plane — fractal morphs each frame*
+*72 frames · 9.4MB · Julia set c parameter orbits the complex plane — fractal morphs each frame*
 
 ---
 
@@ -18,7 +19,7 @@
 
 ![plasma](plasma.apng)
 
-*60 frames · 11MB · Phase sweeps continuously through the spectral palette*
+*60 frames · 14MB · Phase sweeps continuously through the spectral palette*
 
 ---
 
@@ -26,15 +27,15 @@
 
 ![turing](turing.apng)
 
-*48 frames · 9MB · FHN reaction-diffusion field with rotating palette phase*
+*48 frames · 13.9MB · FHN reaction-diffusion field with rotating palette phase*
 
 ---
 
-## Flame Simulation
+## Flame (plasma-driven fire palette)
 
 ![flame](flame.apng)
 
-*60 frames · 5.7MB · Seed + preset cycles through hot / default / cool / embers*
+*36 frames · 7.9MB · Plasma wave with fire palette — hot/cool band cycling*
 
 ---
 
@@ -42,7 +43,7 @@
 
 ![voronoi](voronoi.apng)
 
-*48 frames · 17.8MB · Stained glass cells with palette phase shift and seed switching*
+*12 frames · 20MB · Fixed Voronoi cells, spectral palette phase sweeps across*
 
 ---
 
@@ -50,14 +51,23 @@
 
 ![attractor](attractor.apng)
 
-*60 frames · 7MB · Lorenz → Rössler trajectory with escape-time coloring*
+*36 frames · 19.8MB · Lorenz → Rössler trajectory with escape-time coloring*
 
 ---
 
 ## Adding New Effects
 
-Edit `scripts/generate_4k_anim.py` — add an `effect_*` function and register it in `EFFECTS`, then run:
+```python
+def effect_myname(n_frames: int = 60) -> list:
+    base_grid = _build_base_grid()      # 480x135, font_scale=4.0
+    mask = [[1.0 if ch != " " else 0.0 for ch, _ in row] for row in base_grid]
+    frames = []
+    for i in range(n_frames):
+        colored_grid = [...]            # compute per-frame
+        frames.append(_grid_to_png_bytes(colored_grid))
+    return frames
 
-```bash
-uv run python scripts/generate_4k_anim.py --effect myname
+EFFECTS["myname"] = (effect_myname, "Description", 60)
 ```
+
+`uv run python scripts/generate_4k_anim.py --effect myname`
