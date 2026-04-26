@@ -1,7 +1,7 @@
 # 4K Gallery (PNG)
 
 > 3840×2160 true-pixel renders — 480×135 char grid, 8×16px cells.
-> Each PNG is a full 4K frame; zoom in to read individual characters.
+> Each PNG is a full 4K frame. Download and view at 100% for full detail.
 
 - [Fonts](#fonts)
 

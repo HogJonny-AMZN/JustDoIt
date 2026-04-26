@@ -980,12 +980,18 @@ def _curated_entries_g09(
                                  color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
                                                                           "horizontal", FIRE_PALETTE)))
     print("    G09 Strategy C: sdf-neon ...")
-    add("S-G09-sdf-neon", "G09+F06 — SDF + neon",
-        _apply_char_fill_to_grid(base_grid, "sdf",
-                                 fill_kwargs={"threshold": 0.3},
-                                 color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
-                                                                          "diagonal",
-                                                                          [(0, 255, 200), (255, 0, 255)])))
+    # SDF neon: ALL ink cells colored by diagonal gradient.
+    # Interior gets full-bright color, edge gets same color at full brightness.
+    # The SDF gamma=1 outline variant shows the edge gradient naturally.
+    # This variant: pure color fill across all ink, using block chars for solidity.
+    _neon_grid = _apply_char_fill_to_grid(
+        base_grid, "sdf",
+        fill_kwargs={"threshold": 0.3},
+        color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
+                                                  "diagonal",
+                                                  [(0, 255, 200), (255, 80, 255)])
+    )
+    add("S-G09-sdf-neon", "G09+F06 — SDF + neon", _neon_grid)
     print("    G09 Strategy C: shape-ocean ...")
     add("S-G09-shape-ocean", "G09+F07 — Shape + ocean",
         _apply_char_fill_to_grid(base_grid, "shape",
@@ -1386,7 +1392,7 @@ def _write_readme_4k(profile: GalleryProfile, entries: list) -> None:
 
     lines = ["# 4K Gallery (PNG)", "",
              "> 3840×2160 true-pixel renders — 480×135 char grid, 8×16px cells.",
-             "> Each PNG is a full 4K frame; zoom in to read individual characters.",
+             "> Each PNG is a full 4K frame. Download and view at 100% for full detail.",
              ""]
 
     # TOC
