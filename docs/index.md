@@ -11,6 +11,7 @@ Zero-dependency Python 3 ASCII art CLI. Renders text as ANSI-colorized terminal 
 - [4K Gallery](https://hogjonny-amzn.github.io/JustDoIt/gallery-4k/) — full 3840×2160 PNG renders
 - [Font Gallery](https://hogjonny-amzn.github.io/JustDoIt/gallery-fonts/) — TTF comparison (37+ fonts, growing daily)
 - [Animation Gallery](https://hogjonny-amzn.github.io/JustDoIt/anim_gallery/) — APNG + asciinema casts
+- [4K Animation Gallery](https://hogjonny-amzn.github.io/JustDoIt/anim_gallery_4k/) — True 3840×2160 APNGs (Julia fractal, plasma, flame, Turing, Voronoi, attractor)
 - [GitHub](https://github.com/HogJonny-AMZN/JustDoIt)
 
 ## Quick Start

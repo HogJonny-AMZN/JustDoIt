@@ -25,6 +25,7 @@ ASCII/ANSI text art with a serious rendering pipeline — fills, spatial effects
 | [**4K Gallery →**](https://hogjonny-amzn.github.io/JustDoIt/gallery-4k/) | Full 4K renders at 72px — pixel-perfect for 3840×2160 displays |
 | [**Font Gallery →**](https://hogjonny-amzn.github.io/JustDoIt/gallery-fonts/) | TTF comparison — 37+ fonts rendered as ASCII art, 20 new fonts added daily |
 | [**Animation Gallery →**](https://hogjonny-amzn.github.io/JustDoIt/anim_gallery/) | APNG + asciinema `.cast` — animated effects (typewriter, glitch, neon, flame, plasma) |
+| [**4K Animation Gallery →**](https://hogjonny-amzn.github.io/JustDoIt/anim_gallery_4k/) | True 3840×2160 APNG renders — Julia fractal, plasma, flame, Turing, Voronoi, attractor |
 
 ---
 
