@@ -953,6 +953,195 @@ def slime_mold_fill(
 
 
 # -------------------------------------------------------------------------
+# Slime Mold snapshots helper — used by slime_mold_anim() preset (A_SLIME1)
+#
+# Runs the Physarum simulation once and captures the normalized trail grid
+# at each requested step count. Avoids re-running the simulation per frame.
+#
+
+def _slime_mold_snapshots(
+    mask: list,
+    snapshot_steps: Optional[list] = None,
+    n_agents: int = 200,
+    sensor_angle: float = 0.523599,
+    sensor_dist: float = 2.5,
+    turn_speed: float = 0.523599,
+    deposit: float = 1.0,
+    decay: float = 0.05,
+    seed: Optional[int] = None,
+) -> list:
+    """Run slime mold sim once, capturing normalised trail grids at each snapshot step.
+
+    More efficient than calling slime_mold_fill() multiple times independently.
+    Used by the slime_mold_anim() preset to show network formation over time.
+
+    Captures trail state at each step in snapshot_steps -- the trail is normalized
+    to [0.0, 1.0] at the time of capture (not globally across all steps), so
+    each frame shows the relative density distribution at that moment.
+
+    :param mask: 2D list of floats from glyph_to_mask() -- values 0.0-1.0.
+    :param snapshot_steps: Sorted list of step counts to capture.
+        Default: [5, 15, 30, 50, 75, 100, 130, 160, 200].
+    :param n_agents: Number of Physarum agents (default 200).
+    :param sensor_angle: Half-angle between forward and side sensors (radians).
+    :param sensor_dist: Look-ahead distance in cells.
+    :param turn_speed: Max rotation toward strongest sensor per step (radians).
+    :param deposit: Trail chemical deposited per agent per step.
+    :param decay: Fractional trail evaporation per step (0 = no decay).
+    :param seed: Optional integer seed for reproducibility.
+    :returns: List of (step, ink_mask, float_grid) tuples, one per snapshot.
+        float_grid is a 2D list[list[float]] with trail values normalised to [0,1].
+    """
+    if snapshot_steps is None:
+        snapshot_steps = [5, 15, 30, 50, 75, 100, 130, 160, 200]
+
+    snap_set = set(snapshot_steps)
+    max_step = max(snapshot_steps)
+
+    rows = len(mask)
+    if rows == 0:
+        return [(s, [], []) for s in snapshot_steps]
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return [(s, [], []) for s in snapshot_steps]
+
+    rng = random.Random(seed)
+    TWO_PI = 2.0 * math.pi
+
+    # Build ink mask
+    ink = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+    ink_cells = [(r, c) for r in range(rows) for c in range(cols) if ink[r][c]]
+    if not ink_cells:
+        return [(s, ink, [[0.0] * cols for _ in range(rows)]) for s in snapshot_steps]
+
+    # Trail grid
+    trail = [[0.0] * cols for _ in range(rows)]
+
+    # Initialise agents
+    sample_size = min(n_agents, len(ink_cells))
+    spawn_cells = rng.sample(ink_cells, sample_size)
+    while len(spawn_cells) < n_agents:
+        spawn_cells.append(rng.choice(ink_cells))
+
+    agents = []
+    for (ar, ac) in spawn_cells:
+        angle = rng.uniform(0.0, TWO_PI)
+        agents.append([float(ar) + rng.uniform(-0.4, 0.4),
+                       float(ac) + rng.uniform(-0.4, 0.4),
+                       angle])
+
+    def _sense_s(py: float, px: float, angle: float) -> float:
+        """Sample trail at a sensor point (snapshot variant)."""
+        sr = int(round(py + sensor_dist * math.sin(angle)))
+        sc = int(round(px + sensor_dist * math.cos(angle)))
+        if 0 <= sr < rows and 0 <= sc < cols and ink[sr][sc]:
+            return trail[sr][sc]
+        return 0.0
+
+    def _diffuse_s() -> None:
+        """In-place 3x3 box-blur of trail (snapshot variant)."""
+        new_trail = [row[:] for row in trail]
+        for r in range(rows):
+            for c in range(cols):
+                if not ink[r][c]:
+                    continue
+                total = 0.0
+                count = 0
+                for dr in (-1, 0, 1):
+                    for dc in (-1, 0, 1):
+                        nr, nc = r + dr, c + dc
+                        if 0 <= nr < rows and 0 <= nc < cols and ink[nr][nc]:
+                            total += trail[nr][nc]
+                            count += 1
+                new_trail[r][c] = total / count if count > 0 else 0.0
+        for r in range(rows):
+            for c in range(cols):
+                trail[r][c] = new_trail[r][c]
+
+    def _capture_s() -> list:
+        """Return a normalised float_grid of current trail state."""
+        trail_vals = [trail[r][c] for r in range(rows) for c in range(cols) if ink[r][c]]
+        if not trail_vals:
+            return [[0.0] * cols for _ in range(rows)]
+        min_t = min(trail_vals)
+        max_t = max(trail_vals)
+        span = max_t - min_t if (max_t - min_t) > 1e-9 else 1.0
+        float_grid = []
+        for r in range(rows):
+            row = []
+            for c in range(cols):
+                if ink[r][c]:
+                    val = (trail[r][c] - min_t) / span
+                    row.append(max(0.0, min(1.0, val)))
+                else:
+                    row.append(0.0)
+            float_grid.append(row)
+        return float_grid
+
+    snap_dict: dict = {}
+    decay_factor = 1.0 - decay
+
+    for step_n in range(1, max_step + 1):
+        # Sense & rotate
+        for agent in agents:
+            py, px, angle = agent
+            f  = _sense_s(py, px, angle)
+            fl = _sense_s(py, px, angle - sensor_angle)
+            fr = _sense_s(py, px, angle + sensor_angle)
+            if f >= fl and f >= fr:
+                pass
+            elif fl > fr:
+                agent[2] = (angle - turn_speed) % TWO_PI
+            elif fr > fl:
+                agent[2] = (angle + turn_speed) % TWO_PI
+            else:
+                agent[2] = (angle + (turn_speed if rng.random() < 0.5 else -turn_speed)) % TWO_PI
+
+        # Move & deposit
+        for agent in agents:
+            py, px, angle = agent
+            ny = py + math.sin(angle)
+            nx = px + math.cos(angle)
+            nr = int(round(ny))
+            nc = int(round(nx))
+            if 0 <= nr < rows and 0 <= nc < cols and ink[nr][nc]:
+                agent[0] = ny
+                agent[1] = nx
+            else:
+                agent[2] = rng.uniform(0.0, TWO_PI)
+                nr, nc = int(round(py)), int(round(px))
+            dr_c = max(0, min(rows - 1, nr))
+            dc_c = max(0, min(cols - 1, nc))
+            if ink[dr_c][dc_c]:
+                trail[dr_c][dc_c] += deposit
+
+        # Diffuse
+        _diffuse_s()
+
+        # Decay
+        for r in range(rows):
+            for c in range(cols):
+                trail[r][c] *= decay_factor
+
+        # Capture snapshot at this step
+        if step_n in snap_set:
+            snap_dict[step_n] = (ink, _capture_s())
+
+    # Return in requested order
+    result = []
+    for s in snapshot_steps:
+        if s in snap_dict:
+            ink_g, fg = snap_dict[s]
+            result.append((s, ink_g, fg))
+        else:
+            result.append((s, ink, [[0.0] * cols for _ in range(rows)]))
+    return result
+
+
+# -------------------------------------------------------------------------
 # Wave Interference fill — F09
 #
 # Two plane waves at different angles and frequencies interfere inside the
