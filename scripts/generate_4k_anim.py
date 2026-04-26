@@ -126,9 +126,13 @@ def effect_fractal_julia(n_frames: int = 72) -> list:
     except Exception:
         png_font = ImageFont.load_default()
 
+    # Precompute per-frame value range for normalisation
+    # Interior (non-escaping) cells have v=0.0; escape cells v>0.
+    # Strategy: map escape cells to a color, give interior a BASE color
+    # that shifts with the frame phase — so the full letter is always lit.
     frames = []
     for i, fg in enumerate(float_grids):
-        # Apply ESCAPE_PALETTE to float grid, only for ink cells
+        frame_phase = i / n_frames
         colored_grid = []
         for r, row in enumerate(base_grid):
             new_row = []
@@ -137,7 +141,15 @@ def effect_fractal_julia(n_frames: int = 72) -> list:
                     new_row.append((" ", None))
                 else:
                     v = fg[r][c] if r < len(fg) and c < len(fg[r]) else 0.0
-                    rgb = _lerp_palette(ESCAPE_PALETTE, v)
+                    if v < 0.01:
+                        # Interior: slow-cycling deep blue/indigo so full letter is visible
+                        t = (frame_phase * 2 + c / max(GRID_COLS - 1, 1) * 0.2) % 1.0
+                        # Pulse between dark blue and mid-blue
+                        brightness = 0.15 + 0.15 * math.sin(t * math.pi * 2)
+                        rgb = (int(20 * brightness * 10), int(40 * brightness * 10), int(180 + 60 * math.sin(t * math.pi * 2)))
+                    else:
+                        # Escape boundary: bright full palette
+                        rgb = _lerp_palette(ESCAPE_PALETTE, v)
                     new_row.append((ch, rgb))
             colored_grid.append(new_row)
         frames.append(_grid_to_png_bytes(colored_grid, font=png_font))
