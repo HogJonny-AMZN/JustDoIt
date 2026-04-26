@@ -24,10 +24,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # ── Config ────────────────────────────────────────────────────────────────────
 TEXT       = "JUST DO IT"
-CANVAS_W   = 3840
-CANVAS_H   = 2160
-CELL_W     = 8
-CELL_H     = 16
+CANVAS_W   = 1920
+CANVAS_H   = 1080
+CELL_W     = 4
+CELL_H     = 8
 GRID_COLS  = CANVAS_W // CELL_W   # 480
 GRID_ROWS  = CANVAS_H // CELL_H   # 135
 CHARSET    = "█▓▒░" + string.printable[:95]
