@@ -1,32 +1,63 @@
 # 4K Animation Gallery
 
 > True 3840×2160 animated PNG renders — 480×135 char grid, 8×16px cells @ 12fps.
-> Download and view at 100% on a 4K display for full fidelity.
+> Animations play inline. Download for full 4K fidelity.
 > Generate: `uv run python scripts/generate_4k_anim.py --effect <name>`
 
-| Effect | Frames | Size | Description |
-|--------|--------|------|-------------|
-| [fractal-julia.apng](fractal-julia.apng) | 72 | 4.5MB | Julia set — c rotates around complex plane, fractal morphs each frame |
-| [plasma.apng](plasma.apng) | 60 | 11MB | Plasma wave — phase sweeps continuously, spectral palette |
-| [turing.apng](turing.apng) | 48 | 9MB | Turing FHN pattern — palette phase rotates over fixed reaction-diffusion field |
-| [flame.apng](flame.apng) | 60 | 5.7MB | Flame simulation — seed + preset cycles (hot/default/cool/embers) |
-| [voronoi.apng](voronoi.apng) | 48 | 17.8MB | Voronoi stained glass — palette phase + seed switching |
-| [attractor.apng](attractor.apng) | 60 | 7MB | Strange attractor — Lorenz→Rössler trajectory, escape-time coloring |
+---
+
+## Julia Set (rotating c)
+
+![fractal-julia](fractal-julia.apng)
+
+*72 frames · 4.5MB · Julia set c parameter orbits the complex plane — fractal morphs each frame*
+
+---
+
+## Plasma Wave
+
+![plasma](plasma.apng)
+
+*60 frames · 11MB · Phase sweeps continuously through the spectral palette*
+
+---
+
+## Turing Pattern
+
+![turing](turing.apng)
+
+*48 frames · 9MB · FHN reaction-diffusion field with rotating palette phase*
+
+---
+
+## Flame Simulation
+
+![flame](flame.apng)
+
+*60 frames · 5.7MB · Seed + preset cycles through hot / default / cool / embers*
+
+---
+
+## Voronoi Stained Glass
+
+![voronoi](voronoi.apng)
+
+*48 frames · 17.8MB · Stained glass cells with palette phase shift and seed switching*
+
+---
+
+## Strange Attractor
+
+![attractor](attractor.apng)
+
+*60 frames · 7MB · Lorenz → Rössler trajectory with escape-time coloring*
+
+---
 
 ## Adding New Effects
 
-```python
-def effect_myname(n_frames: int = 60) -> list:
-    base_grid = _build_base_grid()       # 480x135 G09 grid
-    mask = [[1.0 if ch != " " else 0.0 for ch, _ in row] for row in base_grid]
-    frames = []
-    for i in range(n_frames):
-        # compute float_grid per frame...
-        colored_grid = [...]
-        frames.append(_grid_to_png_bytes(colored_grid))
-    return frames
+Edit `scripts/generate_4k_anim.py` — add an `effect_*` function and register it in `EFFECTS`, then run:
 
-EFFECTS["myname"] = (effect_myname, "Description", 60)
+```bash
+uv run python scripts/generate_4k_anim.py --effect myname
 ```
-
-`uv run python scripts/generate_4k_anim.py --effect myname`
