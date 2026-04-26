@@ -960,12 +960,16 @@ def _curated_entries_g09(
     # SDF renders chars for BOTH ink AND exterior-glow cells (distance falloff).
     # At web scale the exterior cells downscale into a geometric halo pattern
     # that is part of the aesthetic, not an artifact. Keep all 4 gamma variants.
+    # SDF piecewise curve: floor/mid/high/power gives bright solid interior,
+    # crisp edge ring, and controlled glow halo — better than gamma alone.
+    # Best: floor=0.05, mid=0.5, high=0.85, power=1.0
+    _SDF_BEST = {"floor": 0.05, "mid": 0.5, "high": 0.85, "power": 1.0}
+    _SDF_SHARP = {"floor": 0.1,  "mid": 0.5, "high": 0.85, "power": 2.0}
     _strategy_c = [
-        ("S-G09-density",     "G09+F01 — Density (hi-res)",         "density", {}),
-        ("S-G09-sdf",         "G09+F06 — SDF glow (linear)",         "sdf",    {"gamma": 1.0}),
-        ("S-G09-sdf-outline", "G09+F06 — SDF outline (gamma 1.8)",  "sdf",    {"gamma": 1.8}),
-        ("S-G09-sdf-mid",     "G09+F06 — SDF bold (gamma 3.0)",     "sdf",    {"gamma": 3.0}),
-        ("S-G09-shape",       "G09+F07 — Shape (hi-res)",           "shape",  {}),
+        ("S-G09-density",     "G09+F01 — Density (hi-res)",          "density", {}),
+        ("S-G09-sdf",         "G09+F06 — SDF glow",                   "sdf",    _SDF_BEST),
+        ("S-G09-sdf-outline", "G09+F06 — SDF sharp",                 "sdf",    _SDF_SHARP),
+        ("S-G09-shape",       "G09+F07 — Shape (hi-res)",            "shape",  {}),
     ]
     for stem, label, fill_name, fkw in _strategy_c:
         print(f"    G09 Strategy C: {stem.split('-')[-1]} ...")
@@ -984,7 +988,7 @@ def _curated_entries_g09(
     # visible at web scale — this is intentional, not an artifact.
     add("S-G09-sdf-neon", "G09+F06 — SDF + neon",
         _apply_char_fill_to_grid(base_grid, "sdf",
-                                 fill_kwargs={"gamma": 1.8},
+                                 fill_kwargs=_SDF_BEST,
                                  color_fn=lambda g: _apply_gradient_color(g, grid_cols, grid_rows,
                                                                           "diagonal",
                                                                           [(0, 255, 200), (255, 80, 255)])))
