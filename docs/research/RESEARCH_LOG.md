@@ -1547,3 +1547,65 @@ rendering axis that doesn't exist anywhere else in the codebase.
 
 Add to priority queue as **G10 — 3D Glyph Mesh Renderer** (novelty 5, infrastructure).
 Once the soft-renderer exists, each projection/lighting variant is a ~5-line gallery entry.
+
+## Session 2026-04-26 (Mode B — Cross-Breed)
+
+**Cross-breed chosen:** X_ISO_NEON — Isometric Neon Glitch
+**Scores:** tension=4 emergence=4 distinctness=4 wow=4 → total=16/20
+**Why chosen over alternatives:** Highest available Mode B candidate in the queue.
+A_F09a (wave interference animation, ~12/20) and X_LIVING_WRAP (GoL wrap variant, ~12/20)
+both scored lower. X_ISO_NEON brings per-face differential behavior — the front face vs
+depth face tension is structurally unique in the gallery.
+
+**Implementation path:** New animation preset `iso_neon_glitch()` in presets.py (~100 lines).
+- Render text once (plain), isometric_extrude once (plain, not per-frame)
+- Per-frame: walk iso_text char-by-char, apply neon["full"] to front-face ink, stochastic
+  dim/flicker/spark to depth chars (▓▒░·), space chars pass through
+- C12 bloom applied after colorization
+
+**Infrastructure required:** None beyond what existed. Followed neon_bloom() and flame_iso_bloom()
+patterns. isometric_extrude() strips ANSI internally → pass plain text, colorize output.
+Key insight: the iso canvas is computed once, only the per-char color state changes per frame.
+This makes the preset O(iso_canvas_size) per frame, not O(render) — very fast.
+
+**Visual validation result:** ✅ Meets bar
+- Front face: solid bright cyan, letterforms clean and immediately readable at all depths
+- Depth face: clearly stochastic — each frame shows different distribution of dim/flicker/spark states
+- Spark events (15% probability, `\033[1;96m`) create brief bright punctures in the depth face
+- Flicker events (25%, fringe hues) create color variation on the depth — reads as electrical
+  discharge with slightly different spectral character than the front
+- Bloom: tight cyan halo around the whole iso structure reads as neon tube emission
+- The front/depth tension is legible: viewer's eye goes to the stable front, notices the
+  depth face moving separately. Each frame is recognizably the same composition.
+- Qualitatively: "neon sign with flickering sides" — immediately legible metaphor.
+
+**Key insight:** The pre-computation of iso_plain (isometric render done once) and per-frame
+colorization of the result demonstrates that isometric geometry + stochastic animation don't
+need to be entangled. The iso geometry is structural permanence; the color state is the
+animation axis. This pattern can be applied to any combination of spatial effect + stochastic
+color: compute spatial geometry once, animate color independently.
+
+**ATTRIBUTE_MODEL.md updates:** X_ISO_NEON marked `done 2026-04-26` in "Ready to implement" tier.
+
+**What was built:**
+- `iso_neon_glitch()` in `justdoit/animate/presets.py` (~110 lines)
+- 16 tests in `tests/test_iso_neon_glitch.py` — all passing
+- Gallery SVG: `docs/gallery/2026-04-26-X_ISO_NEON.svg` (frame 10/36 — mid-cycle, good depth variation)
+- Animation: `docs/anim_gallery/X_ISO_NEON-iso-neon-glitch.cast` (72 frames @ 12fps)
+- Animation: `docs/anim_gallery/X_ISO_NEON-iso-neon-glitch.apng` (72 frames @ 12fps)
+- Gallery README updated: 25 daily entries, 70 techniques total
+- Font batch: 20 more Google Fonts rendered (57 total in font gallery)
+
+**Priority queue update:**
+
+| Priority | Technique | ID | Novelty | Status |
+|----------|-----------|-----|---------|--------|
+| 1 | Transporter Materialize | A11 | 5 | `idea` |
+| 2 | SDF Font Generator | G04 | 5 | `idea` |
+| 3 | Chromatic Aberration | C08 | 5 | `idea` |
+| 4 | Interior char variety fix (Q01) | Q01 | 4 | `idea` — quality, not new technique |
+| 5 | Isometric side-face char differentiation (Q03) | Q03 | 3 | `idea` |
+| 6 | X_RD_PLASMA (reaction-diffusion × plasma field) | X_RD_PLASMA | 4 | `idea` |
+| 7 | X_LIVING_COLOR_WRAP (GoL wrap boundary) | X_LIVING_WRAP | 3 | `idea` |
+| 8 | Wave Chromatic Interference (C11 consumer) | A_F09b | 3 | `idea` |
+| 9 | Wave Interference Animation | A_F09a | 3 | `idea` |

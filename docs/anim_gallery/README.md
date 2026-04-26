@@ -1,6 +1,6 @@
 # Animation Gallery
 
-Auto-generated 2026-04-23 — do not edit manually.
+Auto-generated 2026-04-26 — do not edit manually.
 Run `uv run python scripts/generate_anim_gallery.py` to regenerate.
 
 Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
@@ -351,3 +351,19 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 | Variant | Preview | Terminal |
 |---------|---------|----------|
 | living-fill | ![living-fill](A06-living-fill.apng) | [▶ terminal](A06-living-fill.cast) |
+
+## X_LIVING_COLOR — Living Color — Gol Age-Heat
+
+**144 frames** · **10.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| living-color-age | ![living-color-age](X_LIVING_COLOR-living-color-age.apng) | [▶ terminal](X_LIVING_COLOR-living-color-age.cast) |
+
+## X_ISO_NEON — Iso Neon Glitch — Isometric Extrusion × Neon Depth Flicker
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| iso-neon-glitch | ![iso-neon-glitch](X_ISO_NEON-iso-neon-glitch.apng) | [▶ terminal](X_ISO_NEON-iso-neon-glitch.cast) |

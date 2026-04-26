@@ -3787,3 +3787,121 @@ def living_color(
 
     for f in frames:
         yield f
+
+
+# -------------------------------------------------------------------------
+def iso_neon_glitch(
+    text_plain: str,
+    font: str = "block",
+    n_frames: int = 36,
+    color: str = "cyan",
+    depth: int = 4,
+    direction: str = "right",
+    bloom_color_name: str = "cyan",
+    bloom_radius: int = 3,
+    bloom_falloff: float = 0.85,
+    seed: Optional[int] = None,
+    loop: bool = True,
+) -> "Iterator[str]":
+    """Isometric Neon Glitch animation — iso extrusion x neon glitch (X_ISO_NEON).
+
+    Two axes in tension:
+
+    1. Isometric extrusion (S03) — 3D block letters with a stable front face
+       that glows with a steady neon foreground color. The structural geometry
+       is fixed across all frames.
+    2. Neon glitch (depth face) — the extrusion depth chars (▓▒░·) flicker and
+       spark independently each frame. The depth face has three states per char:
+       dim (60% probability), flicker (25%), or spark (15%). Sparks use the
+       neon "pulse" color (brief brightness spike); flickers use the "fringe"
+       adjacent hue; dims use the "off" dim state.
+
+    The result reads as: a neon sign in 3D where the sides and top of the letters
+    are flickering electrical discharge while the front face stays solidly lit.
+    C12 bloom bleeds the neon hue into surrounding space.
+
+    Structural tension: fixed front face geometry × stochastic depth face → each
+    frame is unique but the letterforms remain readable throughout.
+
+    Cross-breed axes: S03 (isometric) × A03n (neon glitch) × C12 (bloom).
+    Visual interest scores: tension=4, emergence=4, distinctness=4, wow=4 → 16/20.
+
+    :param text_plain: Plain text to render (e.g. 'JUST DO IT').
+    :param font: Font name for rendering (default 'block').
+    :param n_frames: Frames per half-cycle (default 36). Total = 2*n_frames if loop=True.
+    :param color: Neon color key from _NEON_COLORS (default 'cyan').
+    :param depth: Isometric extrusion depth in cells (default 4).
+    :param direction: Extrusion direction 'right' or 'left' (default 'right').
+    :param bloom_color_name: Bloom hue key from BLOOM_COLORS (default 'cyan').
+    :param bloom_radius: C12 bloom radius in cells (default 3).
+    :param bloom_falloff: Per-cell bloom intensity falloff 0-1 (default 0.85).
+    :param seed: Optional random seed for reproducibility (default None = random).
+    :param loop: If True, yield forward then reverse for seamless loop (default True).
+    :returns: Iterator of isometric + neon + bloomed frame strings.
+    """
+    from justdoit.core.rasterizer import render as _render
+    from justdoit.effects.isometric import isometric_extrude as _iso_extrude
+    from justdoit.effects.color import (
+        bloom as _bloom,
+        BLOOM_COLORS,
+    )
+
+    # Depth chars produced by isometric_extrude
+    _DEPTH_CHARS = {"\u2593", "\u2592", "\u2591", "\u00b7"}  # ▓ ▒ ░ ·
+
+    if color not in _NEON_COLORS:
+        raise ValueError(f"Unknown neon color '{color}'. Available: {', '.join(_NEON_COLORS)}")
+
+    neon = _NEON_COLORS[color]
+    bc = BLOOM_COLORS.get(bloom_color_name, BLOOM_COLORS.get("cyan", (0, 220, 255)))
+
+    rng = random.Random(seed)
+
+    # Render once — front face structure never changes
+    base_text = _render(text_plain, font=font)
+
+    # isometric_extrude strips ANSI internally, so pass plain text
+    iso_plain = _iso_extrude(base_text, depth=depth, direction=direction)
+
+    def _colorize_iso_frame(frame_rng: random.Random) -> str:
+        """Colorize one isometric frame: stable front face + stochastic depth face.
+
+        :param frame_rng: Random instance for this frame's depth-char decisions.
+        :returns: ANSI-colored multi-line string.
+        """
+        lines = iso_plain.split("\n")
+        out_lines = []
+
+        for line in lines:
+            out = []
+            for ch in line:
+                if ch == " ":
+                    out.append(ch)
+                elif ch in _DEPTH_CHARS:
+                    # Depth face: stochastic flicker per char
+                    r = frame_rng.random()
+                    if r < 0.15:
+                        # Spark: brief brightness spike
+                        code = neon["pulse"][0]
+                    elif r < 0.40:
+                        # Flicker: fringe adjacent hue
+                        code = frame_rng.choice(neon["fringe"])
+                    else:
+                        # Dim: off/dark state (depth reads as further)
+                        code = neon["off"]
+                    out.append(code + ch + _RESET)
+                else:
+                    # Front face ink char: stable full neon brightness
+                    out.append(neon["full"] + ch + _RESET)
+            out_lines.append("".join(out))
+
+        return "\n".join(out_lines)
+
+    frame_indices = list(range(n_frames))
+    if loop:
+        frame_indices = frame_indices + list(reversed(frame_indices))
+
+    for _ in frame_indices:
+        # Each frame gets its own stochastic depth variation
+        colored = _colorize_iso_frame(rng)
+        yield _bloom(colored, bc, radius=bloom_radius, falloff=bloom_falloff)
