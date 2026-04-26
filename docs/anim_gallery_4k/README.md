@@ -1,57 +1,56 @@
 # 4K Animation Gallery
 
-> True 3840×2160 animated PNG renders — 480×135 char grid, 8×16px cells @ 12fps.
-> Text fills the full canvas width (font_scale=4.0 — ~479×92 cells of ink).
-> Download for full 4K fidelity; plays inline in browser.
+> True 3840×2160 animated PNG renders — 480×135 char grid, 8×16px cells.
+> Text fills the full canvas width (font_scale=4.0).
 > Generate: `uv run python scripts/generate_4k_anim.py --effect <name>`
 
 ---
 
 ## Julia Set (rotating c)
 
-![fractal-julia](fractal-julia.apng)
+<img src="fractal-julia.apng" width="100%" style="max-width:100%;display:block">
 
-*72 frames · 9.4MB · Julia set c parameter orbits the complex plane — fractal morphs each frame*
+*72 frames · 9.4MB · 12fps · Julia set c parameter orbits the complex plane — fractal morphs each frame*
 
 ---
 
 ## Plasma Wave
 
-![plasma](plasma.apng)
+<img src="plasma.apng" width="100%" style="max-width:100%;display:block">
 
-*60 frames · 14MB · Phase sweeps continuously through the spectral palette*
+*60 frames · 14MB · 12fps · Phase sweeps continuously through the spectral palette*
 
 ---
 
 ## Turing Pattern
 
-![turing](turing.apng)
+<img src="turing.apng" width="100%" style="max-width:100%;display:block">
 
-*48 frames · 13.9MB · FHN reaction-diffusion field with rotating palette phase*
+*48 frames · 13.9MB · 12fps · FHN reaction-diffusion field with rotating palette phase*
 
 ---
 
-## Flame (plasma-driven fire palette)
+## Flame
 
-![flame](flame.apng)
+<img src="flame.apng" width="100%" style="max-width:100%;display:block">
 
-*36 frames · 7.9MB · Plasma wave with fire palette — hot/cool band cycling*
+*48 frames · 11.3MB · 8fps · Analytical heat gradient — hot white/yellow base, cool red top, per-column flicker*
 
 ---
 
 ## Voronoi Stained Glass
 
-![voronoi](voronoi.apng)
+<img src="voronoi.apng" width="100%" style="max-width:100%;display:block">
 
-*12 frames · 20MB · Fixed Voronoi cells, spectral palette phase sweeps across*
+*12 frames · 20MB · 12fps · Fixed Voronoi cells, spectral palette phase sweeps across*
 
 ---
 
 ## Strange Attractor
 
-![attractor](attractor.apng)
+<img src="attractor.apng" width="100%" style="max-width:100%;display:block">
 
-*36 frames · 19.8MB · Lorenz → Rössler trajectory with escape-time coloring*
+*36 frames · 19.8MB · 12fps · Lorenz → Rössler trajectory with escape-time coloring*
 
 ---
 
@@ -63,7 +62,7 @@ def effect_myname(n_frames: int = 60) -> list:
     mask = [[1.0 if ch != " " else 0.0 for ch, _ in row] for row in base_grid]
     frames = []
     for i in range(n_frames):
-        colored_grid = [...]            # compute per-frame
+        colored_grid = [...]
         frames.append(_grid_to_png_bytes(colored_grid))
     return frames
 
