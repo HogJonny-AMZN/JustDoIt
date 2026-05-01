@@ -12,7 +12,7 @@ Pure Python stdlib — no external dependencies.
 import logging as _logging
 import sys
 import time
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Protocol
 
 # -------------------------------------------------------------------------
 # module global scope
@@ -27,6 +27,15 @@ _LOGGER = _logging.getLogger(_MODULE_NAME)
 _HIDE_CURSOR = "\033[?25l"
 _SHOW_CURSOR = "\033[?25h"
 _CLEAR_LINE  = "\033[2K\r"
+
+
+# -------------------------------------------------------------------------
+class _SoundPlayerProtocol(Protocol):
+    """Duck-type interface expected by play() for optional audio sync."""
+
+    def start(self) -> None: ...
+    def update(self, frame_idx: int, total_frames: int) -> None: ...
+    def stop(self) -> None: ...
 
 
 # -------------------------------------------------------------------------
@@ -60,6 +69,7 @@ def play(
     fps: float = 12.0,
     loop: bool = False,
     stream=None,
+    sound_player: Optional[_SoundPlayerProtocol] = None,
 ) -> None:
     """Play an animation by driving a frame generator at a fixed fps.
 
@@ -70,6 +80,9 @@ def play(
     :param fps: Playback speed in frames per second (default: 12.0).
     :param loop: If True, collect all frames then loop indefinitely until Ctrl+C.
     :param stream: Output stream (default: sys.stdout).
+    :param sound_player: Optional SoundPlayer from justdoit.sound. If provided,
+        start() is called before the loop, update(frame_idx, total) each frame,
+        and stop() after. If None, playback is silent (default behaviour).
     """
     out = stream or sys.stdout
     frame_time = 1.0 / max(fps, 0.1)
@@ -83,21 +96,34 @@ def play(
             all_frames = list(frames)
             if not all_frames:
                 return
+            total = len(all_frames)
+            if sound_player is not None:
+                sound_player.start()
             idx = 0
             while True:
-                frame = all_frames[idx % len(all_frames)]
+                frame = all_frames[idx % total]
                 _render_frame(out, frame, last_height)
                 last_height = frame.count("\n") + 1
+                if sound_player is not None:
+                    sound_player.update(idx % total, total)
                 idx += 1
                 time.sleep(frame_time)
         else:
-            for frame in frames:
+            all_frames = list(frames)
+            total = len(all_frames)
+            if sound_player is not None:
+                sound_player.start()
+            for idx, frame in enumerate(all_frames):
                 _render_frame(out, frame, last_height)
                 last_height = frame.count("\n") + 1
+                if sound_player is not None:
+                    sound_player.update(idx, total)
                 time.sleep(frame_time)
     except KeyboardInterrupt:
         pass
     finally:
+        if sound_player is not None:
+            sound_player.stop()
         out.write(_SHOW_CURSOR)
         out.write("\n")
         out.flush()
