@@ -131,3 +131,50 @@ def sparkle_bursts(
         end = min(onset + burst_len, n)
         output[onset:end] += burst[: end - onset] * amplitude
     return output
+
+
+# -------------------------------------------------------------------------
+def exponential_decay(
+    signal: np.ndarray,
+    decay_time: float,
+    sample_rate: int = 44100,
+) -> np.ndarray:
+    """Apply an exponential decay envelope to a signal (reverb tail simulation).
+
+    :param signal: Input float32 waveform array.
+    :param decay_time: Time constant in seconds — amplitude drops to 1/e at this point.
+    :param sample_rate: Sample rate in Hz (default: 44100).
+    :returns: float32 array same shape as signal.
+    """
+    n = len(signal)
+    t = np.arange(n, dtype=np.float32) / sample_rate
+    envelope = np.exp(-t / max(decay_time, 1e-9)).astype(np.float32)
+    return (signal * envelope).astype(np.float32)
+
+
+# -------------------------------------------------------------------------
+def pitch_waver(
+    signal: np.ndarray,
+    deviation: float = 0.05,
+    rate: float = 3.0,
+    sample_rate: int = 44100,
+) -> np.ndarray:
+    """Modulate pitch slightly over time via linear-interpolated time-warping.
+
+    Simulates prototype instability (ENT transporter) or chorus-like wobble.
+    Uses time-domain sample repositioning — no FFT required.
+
+    :param signal: Input float32 waveform array.
+    :param deviation: Maximum fractional pitch deviation (0.05 = ±5%).
+    :param rate: Modulation rate in Hz (default: 3.0).
+    :param sample_rate: Sample rate in Hz (default: 44100).
+    :returns: float32 array same shape as signal.
+    """
+    n = len(signal)
+    t = np.arange(n, dtype=np.float64) / sample_rate
+    phase_offset = (deviation / (2.0 * np.pi * max(rate, 1e-6))) * np.sin(2.0 * np.pi * rate * t)
+    read_pos = np.clip((t + phase_offset) * sample_rate, 0.0, n - 1.0)
+    idx0 = read_pos.astype(np.int32)
+    idx1 = np.clip(idx0 + 1, 0, n - 1)
+    frac = (read_pos - idx0).astype(np.float32)
+    return (signal[idx0] * (1.0 - frac) + signal[idx1] * frac).astype(np.float32)

@@ -138,3 +138,55 @@ def test_sparkle_bursts_zero_count():
     result = sparkle_bursts(0, (800.0, 3000.0), 0.5)
 
     assert np.all(result == 0.0)
+
+
+def test_exponential_decay_shape_preserved():
+    """exponential_decay returns same shape and dtype as input."""
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import exponential_decay
+
+    signal = np.ones(44100, dtype=np.float32)
+    result = exponential_decay(signal, decay_time=1.0, sample_rate=44100)
+
+    assert result.shape == signal.shape
+    assert result.dtype == np.float32
+
+
+def test_exponential_decay_tail_quieter_than_head():
+    """Tail of decayed signal is quieter than the head."""
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import exponential_decay
+
+    signal = np.ones(44100, dtype=np.float32)
+    result = exponential_decay(signal, decay_time=0.2, sample_rate=44100)
+
+    head_rms = float(np.sqrt(np.mean(result[:2205] ** 2)))   # first 50ms
+    tail_rms = float(np.sqrt(np.mean(result[-2205:] ** 2)))  # last 50ms
+    assert tail_rms < head_rms * 0.1  # tail must be < 10% of head
+
+
+def test_pitch_waver_shape_preserved():
+    """pitch_waver returns same length as input."""
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import sine_sweep, pitch_waver
+
+    signal = sine_sweep(200.0, 1200.0, 1.0)
+    result = pitch_waver(signal, deviation=0.05, rate=3.0, sample_rate=44100)
+
+    assert result.shape == signal.shape
+    assert result.dtype == np.float32
+
+
+def test_pitch_waver_zero_deviation_identity():
+    """pitch_waver with deviation=0 returns a signal very close to the input."""
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import sine_sweep, pitch_waver
+
+    signal = sine_sweep(200.0, 1200.0, 0.5)
+    result = pitch_waver(signal, deviation=0.0, rate=3.0, sample_rate=44100)
+
+    assert float(np.max(np.abs(result - signal))) < 0.01
