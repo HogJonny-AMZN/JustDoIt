@@ -28,3 +28,63 @@ def test_sound_import_does_not_crash_without_deps(monkeypatch):
     monkeypatch.setattr("builtins.__import__", fake_import)
     from justdoit import sound  # noqa: F401  — must not raise
     assert sound.SOUND_AVAILABLE is False
+
+
+def test_sine_sweep_shape_and_dtype():
+    """sine_sweep returns float32 array of correct length."""
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import sine_sweep
+
+    result = sine_sweep(300.0, 1800.0, 1.0, sample_rate=44100)
+
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float32
+    assert result.shape == (44100,)
+
+
+def test_sine_sweep_amplitude_bounded():
+    """sine_sweep values stay within [-1, 1]."""
+    pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import sine_sweep
+
+    result = sine_sweep(300.0, 1800.0, 0.5, sample_rate=44100)
+
+    assert result.max() <= 1.0
+    assert result.min() >= -1.0
+
+
+def test_sine_sweep_duration_scaling():
+    """Output length scales correctly with duration and sample_rate."""
+    pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import sine_sweep
+
+    assert sine_sweep(300.0, 1800.0, 0.1, sample_rate=8000).shape == (800,)
+    assert sine_sweep(300.0, 1800.0, 2.0, sample_rate=22050).shape == (44100,)
+
+
+def test_sawtooth_sweep_shape_and_dtype():
+    """sawtooth_sweep returns float32 array of correct length."""
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import sawtooth_sweep
+
+    result = sawtooth_sweep(150.0, 2500.0, 0.8, sample_rate=44100)
+
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float32
+    assert result.shape == (int(0.8 * 44100),)
+
+
+def test_sawtooth_sweep_amplitude_bounded():
+    """sawtooth_sweep values stay within [-1, 1]."""
+    pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import sawtooth_sweep
+
+    result = sawtooth_sweep(150.0, 2500.0, 0.5)
+
+    assert result.max() <= 1.0
+    assert result.min() >= -1.0
