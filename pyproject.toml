@@ -13,6 +13,7 @@ dependencies = []
 
 [project.optional-dependencies]
 ttf = ["Pillow>=10.0"]
+sound = ["numpy>=1.24", "sounddevice>=0.4"]
 dev = [
     "pytest>=8.0",
     "Pillow>=10.0",
@@ -30,16 +31,24 @@ packages = ["justdoit"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 
 [tool.ruff]
 line-length = 120
 
 [tool.ruff.lint]
-ignore = ["E221"]  # allow aligned assignments (used throughout for dict/list readability)
+ignore = [
+    "E221",  # allow aligned assignments (used throughout for dict/list readability)
+    "F821",  # allow forward string type annotations for optional dependencies (e.g., "PIL.Image.Image")
+]
 
 [dependency-groups]
 dev = [
     "pytest>=8.0",
     "Pillow>=10.0",
     "numpy>=1.24",
+    "sounddevice>=0.4",
+    "ruff>=0.3.0",
 ]
