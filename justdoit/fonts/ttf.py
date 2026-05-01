@@ -123,22 +123,75 @@ def rasterize_ttf(
 
         raw_glyphs[ch] = rows
 
-    # Normalize all glyph widths to the same value
-    max_w = max(
-        (len(row) for rows in raw_glyphs.values() if rows for row in rows),
-        default=1,
-    )
-    space_rows = [" " * max_w] * target_height
+    # Per-glyph width: each glyph keeps its natural proportional width.
+    # Space gets the average ink-glyph width (no bbox → no natural width).
+    ink_glyphs = [rows for rows in raw_glyphs.values() if rows is not None]
+    if ink_glyphs:
+        space_w = max(1, int(
+            sum(max(len(r) for r in rows) for rows in ink_glyphs)
+            / len(ink_glyphs)
+        ))
+    else:
+        space_w = target_height  # fallback
+    space_rows = [" " * space_w] * target_height
 
     result: dict = {}
     for ch, rows in raw_glyphs.items():
         if rows is None:
             result[ch] = space_rows
         else:
-            result[ch] = [row.ljust(max_w) for row in rows]
+            glyph_w = max(len(row) for row in rows)
+            result[ch] = [row.ljust(glyph_w) for row in rows]
 
     if " " not in result:
         result[" "] = space_rows
+
+    # --- Trim blank leading/trailing columns per glyph ---
+    for ch in list(result.keys()):
+        rows = result[ch]
+        if not rows or ch == " ":
+            continue
+        glyph_w = max(len(row) for row in rows)
+        # find first/last col with ink across all rows
+        ink_cols: set[int] = set()
+        for row in rows:
+            for col_i, c in enumerate(row):
+                if c != " ":
+                    ink_cols.add(col_i)
+        if not ink_cols:
+            continue
+        left_col = min(ink_cols)
+        right_col = max(ink_cols)
+        trimmed = [row[left_col:right_col + 1] for row in rows]
+        glyph_w_trimmed = right_col - left_col + 1
+        result[ch] = [r.ljust(glyph_w_trimmed) for r in trimmed]
+
+    # Recompute space width from post-trim ink glyph widths
+    post_trim_ink = [
+        max(len(r) for r in rows)
+        for ch, rows in result.items()
+        if ch != " " and rows
+    ]
+    if post_trim_ink:
+        space_w = max(1, int(sum(post_trim_ink) / len(post_trim_ink)))
+    result[" "] = [" " * space_w] * target_height
+
+    # --- Trim uniform blank leading/trailing rows (cross-glyph) ---
+    ink_row_indices: set[int] = set()
+    for ch, rows in result.items():
+        if ch == " ":
+            continue
+        for i, row in enumerate(rows):
+            if any(c != " " for c in row):
+                ink_row_indices.add(i)
+
+    if ink_row_indices:
+        top = min(ink_row_indices)
+        bot = max(ink_row_indices)
+        for ch in result:
+            result[ch] = result[ch][top : bot + 1]
+        new_h = bot - top + 1
+        result[" "] = [" " * space_w] * new_h
 
     return result
 

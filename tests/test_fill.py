@@ -66,6 +66,8 @@ def test_render_with_fill():
 
 
 def test_render_fill_vs_default():
+    # density fill should produce the same characters as block (both use █ for solid cells)
+    # but SDF fill should differ since it varies by distance from edge
     default_out = render('HI')
-    density_out = render('HI', fill='density')
-    assert default_out != density_out
+    sdf_out = render('HI', fill='sdf')
+    assert default_out != sdf_out, "SDF fill should differ from plain block render"

@@ -61,18 +61,18 @@ def test_gallery_profile_standard_values():
 
 
 def test_gallery_profile_wide_values():
-    """Wide profile has correct svg_font_size; readme_img_width=0 means natural SVG size."""
+    """Wide profile has correct svg_font_size and readme_img_width for GitHub display."""
     p = PROFILES["wide"]
     assert p.svg_font_size == 28
-    assert p.readme_img_width == 0   # natural size — no width= constraint in README
+    assert p.readme_img_width == 780   # display at 780px so GitHub renders correctly
     assert p.name == "wide"
 
 
 def test_gallery_profile_4k_values():
-    """4k profile has correct svg_font_size; readme_img_width=0 means natural SVG size."""
+    """4k profile has correct svg_font_size and readme_img_width for GitHub display."""
     p = PROFILES["4k"]
     assert p.svg_font_size == 72
-    assert p.readme_img_width == 0   # natural size — no width= constraint in README
+    assert p.readme_img_width == 780   # display at 780px so GitHub renders correctly
     assert p.name == "4k"
 
 
@@ -94,10 +94,10 @@ def test_gallery_profile_standard_uses_fixed_img_width():
     assert PROFILES["standard"].readme_img_width == 480
 
 
-def test_gallery_profile_wide_4k_use_natural_size():
-    """Wide and 4k profiles use readme_img_width=0 (natural SVG size, no downscale)."""
-    assert PROFILES["wide"].readme_img_width == 0
-    assert PROFILES["4k"].readme_img_width == 0
+def test_gallery_profile_wide_4k_use_780_display_width():
+    """Wide and 4k profiles use readme_img_width=780 for correct GitHub display."""
+    assert PROFILES["wide"].readme_img_width == 780
+    assert PROFILES["4k"].readme_img_width == 780
 
 
 def test_gallery_profile_output_dirs_differ():

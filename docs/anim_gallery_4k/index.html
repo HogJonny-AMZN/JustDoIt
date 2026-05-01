@@ -1,0 +1,78 @@
+---
+layout: null
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JustDoIt — 4K Animation Gallery</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #111; color: #ddd; font-family: 'Courier New', monospace; }
+  header { padding: 1.5rem 2rem; border-bottom: 1px solid #333; }
+  header h1 { font-size: 1.4rem; color: #fff; }
+  header p  { font-size: 0.85rem; color: #888; margin-top: 0.3rem; }
+  .gallery { display: flex; flex-direction: column; gap: 3rem; padding: 2rem; }
+  .entry h2 { font-size: 1rem; color: #aaa; margin-bottom: 0.5rem; }
+  .entry p  { font-size: 0.75rem; color: #666; margin-top: 0.4rem; }
+  .entry img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid #222;
+  }
+  a { color: #4af; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>4K Animation Gallery — JustDoIt</h1>
+  <p>3840×2160 · 8×16px cells · 480×135 char grid · font_scale=4.0 &nbsp;|&nbsp;
+     <a href="https://github.com/HogJonny-AMZN/JustDoIt">GitHub</a>
+  </p>
+</header>
+
+<div class="gallery">
+
+  <div class="entry">
+    <h2>Julia Set (rotating c)</h2>
+    <img src="fractal-julia.apng" alt="Julia Set fractal animation">
+    <p>72 frames · 9.4MB · 12fps · c parameter orbits the complex plane — fractal morphs each frame</p>
+  </div>
+
+  <div class="entry">
+    <h2>Plasma Wave</h2>
+    <img src="plasma.apng" alt="Plasma wave animation">
+    <p>60 frames · 14MB · 12fps · Phase sweeps continuously through the spectral palette</p>
+  </div>
+
+  <div class="entry">
+    <h2>Turing Pattern</h2>
+    <img src="turing.apng" alt="Turing pattern animation">
+    <p>48 frames · 13.9MB · 12fps · FHN reaction-diffusion field with rotating palette phase</p>
+  </div>
+
+  <div class="entry">
+    <h2>Flame</h2>
+    <img src="flame.apng" alt="Flame animation">
+    <p>48 frames · 11.3MB · 8fps · Analytical heat gradient — hot white/yellow base, cool red top</p>
+  </div>
+
+  <div class="entry">
+    <h2>Voronoi Stained Glass</h2>
+    <img src="voronoi.apng" alt="Voronoi animation">
+    <p>12 frames · 20MB · 12fps · Fixed Voronoi cells, spectral palette phase sweeps across</p>
+  </div>
+
+  <div class="entry">
+    <h2>Strange Attractor</h2>
+    <img src="attractor.apng" alt="Strange attractor animation">
+    <p>36 frames · 19.8MB · 12fps · Lorenz → Rössler trajectory with escape-time coloring</p>
+  </div>
+
+</div>
+</body>
+</html>

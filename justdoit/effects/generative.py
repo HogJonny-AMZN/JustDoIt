@@ -216,6 +216,51 @@ def noise_fill(
 
 
 # -------------------------------------------------------------------------
+def noise_float_grid(
+    mask: list,
+    scale: float = 0.4,
+    seed: Optional[int] = None,
+) -> list:
+    """Compute normalized Perlin noise float grid for a glyph mask (C11 companion to noise_fill).
+
+    Returns the same 2D Perlin noise values used by ``noise_fill()`` as a
+    2D list of floats in [0.0, 1.0] rather than characters.  Interior cells
+    carry the normalized noise value; exterior cells carry 0.0.
+
+    This is the float-grid source for C11 colorization (pass to
+    ``fill_float_colorize()``) and for X_NOISE_WARP spatial phase modulation
+    (aggregate per-row means to drive ``phase_map`` in ``sine_warp()``).
+
+    :param mask: 2D list of floats from glyph_to_mask() -- values 0.0-1.0.
+    :param scale: Noise frequency -- higher = finer grain (default 0.4).
+    :param seed: Optional integer seed for reproducibility.
+    :returns: 2D list of floats -- same shape as mask; [0.0, 1.0] for ink cells, 0.0 for exterior.
+    """
+    perm = _build_perm(seed)
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    result = []
+    for r in range(rows):
+        row_out = []
+        for c in range(cols):
+            val = mask[r][c] if c < len(mask[r]) else 0.0
+            if val < 0.5:
+                row_out.append(0.0)
+                continue
+            raw = _perlin2d(c * scale, r * scale, perm)
+            t = (raw + 1.0) / 2.0  # -1..1 → 0..1
+            t = max(0.0, min(1.0, t))
+            row_out.append(t)
+        result.append(row_out)
+    return result
+
+
+# -------------------------------------------------------------------------
 def cells_fill(
     mask: list,
     steps: int = 4,
@@ -908,6 +953,195 @@ def slime_mold_fill(
 
 
 # -------------------------------------------------------------------------
+# Slime Mold snapshots helper — used by slime_mold_anim() preset (A_SLIME1)
+#
+# Runs the Physarum simulation once and captures the normalized trail grid
+# at each requested step count. Avoids re-running the simulation per frame.
+#
+
+def _slime_mold_snapshots(
+    mask: list,
+    snapshot_steps: Optional[list] = None,
+    n_agents: int = 200,
+    sensor_angle: float = 0.523599,
+    sensor_dist: float = 2.5,
+    turn_speed: float = 0.523599,
+    deposit: float = 1.0,
+    decay: float = 0.05,
+    seed: Optional[int] = None,
+) -> list:
+    """Run slime mold sim once, capturing normalised trail grids at each snapshot step.
+
+    More efficient than calling slime_mold_fill() multiple times independently.
+    Used by the slime_mold_anim() preset to show network formation over time.
+
+    Captures trail state at each step in snapshot_steps -- the trail is normalized
+    to [0.0, 1.0] at the time of capture (not globally across all steps), so
+    each frame shows the relative density distribution at that moment.
+
+    :param mask: 2D list of floats from glyph_to_mask() -- values 0.0-1.0.
+    :param snapshot_steps: Sorted list of step counts to capture.
+        Default: [5, 15, 30, 50, 75, 100, 130, 160, 200].
+    :param n_agents: Number of Physarum agents (default 200).
+    :param sensor_angle: Half-angle between forward and side sensors (radians).
+    :param sensor_dist: Look-ahead distance in cells.
+    :param turn_speed: Max rotation toward strongest sensor per step (radians).
+    :param deposit: Trail chemical deposited per agent per step.
+    :param decay: Fractional trail evaporation per step (0 = no decay).
+    :param seed: Optional integer seed for reproducibility.
+    :returns: List of (step, ink_mask, float_grid) tuples, one per snapshot.
+        float_grid is a 2D list[list[float]] with trail values normalised to [0,1].
+    """
+    if snapshot_steps is None:
+        snapshot_steps = [5, 15, 30, 50, 75, 100, 130, 160, 200]
+
+    snap_set = set(snapshot_steps)
+    max_step = max(snapshot_steps)
+
+    rows = len(mask)
+    if rows == 0:
+        return [(s, [], []) for s in snapshot_steps]
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return [(s, [], []) for s in snapshot_steps]
+
+    rng = random.Random(seed)
+    TWO_PI = 2.0 * math.pi
+
+    # Build ink mask
+    ink = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+    ink_cells = [(r, c) for r in range(rows) for c in range(cols) if ink[r][c]]
+    if not ink_cells:
+        return [(s, ink, [[0.0] * cols for _ in range(rows)]) for s in snapshot_steps]
+
+    # Trail grid
+    trail = [[0.0] * cols for _ in range(rows)]
+
+    # Initialise agents
+    sample_size = min(n_agents, len(ink_cells))
+    spawn_cells = rng.sample(ink_cells, sample_size)
+    while len(spawn_cells) < n_agents:
+        spawn_cells.append(rng.choice(ink_cells))
+
+    agents = []
+    for (ar, ac) in spawn_cells:
+        angle = rng.uniform(0.0, TWO_PI)
+        agents.append([float(ar) + rng.uniform(-0.4, 0.4),
+                       float(ac) + rng.uniform(-0.4, 0.4),
+                       angle])
+
+    def _sense_s(py: float, px: float, angle: float) -> float:
+        """Sample trail at a sensor point (snapshot variant)."""
+        sr = int(round(py + sensor_dist * math.sin(angle)))
+        sc = int(round(px + sensor_dist * math.cos(angle)))
+        if 0 <= sr < rows and 0 <= sc < cols and ink[sr][sc]:
+            return trail[sr][sc]
+        return 0.0
+
+    def _diffuse_s() -> None:
+        """In-place 3x3 box-blur of trail (snapshot variant)."""
+        new_trail = [row[:] for row in trail]
+        for r in range(rows):
+            for c in range(cols):
+                if not ink[r][c]:
+                    continue
+                total = 0.0
+                count = 0
+                for dr in (-1, 0, 1):
+                    for dc in (-1, 0, 1):
+                        nr, nc = r + dr, c + dc
+                        if 0 <= nr < rows and 0 <= nc < cols and ink[nr][nc]:
+                            total += trail[nr][nc]
+                            count += 1
+                new_trail[r][c] = total / count if count > 0 else 0.0
+        for r in range(rows):
+            for c in range(cols):
+                trail[r][c] = new_trail[r][c]
+
+    def _capture_s() -> list:
+        """Return a normalised float_grid of current trail state."""
+        trail_vals = [trail[r][c] for r in range(rows) for c in range(cols) if ink[r][c]]
+        if not trail_vals:
+            return [[0.0] * cols for _ in range(rows)]
+        min_t = min(trail_vals)
+        max_t = max(trail_vals)
+        span = max_t - min_t if (max_t - min_t) > 1e-9 else 1.0
+        float_grid = []
+        for r in range(rows):
+            row = []
+            for c in range(cols):
+                if ink[r][c]:
+                    val = (trail[r][c] - min_t) / span
+                    row.append(max(0.0, min(1.0, val)))
+                else:
+                    row.append(0.0)
+            float_grid.append(row)
+        return float_grid
+
+    snap_dict: dict = {}
+    decay_factor = 1.0 - decay
+
+    for step_n in range(1, max_step + 1):
+        # Sense & rotate
+        for agent in agents:
+            py, px, angle = agent
+            f  = _sense_s(py, px, angle)
+            fl = _sense_s(py, px, angle - sensor_angle)
+            fr = _sense_s(py, px, angle + sensor_angle)
+            if f >= fl and f >= fr:
+                pass
+            elif fl > fr:
+                agent[2] = (angle - turn_speed) % TWO_PI
+            elif fr > fl:
+                agent[2] = (angle + turn_speed) % TWO_PI
+            else:
+                agent[2] = (angle + (turn_speed if rng.random() < 0.5 else -turn_speed)) % TWO_PI
+
+        # Move & deposit
+        for agent in agents:
+            py, px, angle = agent
+            ny = py + math.sin(angle)
+            nx = px + math.cos(angle)
+            nr = int(round(ny))
+            nc = int(round(nx))
+            if 0 <= nr < rows and 0 <= nc < cols and ink[nr][nc]:
+                agent[0] = ny
+                agent[1] = nx
+            else:
+                agent[2] = rng.uniform(0.0, TWO_PI)
+                nr, nc = int(round(py)), int(round(px))
+            dr_c = max(0, min(rows - 1, nr))
+            dc_c = max(0, min(cols - 1, nc))
+            if ink[dr_c][dc_c]:
+                trail[dr_c][dc_c] += deposit
+
+        # Diffuse
+        _diffuse_s()
+
+        # Decay
+        for r in range(rows):
+            for c in range(cols):
+                trail[r][c] *= decay_factor
+
+        # Capture snapshot at this step
+        if step_n in snap_set:
+            snap_dict[step_n] = (ink, _capture_s())
+
+    # Return in requested order
+    result = []
+    for s in snapshot_steps:
+        if s in snap_dict:
+            ink_g, fg = snap_dict[s]
+            result.append((s, ink_g, fg))
+        else:
+            result.append((s, ink, [[0.0] * cols for _ in range(rows)]))
+    return result
+
+
+# -------------------------------------------------------------------------
 # Wave Interference fill — F09
 #
 # Two plane waves at different angles and frequencies interfere inside the
@@ -1261,6 +1495,126 @@ def fractal_fill(
                 # Low norm (barely escaped) → dense; high norm → light
                 line += chars[n_chars - 1 - idx]
         result.append(line)
+
+    return result
+
+
+def fractal_float_grid(
+    mask: list,
+    cx: float = -0.5,
+    cy: float = 0.0,
+    zoom: float = 1.0,
+    max_iter: int = 80,
+    julia: bool = False,
+    julia_c: complex = None,
+) -> list:
+    """Return escape-time float grid [0,1] for the fractal fill.
+
+    Mirrors fractal_fill() computation. Cells outside mask return 0.0.
+    Value: (max_iter - iter_count) / max_iter → 0.0=near set, 1.0=far from set.
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param cx: Real-axis centre of the view window (default: -0.5).
+    :param cy: Imaginary-axis centre of the view window (default: 0.0).
+    :param zoom: View half-width in the complex plane (default: 1.0).
+    :param max_iter: Maximum iteration count before declaring interior (default: 80).
+    :param julia: If True, compute Julia set instead of Mandelbrot (default: False).
+    :param julia_c: Complex constant for Julia set (default: -0.7+0.27j).
+    :returns: 2D list of floats indexed [row][col]. Values in [0.0, 1.0].
+        0.0 = near/inside set; 1.0 = far from set.
+    """
+    if julia_c is None:
+        julia_c = complex(-0.7, 0.27)
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    ink_cells = [
+        (r, c)
+        for r in range(rows)
+        for c in range(len(mask[r]))
+        if mask[r][c] >= 0.5
+    ]
+    if not ink_cells:
+        return [[0.0] * cols for _ in range(rows)]
+
+    min_r = min(r for r, _ in ink_cells)
+    max_r = max(r for r, _ in ink_cells)
+    min_c = min(c for _, c in ink_cells)
+    max_c = max(c for _, c in ink_cells)
+
+    row_span = max(max_r - min_r, 1)
+    col_span = max(max_c - min_c, 1)
+    aspect_ratio = 2.0
+
+    # Compute raw escape values for ink cells
+    escape_grid = [[0.0] * cols for _ in range(rows)]
+    exterior_vals = []
+
+    for r, c in ink_cells:
+        nx = (c - min_c) / col_span * 2.0 - 1.0
+        ny = (r - min_r) / row_span * 2.0 - 1.0
+
+        re_val = cx + nx * zoom
+        im_val = cy + ny * zoom * aspect_ratio
+
+        if not julia:
+            z = complex(0.0, 0.0)
+            c_val = complex(re_val, im_val)
+        else:
+            z = complex(re_val, im_val)
+            c_val = julia_c
+
+        escaped = False
+        smooth_val = 0.0
+        for n in range(max_iter):
+            z = z * z + c_val
+            absq = z.real * z.real + z.imag * z.imag
+            if absq > 4.0:
+                smooth_val = n + 1.0 - math.log2(math.log2(absq))
+                escaped = True
+                break
+
+        if escaped:
+            escape_grid[r][c] = smooth_val
+            exterior_vals.append(smooth_val)
+        else:
+            escape_grid[r][c] = -1.0  # interior sentinel
+
+    # Normalise exterior values to [0, 1]
+    if exterior_vals:
+        e_min = min(exterior_vals)
+        e_max = max(exterior_vals)
+        e_span = e_max - e_min
+        if e_span < 1e-9:
+            e_span = 1.0
+    else:
+        e_min, e_span = 0.0, 1.0
+
+    # Build output float grid
+    result = []
+    for r in range(rows):
+        row_floats = []
+        in_mask = [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(cols)]
+        for c in range(cols):
+            if not in_mask[c]:
+                row_floats.append(0.0)
+            else:
+                val = escape_grid[r][c]
+                if val < 0.0:
+                    # Interior — densest → 0.0 (near set)
+                    row_floats.append(0.0)
+                else:
+                    norm = (val - e_min) / e_span
+                    norm = max(0.0, min(1.0, norm))
+                    # Invert: low norm (barely escaped) → near set → 0.0
+                    # high norm (far escaped) → far from set → 1.0
+                    row_floats.append(norm)
+        result.append(row_floats)
 
     return result
 
@@ -2652,6 +3006,104 @@ def plasma_fill(
     return result
 
 
+def plasma_float_grid(
+    mask: list,
+    t: float = 0.0,
+    freq1: float = 1.5,
+    freq2: float = 2.0,
+    freq3: float = 1.0,
+    freq4: float = 1.2,
+    preset: str = "default",
+) -> list:
+    """Compute normalized plasma float grid for a glyph mask (C11 companion to plasma_fill).
+
+    Returns the same plasma sin-field values used by ``plasma_fill()`` for character
+    density selection, but as a 2D list of floats in [0.0, 1.0] rather than characters.
+    Interior cells carry the normalized plasma value; exterior cells carry 0.0.
+
+    This is the float-grid source for C11 colorization - pass the result to
+    ``fill_float_colorize()`` alongside the rendered plasma char output to produce
+    per-cell color driven by the same field that drives character selection (A10c).
+
+    :param mask: 2D list of floats from glyph_to_mask() -- values 0.0-1.0.
+    :param t: Time phase offset in radians (0.0-2pi for one full cycle, default 0.0).
+    :param freq1: Frequency of horizontal wave (default 1.5, overridden by preset).
+    :param freq2: Frequency of vertical wave (default 2.0, overridden by preset).
+    :param freq3: Frequency of diagonal wave (default 1.0, overridden by preset).
+    :param freq4: Frequency of radial wave (default 1.2, overridden by preset).
+    :param preset: Named parameter preset matching plasma_fill presets (default 'default').
+    :returns: 2D list of floats -- same shape as mask; [0.0, 1.0] for ink cells, 0.0 for exterior.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _PLASMA_PRESETS:
+        raise ValueError(
+            f"Unknown plasma preset '{preset}'. "
+            f"Available: {', '.join(_PLASMA_PRESETS.keys())}"
+        )
+
+    rows = len(mask)
+    if rows == 0:
+        return []
+    cols = max(len(row) for row in mask)
+    if cols == 0:
+        return []
+
+    p = _PLASMA_PRESETS[preset]
+    freq1 = p["freq1"]
+    freq2 = p["freq2"]
+    freq3 = p["freq3"]
+    freq4 = p["freq4"]
+
+    ink_cells = [
+        (r, c)
+        for r in range(rows)
+        for c in range(len(mask[r]))
+        if mask[r][c] >= 0.5
+    ]
+    if not ink_cells:
+        return [[0.0] * cols for _ in range(rows)]
+
+    min_r = min(r for r, _ in ink_cells)
+    max_r = max(r for r, _ in ink_cells)
+    min_c = min(c for _, c in ink_cells)
+    max_c = max(c for _, c in ink_cells)
+
+    row_span = max(max_r - min_r, 1)
+    col_span = max(max_c - min_c, 1)
+
+    TWO_PI = 2.0 * math.pi
+    raw_grid: list = [[0.0] * cols for _ in range(rows)]
+    ink_vals: list = []
+
+    for r, c in ink_cells:
+        x = (c - min_c) / col_span
+        y = ((r - min_r) / row_span) * (row_span / max(col_span, 1)) * 0.5
+        cx = 0.5
+        cy = 0.5 * (row_span / max(col_span, 1)) * 0.5
+        radial = math.sqrt(max((x - cx) ** 2 + (y - cy) ** 2, 1e-9))
+        val = (
+            math.sin(TWO_PI * freq1 * x + t)
+            + math.sin(TWO_PI * freq2 * y + t * 1.3)
+            + math.sin(TWO_PI * freq3 * (x + y) + t * 0.7)
+            + math.sin(TWO_PI * freq4 * radial + t * 0.9)
+        )
+        raw_grid[r][c] = val
+        ink_vals.append(val)
+
+    v_min = min(ink_vals)
+    v_max = max(ink_vals)
+    v_span = v_max - v_min
+    if v_span < 1e-9:
+        v_span = 1.0
+
+    float_grid: list = [[0.0] * cols for _ in range(rows)]
+    for r, c in ink_cells:
+        norm = (raw_grid[r][c] - v_min) / v_span
+        float_grid[r][c] = max(0.0, min(1.0, norm))
+
+    return float_grid
+
+
 # =============================================================================
 # A08 — Flame Simulation
 #
@@ -2675,6 +3127,95 @@ _FLAME_CHARS: str = "@#S%?*+;:,."
 
 
 # -------------------------------------------------------------------------
+def _flame_heat_grid(
+    mask: list,
+    preset: str = "default",
+    n_steps: int = 25,
+    cooling: float = 0.12,
+    seed=None,
+    cooling_modulator: Optional[list] = None,
+    modulator_strength: float = 1.0,
+):
+    """Run the Doom-fire simulation and return the raw heat grid.
+
+    Private helper shared by flame_fill() and flame_float_grid().
+
+    :param cooling_modulator: Optional 2D list[list[float]] same shape as mask.
+        When provided, spatially modulates per-cell cooling:
+        high value (1.0) → reduced cooling (flame persists),
+        low value (0.0) → increased cooling (flame dies back).
+        This is the A08d cross-breed coupling point.
+    :param modulator_strength: Coupling strength 0.0-2.0 (default 1.0).
+        0.0 = no modulation; 1.0 = full range (cooling ×0 to ×2); 1.2 = strong.
+    :returns: Tuple (heat, ink, rows, cols) where heat is list[list[float]],
+        ink is list[list[bool]], rows and cols are grid dimensions.
+    """
+    if preset not in _FLAME_PRESETS:
+        raise ValueError(
+            f"Unknown flame preset '{preset}'. "
+            f"Available: {', '.join(_FLAME_PRESETS.keys())}"
+        )
+    rows = len(mask)
+    if rows == 0:
+        return [], [], 0, 0
+    cols = max(len(row) for row in mask) if rows > 0 else 0
+    if cols == 0:
+        return [], [], rows, 0
+
+    p = _FLAME_PRESETS[preset]
+    n_steps = p["n_steps"]
+    cooling = p["cooling"]
+
+    rng = random.Random(seed)
+
+    ink = [
+        [bool(mask[r][c] >= 0.5) if c < len(mask[r]) else False for c in range(cols)]
+        for r in range(rows)
+    ]
+
+    ink_cells = [(r, c) for r in range(rows) for c in range(cols) if ink[r][c]]
+    if not ink_cells:
+        heat = [[0.0] * cols for _ in range(rows)]
+        return heat, ink, rows, cols
+
+    heat = [[0.0] * cols for _ in range(rows)]
+    max_ink_row = max(r for r, _ in ink_cells)
+    seed_rows = {max_ink_row, max_ink_row - 1}
+    for r, c in ink_cells:
+        if r in seed_rows:
+            heat[r][c] = 1.0
+
+    for _step in range(n_steps):
+        new_heat = [row[:] for row in heat]
+        for r, c in ink_cells:
+            if r in seed_rows:
+                new_heat[r][c] = 1.0
+                continue
+            below_r = r + 1
+            if below_r >= rows:
+                continue
+            drift = rng.randint(-1, 1)
+            below_c = c + drift
+            if below_c < 0 or below_c >= cols or not ink[below_r][below_c]:
+                below_c = c
+            if ink[below_r][below_c]:
+                if cooling_modulator is not None:
+                    mod_r = min(r, len(cooling_modulator) - 1)
+                    mod_row = cooling_modulator[mod_r]
+                    mod_c = min(c, len(mod_row) - 1)
+                    m = mod_row[mod_c]
+                    cell_cooling = cooling * (1.0 + modulator_strength * (1.0 - 2.0 * m))
+                    cell_cooling = max(0.0, cell_cooling)
+                else:
+                    cell_cooling = cooling
+                raw = heat[below_r][below_c] - cell_cooling * rng.random()
+                new_heat[r][c] = max(0.0, raw)
+        heat = new_heat
+
+    return heat, ink, rows, cols
+
+
+# -------------------------------------------------------------------------
 def flame_fill(
     mask: list,
     preset: str = "default",
@@ -2682,6 +3223,8 @@ def flame_fill(
     cooling: float = 0.12,
     seed: Optional[int] = None,
     density_chars: Optional[str] = None,
+    cooling_modulator: Optional[list] = None,
+    modulator_strength: float = 1.0,
 ) -> list:
     """Fill glyph mask with a Doom-fire heat simulation (A08).
 
@@ -2707,83 +3250,28 @@ def flame_fill(
     :param cooling: Per-step random cooling factor; higher = cooler flame (default 0.12).
     :param seed: Random seed for deterministic output (default None — random).
     :param density_chars: Hottest-to-coolest character sequence (default: _FLAME_CHARS).
+    :param cooling_modulator: Optional 2D float grid (same shape as mask) for A08d
+        cross-breed. High value -> reduced cooling (flame persists); low value ->
+        increased cooling (flame dies back). Default: None (no modulation).
+    :param modulator_strength: Coupling strength 0.0-2.0 (default 1.0).
     :returns: List of strings — one per row, same shape as input mask.
     :raises ValueError: If preset name is unknown.
     """
-    if preset not in _FLAME_PRESETS:
-        raise ValueError(
-            f"Unknown flame preset '{preset}'. "
-            f"Available: {', '.join(_FLAME_PRESETS.keys())}"
-        )
-
-    rows = len(mask)
-    if rows == 0:
-        return []
-    cols = max(len(row) for row in mask) if rows > 0 else 0
-    if cols == 0:
-        return []
-
-    # Apply preset — overrides individual params
-    p = _FLAME_PRESETS[preset]
-    n_steps = p["n_steps"]
-    cooling = p["cooling"]
-
     chars = (density_chars if density_chars is not None else _FLAME_CHARS)
     # Strip trailing space so minimum-intensity ink cells still render as visible chars
     chars = chars.rstrip(" ") or "."
     n_chars = len(chars)
 
-    rng = random.Random(seed)
+    heat, ink, rows, cols = _flame_heat_grid(
+        mask, preset=preset, n_steps=n_steps, cooling=cooling, seed=seed,
+        cooling_modulator=cooling_modulator, modulator_strength=modulator_strength,
+    )
 
-    # -------------------------------------------------------------------------
-    # Build ink mask (boolean grid)
-    ink: list = [
-        [bool(mask[r][c] >= 0.5) if c < len(mask[r]) else False for c in range(cols)]
-        for r in range(rows)
-    ]
+    if rows == 0 or cols == 0:
+        return []
 
-    # Identify all ink cells and find the bottom ink rows per column
-    ink_cells = [(r, c) for r in range(rows) for c in range(cols) if ink[r][c]]
-    if not ink_cells:
+    if not any(ink[r][c] for r in range(rows) for c in range(cols)):
         return [" " * cols for _ in range(rows)]
-
-    # -------------------------------------------------------------------------
-    # Initialize heat grid
-    heat: list = [[0.0] * cols for _ in range(rows)]
-
-    # Seed: bottom ink cells get full heat.  "Bottom" = highest row index that is ink.
-    max_ink_row = max(r for r, _ in ink_cells)
-    # Seed bottom 2 rows (max_ink_row and max_ink_row - 1) with full heat
-    seed_rows = {max_ink_row, max_ink_row - 1}
-    for r, c in ink_cells:
-        if r in seed_rows:
-            heat[r][c] = 1.0
-
-    # -------------------------------------------------------------------------
-    # Doom fire propagation — heat moves upward (lower row indices)
-    for _step in range(n_steps):
-        new_heat = [row[:] for row in heat]   # shallow copy each row
-        # Propagate: for each ink cell (except seed rows), compute heat from below
-        for r, c in ink_cells:
-            if r in seed_rows:
-                # Seed rows stay at full heat
-                new_heat[r][c] = 1.0
-                continue
-            # Look at the cell one row below
-            below_r = r + 1
-            if below_r >= rows:
-                continue
-            # Random lateral drift: -1, 0, or 1
-            drift = rng.randint(-1, 1)
-            below_c = c + drift
-            # Clamp drift to valid column and must be an ink cell
-            if below_c < 0 or below_c >= cols or not ink[below_r][below_c]:
-                below_c = c   # no drift if it would exit the glyph
-            if ink[below_r][below_c]:
-                raw = heat[below_r][below_c] - cooling * rng.random()
-                new_heat[r][c] = max(0.0, raw)
-            # else: cell below isn't ink — heat stays as is (preserve edge heat)
-        heat = new_heat
 
     # -------------------------------------------------------------------------
     # Map heat → density chars
@@ -2802,3 +3290,342 @@ def flame_fill(
         result.append(line)
 
     return result
+
+
+# -------------------------------------------------------------------------
+def flame_float_grid(
+    mask: list,
+    preset: str = "default",
+    n_steps: int = 25,
+    cooling: float = 0.12,
+    seed=None,
+    cooling_modulator: Optional[list] = None,
+    modulator_strength: float = 1.0,
+) -> list:
+    """Compute flame heat float grid for a glyph mask — C11 companion to flame_fill.
+
+    Returns the heat values from the same Doom-fire simulation as flame_fill()
+    as a 2D list of floats [0.0, 1.0] rather than characters. Use the same
+    seed and preset as a corresponding flame_fill() call to get a float grid
+    that matches the char output exactly.
+
+    :param mask: 2D list of floats from glyph_to_mask() -- values 0.0-1.0.
+    :param preset: Flame preset ('default', 'hot', 'cool', 'embers').
+    :param n_steps: Fire propagation iterations (overridden by preset).
+    :param cooling: Per-step cooling factor (overridden by preset).
+    :param seed: Random seed for deterministic output.
+    :param cooling_modulator: Optional 2D float grid for A08d cross-breed.
+    :param modulator_strength: Coupling strength 0.0-2.0 (default 1.0).
+    :returns: 2D list[list[float]] same shape as mask; [0.0,1.0] ink, 0.0 exterior.
+    :raises ValueError: If preset is unknown.
+    """
+    heat, ink, rows, cols = _flame_heat_grid(
+        mask, preset=preset, n_steps=n_steps, cooling=cooling, seed=seed,
+        cooling_modulator=cooling_modulator, modulator_strength=modulator_strength,
+    )
+    if rows == 0 or cols == 0:
+        return [[0.0] * (cols or 0) for _ in range(rows)]
+    result = []
+    for r in range(rows):
+        row_out = [heat[r][c] if ink[r][c] else 0.0 for c in range(cols)]
+        result.append(row_out)
+    return result
+
+
+# -------------------------------------------------------------------------
+def turing_float_grid(
+    mask: list,
+    preset: str = "stripes",
+    steps: Optional[int] = None,
+    seed=None,
+    scale: int = 4,
+) -> list:
+    """Return the raw Turing activator U float grid (N09) without char mapping.
+
+    Runs the same FitzHugh-Nagumo activator-inhibitor simulation as turing_fill(),
+    but returns a 2D list[list[float]] of normalised activator concentrations
+    in [0.0, 1.0] rather than mapped characters.  Exterior cells are 0.0.
+
+    Use the same ``preset`` and ``seed`` as a corresponding ``turing_fill()`` call
+    to obtain a float grid that matches the char output exactly — this enables
+    C11 (fill_float_colorize) to colour each cell proportional to its activator
+    concentration, producing biological coat patterns in bio/spectral palettes.
+
+    :param mask: 2D list of floats from glyph_to_mask() — values 0.0–1.0.
+    :param preset: Named parameter preset (default: 'stripes').
+    :param steps: Simulation steps override (default: preset-dependent, 3000–3500).
+    :param seed: Integer seed for reproducible initialisation (default: None = random).
+    :param scale: Upscale factor for simulation resolution (default: 4).
+    :returns: 2D list[list[float]] — same shape as input mask.
+              Ink cells have values in [0.0, 1.0]; exterior cells are 0.0.
+    :raises ValueError: If preset name is unknown.
+    """
+    if preset not in _TURING_PRESETS:
+        raise ValueError(
+            f"Unknown Turing preset '{preset}'. "
+            f"Available: {', '.join(_TURING_PRESETS.keys())}"
+        )
+
+    orig_rows = len(mask)
+    if orig_rows == 0:
+        return []
+    orig_cols = max(len(row) for row in mask)
+    if orig_cols == 0:
+        return [[] for _ in range(orig_rows)]
+
+    p = _TURING_PRESETS[preset]
+    alpha = p["alpha"]
+    beta = p["beta"]
+    gamma = p["gamma"]
+    Da = p["Da"]
+    Db = p["Db"]
+    epsilon = p["epsilon"]
+    n_steps = steps if steps is not None else p["steps"]
+
+    # Build original ink mask
+    orig_ink = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(orig_cols)]
+        for r in range(orig_rows)
+    ]
+
+    # Upscale by nearest-neighbour
+    sim_rows = orig_rows * scale
+    sim_cols = orig_cols * scale
+    ink = [
+        [orig_ink[r // scale][c // scale] for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+
+    # Initialise U and V with small random perturbation around (0, 0)
+    rng = random.Random(seed)
+    noise_amplitude = 0.02
+    U = [
+        [rng.gauss(0.0, noise_amplitude) if ink[r][c] else 0.0 for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+    V = [
+        [rng.gauss(0.0, noise_amplitude) if ink[r][c] else 0.0 for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+
+    active_cells = [(r, c) for r in range(sim_rows) for c in range(sim_cols) if ink[r][c]]
+
+    # Run Euler integration
+    dt = _TURING_dt
+    for _step in range(n_steps):
+        dU = [[0.0] * sim_cols for _ in range(sim_rows)]
+        dV = [[0.0] * sim_cols for _ in range(sim_rows)]
+        for r, c in active_cells:
+            u = U[r][c]
+            v = V[r][c]
+            lap_u = _turing_laplacian(U, r, c, sim_rows, sim_cols, ink)
+            lap_v = _turing_laplacian(V, r, c, sim_rows, sim_cols, ink)
+            dU[r][c] = Da * lap_u + alpha * u - u * u * u - v + beta
+            dV[r][c] = Db * lap_v + epsilon * (u - gamma * v)
+        for r, c in active_cells:
+            U[r][c] += dt * dU[r][c]
+            V[r][c] += dt * dV[r][c]
+            if U[r][c] > _TURING_CLAMP:
+                U[r][c] = _TURING_CLAMP
+            elif U[r][c] < -_TURING_CLAMP:
+                U[r][c] = -_TURING_CLAMP
+            if V[r][c] > _TURING_CLAMP:
+                V[r][c] = _TURING_CLAMP
+            elif V[r][c] < -_TURING_CLAMP:
+                V[r][c] = -_TURING_CLAMP
+
+    # Downsample U to original resolution by averaging scale×scale blocks
+    U_down = []
+    for r in range(orig_rows):
+        row_vals = []
+        for c in range(orig_cols):
+            total = 0.0
+            count = 0
+            for dr in range(scale):
+                for dc in range(scale):
+                    sr = r * scale + dr
+                    sc = c * scale + dc
+                    if sr < sim_rows and sc < sim_cols and ink[sr][sc]:
+                        total += U[sr][sc]
+                        count += 1
+            row_vals.append(total / count if count > 0 else 0.0)
+        U_down.append(row_vals)
+
+    # Normalise to [0, 1] across ink cells
+    ink_vals = [
+        U_down[r][c]
+        for r in range(orig_rows)
+        for c in range(orig_cols)
+        if orig_ink[r][c]
+    ]
+    if not ink_vals:
+        return [[0.0] * orig_cols for _ in range(orig_rows)]
+
+    u_min = min(ink_vals)
+    u_max = max(ink_vals)
+    u_range = u_max - u_min
+    if u_range < 1e-9:
+        u_range = 1.0
+
+    # Build result: ink cells normalised, exterior 0.0
+    result = []
+    for r in range(orig_rows):
+        row_out = []
+        for c in range(orig_cols):
+            if orig_ink[r][c]:
+                val = (U_down[r][c] - u_min) / u_range
+                row_out.append(max(0.0, min(1.0, val)))
+            else:
+                row_out.append(0.0)
+        result.append(row_out)
+    return result
+
+
+# -------------------------------------------------------------------------
+def _turing_morphogenesis_snapshots(
+    mask: list,
+    preset: str = "spots",
+    snapshot_steps: Optional[list] = None,
+    seed=None,
+    scale: int = 4,
+) -> list:
+    """Run FHN simulation once, capturing normalised U-grid at each snapshot step.
+
+    More efficient than calling turing_float_grid() multiple times independently.
+    Used by the turing_morphogenesis() animation preset to show pattern formation.
+
+    :param mask: 2D list of floats from glyph_to_mask().
+    :param preset: Named parameter preset (default: 'spots').
+    :param snapshot_steps: Sorted list of step counts at which to capture state.
+        Default: [50, 100, 200, 400, 800, 1500, 2500, 3500].
+    :param seed: Integer seed for reproducible initialisation.
+    :param scale: Upscale factor for simulation resolution (default: 4).
+    :returns: List of (step, orig_ink, float_grid) tuples, one per snapshot.
+        float_grid is a 2D list[list[float]] normalised to [0.0, 1.0] at that step.
+    """
+    if snapshot_steps is None:
+        snapshot_steps = [50, 100, 200, 400, 800, 1500, 2500, 3500]
+    snap_set = set(snapshot_steps)
+    max_step = max(snapshot_steps)
+
+    if preset not in _TURING_PRESETS:
+        raise ValueError(
+            f"Unknown Turing preset '{preset}'. "
+            f"Available: {', '.join(_TURING_PRESETS.keys())}"
+        )
+
+    orig_rows = len(mask)
+    if orig_rows == 0:
+        return [(s, [], []) for s in snapshot_steps]
+    orig_cols = max(len(row) for row in mask)
+    if orig_cols == 0:
+        return [(s, [], []) for s in snapshot_steps]
+
+    p = _TURING_PRESETS[preset]
+    alpha = p["alpha"]
+    beta = p["beta"]
+    gamma = p["gamma"]
+    Da = p["Da"]
+    Db = p["Db"]
+    epsilon = p["epsilon"]
+
+    orig_ink = [
+        [mask[r][c] >= 0.5 if c < len(mask[r]) else False for c in range(orig_cols)]
+        for r in range(orig_rows)
+    ]
+
+    sim_rows = orig_rows * scale
+    sim_cols = orig_cols * scale
+    ink = [
+        [orig_ink[r // scale][c // scale] for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+
+    rng = random.Random(seed)
+    noise_amplitude = 0.02
+    U = [
+        [rng.gauss(0.0, noise_amplitude) if ink[r][c] else 0.0 for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+    V = [
+        [rng.gauss(0.0, noise_amplitude) if ink[r][c] else 0.0 for c in range(sim_cols)]
+        for r in range(sim_rows)
+    ]
+
+    active_cells = [(r, c) for r in range(sim_rows) for c in range(sim_cols) if ink[r][c]]
+    dt = _TURING_dt
+    snapshots = []
+
+    def _capture_snapshot(step_n):
+        """Downsample and normalise U at the current sim state."""
+        U_down = []
+        for r in range(orig_rows):
+            row_vals = []
+            for c in range(orig_cols):
+                total = 0.0
+                count = 0
+                for dr in range(scale):
+                    for dc in range(scale):
+                        sr = r * scale + dr
+                        sc = c * scale + dc
+                        if sr < sim_rows and sc < sim_cols and ink[sr][sc]:
+                            total += U[sr][sc]
+                            count += 1
+                row_vals.append(total / count if count > 0 else 0.0)
+            U_down.append(row_vals)
+
+        ink_vals = [
+            U_down[r][c]
+            for r in range(orig_rows)
+            for c in range(orig_cols)
+            if orig_ink[r][c]
+        ]
+        if not ink_vals:
+            float_grid = [[0.0] * orig_cols for _ in range(orig_rows)]
+        else:
+            u_min = min(ink_vals)
+            u_max = max(ink_vals)
+            u_range = u_max - u_min if (u_max - u_min) > 1e-9 else 1.0
+            float_grid = []
+            for r in range(orig_rows):
+                row_out = []
+                for c in range(orig_cols):
+                    if orig_ink[r][c]:
+                        val = (U_down[r][c] - u_min) / u_range
+                        row_out.append(max(0.0, min(1.0, val)))
+                    else:
+                        row_out.append(0.0)
+                float_grid.append(row_out)
+        snapshots.append((step_n, orig_ink, float_grid))
+
+    for step_n in range(1, max_step + 1):
+        dU = [[0.0] * sim_cols for _ in range(sim_rows)]
+        dV = [[0.0] * sim_cols for _ in range(sim_rows)]
+        for r, c in active_cells:
+            u = U[r][c]
+            v = V[r][c]
+            lap_u = _turing_laplacian(U, r, c, sim_rows, sim_cols, ink)
+            lap_v = _turing_laplacian(V, r, c, sim_rows, sim_cols, ink)
+            dU[r][c] = Da * lap_u + alpha * u - u * u * u - v + beta
+            dV[r][c] = Db * lap_v + epsilon * (u - gamma * v)
+        for r, c in active_cells:
+            U[r][c] += dt * dU[r][c]
+            V[r][c] += dt * dV[r][c]
+            if U[r][c] > _TURING_CLAMP:
+                U[r][c] = _TURING_CLAMP
+            elif U[r][c] < -_TURING_CLAMP:
+                U[r][c] = -_TURING_CLAMP
+            if V[r][c] > _TURING_CLAMP:
+                V[r][c] = _TURING_CLAMP
+            elif V[r][c] < -_TURING_CLAMP:
+                V[r][c] = -_TURING_CLAMP
+        if step_n in snap_set:
+            _capture_snapshot(step_n)
+
+    # Return in the order of snapshot_steps (may differ from insertion order)
+    snap_dict = {s: (oi, fg) for s, oi, fg in snapshots}
+    return [
+        (s, snap_dict[s][0], snap_dict[s][1])
+        for s in snapshot_steps
+        if s in snap_dict
+    ]

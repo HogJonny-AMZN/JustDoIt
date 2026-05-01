@@ -1,7 +1,7 @@
-# ATTRIBUTE_MODEL.md — Technique Decomposition & Cross-Breeding
+# ATTRIBUTE_MODEL.md - Technique Decomposition & Cross-Breeding
 
-**Created:** 2026-04-04  
-**Authors:** NumberOne + Jonny Galloway  
+**Created:** 2026-04-04
+**Authors:** NumberOne + Jonny Galloway
 **Purpose:** Classify every rendering attribute as an independent axis.
 Cross-breeding two or more axes produces a combinatorial space of novel techniques.
 
@@ -20,7 +20,7 @@ every knob at every stage, then ask: what happens if we wire two knobs together?
 
 ---
 
-## Axis 1 — FONT (glyph shape)
+## Axis 1 - FONT (glyph shape)
 
 The letterform itself. What goes into the mask before anything else.
 
@@ -39,16 +39,16 @@ The letterform itself. What goes into the mask before anything else.
 | pua | Custom glyphs via font patching | idea |
 
 **Cross-breed opportunity:** Font affects mask shape, which affects every fill.
-A SDF-generated font gives curved, smooth masks — fractal and voronoi fills
+A SDF-generated font gives curved, smooth masks - fractal and voronoi fills
 inside those would look completely different from block font masks.
 
 ---
 
-## Axis 2 — FILL (what chars go inside the glyph)
+## Axis 2 - FILL (what chars go inside the glyph)
 
 The texture inside each letterform. Operates on the mask float grid.
 
-### 2a — Static fills (single-frame, deterministic or seeded)
+### 2a - Static fills (single-frame, deterministic or seeded)
 
 | Key | Algorithm | Output float source |
 |-----|-----------|---------------------|
@@ -69,7 +69,7 @@ The texture inside each letterform. Operates on the mask float grid.
 | flame | Doom-fire heat propagation | thermal sim |
 | shape | SDF contour-following | edge normals |
 
-### 2b — Fill parameters as animation axes
+### 2b - Fill parameters as animation axes
 
 Every fill has at least one float param that, when swept over frames, produces animation:
 
@@ -92,13 +92,13 @@ discarded after char selection. Preserving it and routing it to other axes
 
 ---
 
-## Axis 3 — SPATIAL (geometry of the whole block)
+## Axis 3 - SPATIAL (geometry of the whole block)
 
 Post-fill geometric transformations on the assembled text block.
 
 | Key | Transform | Params |
 |-----|-----------|--------|
-| none | identity | — |
+| none | identity | - |
 | sine_warp | row-wise horizontal oscillation | amplitude, frequency, phase |
 | perspective_tilt | per-row width scaling | strength, direction (top/bottom) |
 | shear | italic/oblique slant | amount, direction |
@@ -126,11 +126,11 @@ Post-fill geometric transformations on the assembled text block.
 
 ---
 
-## Axis 4 — COLOR / LIGHT
+## Axis 4 - COLOR / LIGHT
 
-How ink cells are colored. Currently one of the weakest axes — big opportunity.
+How ink cells are colored. Currently one of the weakest axes - big opportunity.
 
-### 4a — Existing color modes
+### 4a - Existing color modes
 
 | Key | Scope | Source |
 |-----|-------|--------|
@@ -141,10 +141,10 @@ How ink cells are colored. Currently one of the weakest axes — big opportunity
 | per_glyph_palette | per-glyph | glyph index in word |
 | neon (presets) | per-row | frame state |
 
-### 4b — C11: Fill-Float Color (the missing axis)
+### 4b - C11: Fill-Float Color (the missing axis)
 
 The biggest gap. No current mode maps the fill's own float output to color.
-This is `C11` — a per-cell color function that receives `(fill_value: float, row, col) → (r, g, b)`.
+This is `C11` - a per-cell color function that receives `(fill_value: float, row, col) → (r, g, b)`.
 
 Once C11 exists, every fill gets a free color dimension:
 
@@ -159,7 +159,7 @@ Once C11 exists, every fill gets a free color dimension:
 | noise + thermal_palette | heat map of a terrain |
 | rd + chem_palette | chemical reaction visualization |
 
-### 4c — The dual-channel insight (foreground + background)
+### 4c - The dual-channel insight (foreground + background)
 
 Each terminal cell has TWO independent color channels. JustDoIt currently
 uses only one:
@@ -170,12 +170,12 @@ uses only one:
 | Background | `\033[48;2;r;g;bm` | **completely unused** | bloom, glow, halo |
 
 A space character with a bright background color is a **pure light-emitting cell**
-— no glyph, just emitted light. This is the bloom medium.
+- no glyph, just emitted light. This is the bloom medium.
 
 A character with a dim background and a bright foreground reads as a cell inside
 a lit volume. This is ambient lighting / depth cueing.
 
-### 4d — C12: Bloom / Exterior Glow (new territory)
+### 4d - C12: Bloom / Exterior Glow (new territory)
 
 Bloom = bright foreground pixels above a threshold bleed spatially into
 surrounding space cells via their background color channel.
@@ -190,7 +190,7 @@ surrounding space cells via their background color channel.
      bloom_color = lerp(glyph_color, black, 1 - intensity)
      write \033[48;2;r;g;bm + " " to that cell
 4. For ink cells: optionally boost foreground brightness based on fill float
-   (the "core" — simulates the bright center of a light source)
+   (the "core" - simulates the bright center of a light source)
 ```
 
 **Bloom color source options:**
@@ -209,10 +209,11 @@ surrounding space cells via their background color channel.
 (asciimatics, aalib, jp2a, blessed, textual) uses background color for spatial
 light bleeding. Patent-flag candidate.
 
-### 4e — C13: HDR Tone Mapping
+### 4e - C13: HDR Tone Mapping **`done` 2026-04-09**
 
 Replaces the linear float→char mapping inside fill functions with a named
 tone curve. Applied as a post-step before char selection.
+`apply_tone_curve(float_grid, curve)` in `justdoit/effects/color.py`. Supports `blown_out:N` threshold suffix.
 
 | Curve | Formula | Visual character |
 |-------|---------|-----------------|
@@ -223,13 +224,13 @@ tone curve. Applied as a post-step before char selection.
 
 Most impactful on fills with high dynamic range (flame, plasma, fractal).
 With `blown_out`, the hot core of a flame becomes solid `@` while the
-cooling outer cells retain density variation — distinctly different look from
+cooling outer cells retain density variation - distinctly different look from
 the current soft gradient.
 
 **Implementation:** ~15 lines. Add `tone_curve` param to fill functions or
 apply as a pre-processing step on the fill float grid before char mapping.
 
-### 4f — Light model axes (future)
+### 4f - Light model axes (future)
 
 | Concept | Description | Depends on |
 |---------|-------------|-----------|
@@ -243,11 +244,11 @@ apply as a pre-processing step on the fill float grid before char mapping.
 
 ---
 
-## Axis 5 — ANIMATION (time)
+## Axis 5 - ANIMATION (time)
 
 How any of the above changes between frames.
 
-### 5a — Animation sources (what drives the change)
+### 5a - Animation sources (what drives the change)
 
 | Source | Description |
 |--------|-------------|
@@ -259,18 +260,18 @@ How any of the above changes between frames.
 | coupled | two fill outputs cross-modulated (A08d plasma→flame cooling) |
 | reactive | driven by external signal (audio FFT, video frame) |
 
-### 5b — Animation targets (what the change affects)
+### 5b - Animation targets (what the change affects)
 
 | Target | Examples |
 |--------|---------|
-| fill chars | plasma_wave, flame_flicker — chars change each frame |
-| color only | neon_glitch, pulse — chars fixed, color changes |
-| spatial | sine_warp phase, iso depth — geometry shifts |
-| color + chars | A10c lava lamp — both driven by same field |
-| structure | Turing morphogenesis — fill topology changes as sim runs |
-| coupled layers | A08d — two fills modulate each other |
+| fill chars | plasma_wave, flame_flicker - chars change each frame |
+| color only | neon_glitch, pulse - chars fixed, color changes |
+| spatial | sine_warp phase, iso depth - geometry shifts |
+| color + chars | A10c lava lamp - both driven by same field |
+| structure | Turing morphogenesis - fill topology changes as sim runs |
+| coupled layers | A08d - two fills modulate each other |
 
-### 5c — Loop strategies
+### 5c - Loop strategies
 
 | Strategy | Description |
 |----------|-------------|
@@ -306,40 +307,48 @@ FONT shape  ──→  FILL behavior        [SDF font → smoother masks → smo
 | ID | Combination | Notes |
 |----|-------------|-------|
 | A_F09a | F09 wave + phase animation | 20 lines |
-| A_ISO1 | S03 iso + depth animation | iso depth swept per frame, letters breathe |
-| X_ISO_NEON | S03 iso + A03 neon on extrusion face only | depth chars flicker, front face stable |
-| X_WARP_PULSE | S01 sine_warp + A04 pulse | amplitude oscillates — text breathes AND waves |
+| A_ISO1 | S03 iso + depth animation | iso depth swept per frame, letters breathe | **done 2026-04-14** |
+| X_ISO_NEON | S03 iso + A03 neon on extrusion face only | depth chars flicker, front face stable | **done 2026-04-26**
+| X_WARP_PULSE | S01 sine_warp + A04 pulse | amplitude oscillates - text breathes AND waves |
+
+### C11 infrastructure - DONE (2026-04-06)
+
+fill_float_colorize(text, float_grid, palette) → str implemented in justdoit/effects/color.py.
+Standard palettes: FIRE_PALETTE, LAVA_PALETTE, SPECTRAL_PALETTE, BIO_PALETTE.
+PALETTE_REGISTRY maps names to lists. Unlocks the full tier below.
 
 ### Needs C11 (fill-float → per-cell color)
 
-| ID | Combination | Notes |
-|----|-------------|-------|
-| A08c | flame + fire_palette | hot base, cool tips, sin ripple |
-| A10c | plasma + lava_palette | both chars and color from plasma float |
-| A_F09b | wave + spectral | interference fringes colored |
-| A_VOR1 | voronoi + cell_palette | stained glass |
-| X_TURING_BIO | turing + bio_palette | leopard/zebra coat colors |
-| X_FRACTAL_CLASSIC | fractal + escape_palette | classic Mandelbrot color bands |
+**Note:** `plasma_float_grid()` in generative.py is the established pattern for exposing fill float data to C11 colorization. Future C11 consumers (A08c, A_F09b, X_TURING_BIO, X_FRACTAL_CLASSIC) should follow the same pattern: add a `*_float_grid()` companion function alongside the fill function.
+
+| ID | Combination | Notes | Status |
+|----|-------------|-------|--------|
+| A08c | flame + fire_palette | hot base, cool tips, sin ripple | **`done` 2026-04-09** |
+| A10c | plasma + lava_palette | both chars and color from plasma float | **`done` 2026-04-06** |
+| A_F09b | wave + spectral | interference fringes colored | `idea` |
+| A_VOR1 | voronoi + cell_palette | stained glass | **`done` 2026-04-06** |
+| X_TURING_BIO | turing + bio_palette | leopard/zebra coat colors | **`done` 2026-04-15** |
+| X_FRACTAL_CLASSIC | fractal + escape_palette | classic Mandelbrot color bands | **`done` 2026-04-18** |
 
 ### Needs C12 (bloom infrastructure)
 
 | ID | Combination | Visual interest | Notes |
 |----|-------------|----------------|-------|
-| X_NEON_BLOOM | neon fill + C12 bloom | tension=5 emerge=4 distinct=5 wow=5 → 19 | Neon chars glow into surrounding space. Neon color defines bloom hue. Minimal exterior radius (2–3 cells). |
-| X_FLAME_BLOOM | flame fill + C12 bloom + C13 blown_out | tension=5 emerge=5 distinct=5 wow=5 → 20 | Hot core blows out to solid chars; bloom bleeds orange light into surrounding space. Fire that lights the air. Highest-score combo in catalog. |
-| X_PLASMA_BLOOM | plasma fill + C12 bloom | tension=4 emerge=4 distinct=5 wow=4 → 17 | Bloom radius oscillates with plasma field value — exterior glow breathes with the wave. |
-| A_BLOOM1 | C12 bloom radius + sin animation | tension=4 emerge=4 distinct=5 wow=5 → 18 | Bloom breathes in/out around any fill. Combined with flame interior: pulsing fire halo. |
+| X_NEON_BLOOM | neon fill + C12 bloom | tension=5 emerge=4 distinct=5 wow=5 → 19 | Neon chars glow into surrounding space. Neon color defines bloom hue. Minimal exterior radius (2-3 cells). | **`done` 2026-04-08** (patent-review branch) |
+| X_FLAME_BLOOM | flame fill + C12 bloom + C13 blown_out | tension=5 emerge=5 distinct=5 wow=5 → 20 | Hot core blows out to solid chars; bloom bleeds orange light into surrounding space. Fire that lights the air. Highest-score combo in catalog. | **`done` 2026-04-09** |
+| X_PLASMA_BLOOM | plasma fill + C12 bloom | tension=4 emerge=4 distinct=5 wow=4 → 17 | Bloom radius oscillates with plasma field value - exterior glow breathes with the wave. |
+| A_BLOOM1 | C12 bloom radius + sin animation | tension=4 emerge=4 distinct=5 wow=5 → 18 | Bloom breathes in/out around any fill. Combined with flame interior: pulsing fire halo. | **`done` 2026-04-10** |
 
 ### Needs new infrastructure
 
 | ID | Combination | Infra needed |
 |----|-------------|-------------|
-| A08d | plasma modulates flame cooling rate | fill-float → fill-param coupling |
+| A08d | plasma modulates flame cooling rate | fill-float → fill-param coupling | **done 2026-04-17** |
 | A_N09a | Turing step animation | precompute snapshot series |
 | X_ISO_FLAME | iso + flame on extrusion face | per-face fill routing |
 | X_ISO_DEPTH_COLOR | iso + Z-depth color | depth layer → color map |
-| X_NOISE_WARP | Perlin noise modulates sine_warp phase | fill-float → spatial param |
-| X_PLASMA_WARP | plasma field modulates sine_warp amplitude per row | fill-float → spatial param |
+| X_NOISE_WARP | Perlin noise modulates sine_warp phase per row | fill-float → spatial param | **done 2026-04-21** - noise per-row mean → phase_map param on sine_warp(). New ``phase_map`` param (parallel to amplitude_map but controls timing, not magnitude). Second FILL→SPATIAL coupling axis: phase vs amplitude produces qualitatively different warp character. |
+| X_PLASMA_WARP | plasma field modulates sine_warp amplitude per row | fill-float → spatial param | **done 2026-04-17** - plasma per-row mean → amplitude_map param on sine_warp(). First FILL→SPATIAL coupling in codebase. |
 
 ### High novelty cross-breeds (multiple sessions)
 
@@ -347,15 +356,18 @@ FONT shape  ──→  FILL behavior        [SDF font → smoother masks → smo
 |----|-------------|-------------|
 | X_PLASMA_ISO | plasma fill + iso extrude + C11 | 3D block letters with lava-lamp interior AND Z-depth color on faces |
 | X_FLAME_ISO | flame fill + iso extrude + A08c color | burning 3D letters, hot base white, tips red, depth face ember-shaded |
-| X_FLAME_ISO_BLOOM | flame fill + iso extrude + C12 bloom | **flagship**: burning 3D letters that light the surrounding space. Depth face is ember-shaded; exterior cells glow orange from bloom falloff. Three axes: fill, spatial, light. |
-| X_TURING_WARP | turing spots/stripes modulate sine_warp phase per row | letters warp in the pattern of their own skin |
+| X_FLAME_ISO_BLOOM | flame fill + iso extrude + C12 bloom | **flagship**: burning 3D letters that light the surrounding space. Depth face is ember-shaded; exterior cells glow orange from bloom falloff. Three axes: fill, spatial, light. | **done 2026-04-20** |
+| X_TURING_WARP | turing spots/stripes modulate sine_warp phase per row | letters warp in the pattern of their own skin | **done 2026-04-19** |
+| X_NOISE_WARP | Perlin noise float → per-row phase_map → sine_warp | rippled-glass / crinkled-cellophane distortion; static noise topology flows as global phase sweeps | **done 2026-04-21** |
+| X_PLASMA_NOISE_WARP | plasma amplitude_map + noise phase_map → sine_warp simultaneously | two independent float fields on two independent warp params: rows swing different distances (plasma) AND peak at different moments (noise). Maximum FILL→SPATIAL coupling on a single transform. | **done 2026-04-22** |
 | X_RD_PLASMA | reaction-diffusion fill spatially modulated by plasma field | two generative systems layered, plasma shapes where RD can grow |
 | X_FRACTAL_ZOOM_ANIM | fractal fill + zoom animation + C11 escape bands | zoom into Mandelbrot live inside letterforms, colored |
-| X_LIVING_COLOR | CA fill animated (A06) + C11 step-count color | cells age, older cells shift hue toward red/orange |
+| X_LIVING_COLOR | CA fill animated (A06) + C11 step-count color | cells age, older cells shift hue toward red/orange | **done 2026-04-24** — CB6 ⚠️ Partial: metabolic map legible, CA converges quickly to bimodal (blue transients + red stable), less dynamic than predicted |
+| X_LIVING_WRAP | X_LIVING_COLOR with wrap boundary conditions | exterior wraps to opposite side — GoL can sustain gliders/oscillators indefinitely. Changes color dynamics: no stable convergence, perpetual blue oscillation with occasional red clusters. Tuning: alive_prob=0.28 (critical density), wrap boundary in _gol_step(). ~20 line change to living_color(). |
 
 ---
 
-## S03 Isometric — Specific Cross-Breed Ideas
+## S03 Isometric - Specific Cross-Breed Ideas
 
 S03 is particularly rich because it has a *structural* axis (front face vs depth face)
 that no other technique has. Each face can be treated independently.
@@ -376,17 +388,25 @@ that no other technique has. Each face can be treated independently.
 
 Based on implementation cost vs novelty payoff:
 
-1. **C11** — fill-float → per-cell color. Unlocks 6+ C11-gated combos. ~40 lines.
-2. **C12** — bloom / exterior glow via background color channel. Unlocks 4+ bloom combos. ~60 lines. **Patent-flag before shipping.**
-3. **C13** — HDR tone mapping curves inside fills. ~15 lines. Pairs with C12 for maximum impact.
-4. **A_F09a** — wave phase animation. ~20 lines. Near-free warmup before a heavier session.
-5. **A08c** — flame gradient + sin-wave color. First C11 consumer. Validates infra.
-6. **X_NEON_BLOOM** — neon + C12. First C12 consumer. Score 19/20.
-7. **X_FLAME_BLOOM** — flame + C12 + C13 blown_out. Score 20/20. Flagship light effect.
-8. **A_N09a** — Turing morphogenesis animation. Standalone, highest scientific novelty.
-9. **A_ISO1** — isometric depth animation. Short, makes S03 come alive.
-10. **A08d** — plasma-modulated flame. Fill-float→fill-param coupling. Most novel generative cross-breed.
-11. **X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project's flagship composite visual.
+~~1. **C11** - fill-float → per-cell color. Unlocks 6+ C11-gated combos.~~ **DONE 2026-04-06**
+~~A_VOR1 - Voronoi Stained Glass. First C11 consumer. Score 19/20.~~ **DONE 2026-04-06**
+~~A10c - Plasma Lava Lamp. Second C11 consumer. Score 18/20.~~ **DONE 2026-04-06**
+~~1. **C12** - bloom / exterior glow via background color channel. Unlocks 4+ bloom combos. ~60 lines. **Patent-flag before shipping.**~~ **DONE 2026-04-08** (patent-review branch only)
+~~X_NEON_BLOOM - neon + C12. First C12 consumer. Score 19/20.~~ **DONE 2026-04-08** (patent-review branch only)
+1. ~~**C13** - HDR tone mapping curves inside fills.~~ **`done` 2026-04-09** - `apply_tone_curve()` with linear/reinhard/aces/blown_out.
+2. ~~**A08c** - flame gradient + sin-wave color.~~ **`done` 2026-04-09** - `flame_gradient_color()` in presets.py.
+3. ~~**X_FLAME_BLOOM** - flame + C12 + C13 blown_out. Score 20/20.~~ **`done` 2026-04-09** - `flame_bloom()` flagship 20/20 composite.
+~~4. **A_BLOOM1** - bloom pulse. Breathing bloom radius around burning letterforms. Score 18/20.~~ **DONE 2026-04-10**
+~~4. **A_N09a** - Turing morphogenesis animation.~~ **DONE 2026-04-15** (single-pass FHN snapshots + bio palette; `turing_morphogenesis()` in presets.py)
+~~X_TURING_BIO - Turing biological coat colors.~~ **DONE 2026-04-15** (turing float grid + bio palette rotation; `turing_bio()` in presets.py)
+5. ~~**A_ISO1** - isometric depth animation. Short, makes S03 come alive.~~ **DONE 2026-04-14**
+6. **A08d** - plasma-modulated flame. Fill-float→fill-param coupling. Most novel generative cross-breed. ~~done 2026-04-17~~
+7. **X_PLASMA_WARP** — plasma field modulates sine_warp per-row amplitude. First FILL→SPATIAL coupling. ~~done 2026-04-17~~
+8. **X_TURING_WARP** — Turing FHN activator field drives per-row sine_warp amplitude. Self-referential: letters deform in geometry of own biological skin. ~~done 2026-04-19~~
+9. ~~**X_FLAME_ISO_BLOOM** — flame + iso + bloom. Three axes. The project's flagship composite visual.~~ **done 2026-04-20**
+10. ~~**X_NOISE_WARP** — Perlin noise per-row means → new phase_map param on sine_warp(). Phase vs amplitude: categorically different spatial warp character.~~ **done 2026-04-21**
+11. ~~**X_PLASMA_NOISE_WARP** — plasma amplitude_map × noise phase_map on sine_warp() simultaneously. Maximum FILL→SPATIAL coupling: two independent float fields on two independent warp params. Each row differs in BOTH magnitude AND timing per frame.~~ **done 2026-04-22**
+12. ~~**X_LIVING_COLOR** — A06 GoL + C11 age-heat coloring. Metabolic map of CA stability: blue=transient, red=stable. AGE_PALETTE added. CB6 ⚠️ Partial — bimodal color pattern (12 red stable + 154 blue) is visually legible but less dynamic than predicted.~~ **done 2026-04-24**
 
 ---
 
@@ -407,7 +427,7 @@ font → mask → fill_fn(mask) → (chars_grid, float_grid)
 ```
 
 The float grid passthrough is the key architectural change. It doesn't have to be
-done all at once — C11 can be implemented as a post-process function that accepts
+done all at once - C11 can be implemented as a post-process function that accepts
 the string output + a separately computed float grid, which is how A08c works today
 (derive the palette from row index, not the actual heat values). The "proper" version
 that routes actual fill floats comes later and is the unlock for A08d and the spatial
@@ -423,11 +443,11 @@ implementing session starts with a clear plan rather than designing on the fly.
 ### The dual-channel opportunity
 
 Every terminal cell has two independent 24-bit color channels:
-- **Foreground** `\033[38;2;r;g;bm` — the ink character color. Currently used.
-- **Background** `\033[48;2;r;g;bm` — the cell background. **Currently unused.**
+- **Foreground** `\033[38;2;r;g;bm` - the ink character color. Currently used.
+- **Background** `\033[48;2;r;g;bm` - the cell background. **Currently unused.**
 
 A space character (`" "`) with a bright background is a pure light-emitting cell.
-No glyph, no density — just a colored rectangle of terminal real estate. This is
+No glyph, no density - just a colored rectangle of terminal real estate. This is
 the bloom medium.
 
 ### Function signature
@@ -448,10 +468,10 @@ def bloom(
         intensity = falloff ** distance   (distance in cells, 1-indexed)
 
     :param text: Multi-line rendered string (may contain existing ANSI).
-    :param ink_mask: 2D bool grid — True where ink cells are (same shape as text grid).
+    :param ink_mask: 2D bool grid - True where ink cells are (same shape as text grid).
     :param bloom_color: (r, g, b) tuple for the bloom hue.
     :param radius: Max cells outward from ink to apply bloom (default 4).
-    :param falloff: Per-cell intensity falloff factor, 0–1 (default 0.9 → ~66% at dist=4).
+    :param falloff: Per-cell intensity falloff factor, 0-1 (default 0.9 → ~66% at dist=4).
     :param core_boost: If True, brighten foreground of ink edge cells slightly (inner glow).
     :returns: Multi-line string with background ANSI codes on bloom cells.
     """
@@ -476,7 +496,7 @@ def bloom(
 
 **Performance note:** naive O(space_cells × ink_cells) is acceptable for
 terminal-width text (~80×24 = 1920 cells). If slow, precompute a distance
-transform (BFS from all ink cells simultaneously) — O(cells) instead.
+transform (BFS from all ink cells simultaneously) - O(cells) instead.
 
 ### Bloom color strategies
 
@@ -491,16 +511,16 @@ The simplest and most controllable: pass a fixed `bloom_color` per preset.
 | plasma | derived from current plasma value | varies per frame |
 
 Future extension: per-cell bloom color derived from nearest ink cell's actual
-foreground RGB — spatially accurate but more complex. Implement fixed-color first.
+foreground RGB - spatially accurate but more complex. Implement fixed-color first.
 
 ### Output compatibility
 
 The bloom function emits `\033[48;2;...m` background codes and `\033[0m` resets.
 Downstream SVG/PNG exporters in `justdoit/output/` need to handle background
-color tokens — check and extend the tokenizer in `color.py` if needed.
+color tokens - check and extend the tokenizer in `color.py` if needed.
 
 The SVG exporter in `svg.py` currently writes `<rect>` background fills per char
-(check `_bg_color` param) — confirm it handles the background ANSI codes before
+(check `_bg_color` param) - confirm it handles the background ANSI codes before
 calling bloom a gallery-ready technique. If the SVG exporter can't render it,
 bloom is terminal-only for now and should be flagged as such in TECHNIQUES.md.
 
