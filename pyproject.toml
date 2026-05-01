@@ -41,4 +41,5 @@ ignore = ["E221"]  # allow aligned assignments (used throughout for dict/list re
 dev = [
     "pytest>=8.0",
     "Pillow>=10.0",
+    "numpy>=1.24",
 ]

@@ -1,6 +1,6 @@
 # Animation Gallery
 
-Auto-generated 2026-04-04 — do not edit manually.
+Auto-generated 2026-04-26 — do not edit manually.
 Run `uv run python scripts/generate_anim_gallery.py` to regenerate.
 
 Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
@@ -191,3 +191,187 @@ Each animation is saved as an APNG (embeds inline) and an asciinema `.cast`
 | Variant | Preview | Terminal |
 |---------|---------|----------|
 | flame-flicker-hot-red | ![flame-flicker-hot-red](A08b-flame-flicker-hot-red.apng) | [▶ terminal](A08b-flame-flicker-hot-red.cast) |
+
+## A_VOR1 — Voronoi-Stained-Glass
+
+**60 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| voronoi-stained-glass-spectral | ![voronoi-stained-glass-spectral](A_VOR1-voronoi-stained-glass-spectral.apng) | [▶ terminal](A_VOR1-voronoi-stained-glass-spectral.cast) |
+
+## A_VOR1b — Voronoi-Stained-Glass
+
+**60 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| voronoi-stained-glass-fire | ![voronoi-stained-glass-fire](A_VOR1b-voronoi-stained-glass-fire.apng) | [▶ terminal](A_VOR1b-voronoi-stained-glass-fire.cast) |
+
+## A10c — Plasma-Lava-Lamp
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-lava-lamp | ![plasma-lava-lamp](A10c-plasma-lava-lamp.apng) | [▶ terminal](A10c-plasma-lava-lamp.cast) |
+
+## A10c — Plasma-Lava-Spectral
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-lava-spectral | ![plasma-lava-spectral](A10c-plasma-lava-spectral.apng) | [▶ terminal](A10c-plasma-lava-spectral.cast) |
+
+## A08c — Flame-Gradient-Color
+
+**48 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| flame-gradient-color | ![flame-gradient-color](A08c-flame-gradient-color.apng) | [▶ terminal](A08c-flame-gradient-color.cast) |
+
+## X_FLAME_BLOOM — Flame-Bloom
+
+**48 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| flame-bloom | ![flame-bloom](X_FLAME_BLOOM-flame-bloom.apng) | [▶ terminal](X_FLAME_BLOOM-flame-bloom.cast) |
+
+## A_BLOOM1 — Bloom-Pulse
+
+**48 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| bloom-pulse-fire | ![bloom-pulse-fire](A_BLOOM1-bloom-pulse-fire.apng) | [▶ terminal](A_BLOOM1-bloom-pulse-fire.cast) |
+
+## X_PLASMA_BLOOM — Plasma Bloom
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-bloom-spectral | ![plasma-bloom-spectral](X_PLASMA_BLOOM-plasma-bloom-spectral.apng) | [▶ terminal](X_PLASMA_BLOOM-plasma-bloom-spectral.cast) |
+
+## A_ISO1 — Isometric Depth Breathe
+
+**46 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| iso-depth-breathe | ![iso-depth-breathe](A_ISO1-iso-depth-breathe.apng) | [▶ terminal](A_ISO1-iso-depth-breathe.cast) |
+
+## X_TURING_BIO — Turing Biological Coat Colors
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| turing-bio-spots | ![turing-bio-spots](X_TURING_BIO-turing-bio-spots.apng) | [▶ terminal](X_TURING_BIO-turing-bio-spots.cast) |
+
+## X_TURING_BIO — Turing Biological Coat Stripes
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| turing-bio-stripes | ![turing-bio-stripes](X_TURING_BIO-turing-bio-stripes.apng) | [▶ terminal](X_TURING_BIO-turing-bio-stripes.cast) |
+
+## A_N09a — Turing Morphogenesis
+
+**16 frames** · **4.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| turing-morphogenesis-spots | ![turing-morphogenesis-spots](A_N09a-turing-morphogenesis-spots.apng) | [▶ terminal](A_N09a-turing-morphogenesis-spots.cast) |
+
+## A08d — Plasma-Modulated Flame
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-flame | ![plasma-flame](A08d-plasma-flame.apng) | [▶ terminal](A08d-plasma-flame.cast) |
+
+## X_PLASMA_WARP — Plasma-Modulated Sine Warp
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-warp-spectral | ![plasma-warp-spectral](X_PLASMA_WARP-plasma-warp-spectral.apng) | [▶ terminal](X_PLASMA_WARP-plasma-warp-spectral.cast) |
+
+## X_FRACTAL_CLASSIC — Fractal-Color-Cycle
+
+**144 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| fractal-escape-escape | ![fractal-escape-escape](X_FRACTAL_CLASSIC-fractal-escape-escape.apng) | [▶ terminal](X_FRACTAL_CLASSIC-fractal-escape-escape.cast) |
+
+## X_TURING_WARP — Turing Morphogenesis-Modulated Sine Warp
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| turing-warp-spots | ![turing-warp-spots](X_TURING_WARP-turing-warp-spots.apng) | [▶ terminal](X_TURING_WARP-turing-warp-spots.cast) |
+
+## X_FLAME_ISO_BLOOM — Flame Isometric Bloom
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| flame-iso-bloom-fire | ![flame-iso-bloom-fire](X_FLAME_ISO_BLOOM-flame-iso-bloom-fire.apng) | [▶ terminal](X_FLAME_ISO_BLOOM-flame-iso-bloom-fire.cast) |
+
+## X_NOISE_WARP — Perlin Noise Phase-Map Sine Warp
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| noise-warp-spectral | ![noise-warp-spectral](X_NOISE_WARP-noise-warp-spectral.apng) | [▶ terminal](X_NOISE_WARP-noise-warp-spectral.cast) |
+
+## X_PLASMA_NOISE_WARP — Plasma Amplitude × Noise Phase Sine Warp
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| plasma-noise-warp-spectral | ![plasma-noise-warp-spectral](X_PLASMA_NOISE_WARP-plasma-noise-warp-spectral.apng) | [▶ terminal](X_PLASMA_NOISE_WARP-plasma-noise-warp-spectral.cast) |
+
+## A06 — Living Fill — Conway Gol
+
+**240 frames** · **10.0fps** · play-once
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| living-fill | ![living-fill](A06-living-fill.apng) | [▶ terminal](A06-living-fill.cast) |
+
+## X_LIVING_COLOR — Living Color — Gol Age-Heat
+
+**240 frames** · **10.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| living-color-age | ![living-color-age](X_LIVING_COLOR-living-color-age.apng) | [▶ terminal](X_LIVING_COLOR-living-color-age.cast) |
+
+## X_ISO_NEON — Iso Neon Glitch — Isometric Extrusion × Neon Depth Flicker
+
+**72 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| iso-neon-glitch | ![iso-neon-glitch](X_ISO_NEON-iso-neon-glitch.apng) | [▶ terminal](X_ISO_NEON-iso-neon-glitch.cast) |
+
+## A11 — Transporter Materialize
+
+**96 frames** · **12.0fps** · looping
+
+| Variant | Preview | Terminal |
+|---------|---------|----------|
+| transporter-materialize | ![transporter-materialize](A11-transporter-materialize.apng) | [▶ terminal](A11-transporter-materialize.cast) |
