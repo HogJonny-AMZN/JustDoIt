@@ -88,3 +88,53 @@ def test_sawtooth_sweep_amplitude_bounded():
 
     assert result.max() <= 1.0
     assert result.min() >= -1.0
+
+
+def test_bandpass_noise_shape_and_dtype():
+    """bandpass_noise returns float32 array of correct length."""
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import bandpass_noise
+
+    result = bandpass_noise(1000.0, 200.0, 0.5, amplitude=0.1, sample_rate=44100)
+
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float32
+    assert result.shape == (int(0.5 * 44100),)
+
+
+def test_bandpass_noise_amplitude():
+    """bandpass_noise RMS is close to the requested amplitude."""
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import bandpass_noise
+
+    target = 0.1
+    result = bandpass_noise(1000.0, 200.0, 1.0, amplitude=target, sample_rate=44100)
+    rms = float(np.sqrt(np.mean(result ** 2)))
+
+    assert abs(rms - target) < 0.02  # within 20% of target
+
+
+def test_sparkle_bursts_shape_and_dtype():
+    """sparkle_bursts returns float32 array of correct length."""
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import sparkle_bursts
+
+    result = sparkle_bursts(10, (800.0, 3000.0), 1.2, sample_rate=44100)
+
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float32
+    assert result.shape == (int(1.2 * 44100),)
+
+
+def test_sparkle_bursts_zero_count():
+    """sparkle_bursts with count=0 returns a silent array."""
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("sounddevice")
+    from justdoit.sound.synth import sparkle_bursts
+
+    result = sparkle_bursts(0, (800.0, 3000.0), 0.5)
+
+    assert np.all(result == 0.0)
