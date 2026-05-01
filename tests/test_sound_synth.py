@@ -13,19 +13,18 @@ def test_sound_available_is_bool():
 def test_sound_import_does_not_crash_without_deps(monkeypatch):
     """Importing justdoit.sound must never raise even if numpy/sounddevice absent."""
     import sys
-    # Remove cached module so the import re-runs
+    import justdoit
+    # Remove justdoit.sound* from sys.modules so __init__ re-runs the try/except
     for key in list(sys.modules):
         if key.startswith("justdoit.sound"):
             del sys.modules[key]
-    # Patch numpy import to fail
-    real_import = __builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__
-
-    def fake_import(name, *args, **kwargs):
-        if name in ("numpy", "sounddevice"):
-            raise ImportError(f"Fake missing: {name}")
-        return real_import(name, *args, **kwargs)
-
-    monkeypatch.setattr("builtins.__import__", fake_import)
+    # Also remove the cached attribute from the parent package — otherwise
+    # `from justdoit import sound` returns the old cached module object
+    if hasattr(justdoit, "sound"):
+        monkeypatch.delattr(justdoit, "sound")
+    # Setting sys.modules[name] = None causes `import name` to raise ImportError
+    monkeypatch.setitem(sys.modules, "numpy", None)
+    monkeypatch.setitem(sys.modules, "sounddevice", None)
     from justdoit import sound  # noqa: F401  — must not raise
     assert sound.SOUND_AVAILABLE is False
 
