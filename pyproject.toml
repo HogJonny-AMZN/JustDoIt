@@ -12,9 +12,10 @@ license = { text = "MIT" }
 dependencies = []
 
 [project.optional-dependencies]
-ttf = ["Pillow>=10.0"]
+ttf   = ["Pillow>=10.0"]
 sound = ["numpy>=1.24", "sounddevice>=0.4"]
-dev = [
+game  = ["arcade>=3.0", "Pillow>=10.0"]
+dev   = [
     "pytest>=8.0",
     "Pillow>=10.0",
 ]
@@ -33,6 +34,7 @@ packages = ["justdoit"]
 testpaths = ["tests"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "manual: marks tests that require human interaction or audio hardware (excluded from CI)",
 ]
 
 [tool.ruff]
@@ -50,5 +52,6 @@ dev = [
     "Pillow>=10.0",
     "numpy>=1.24",
     "sounddevice>=0.4",
+    "arcade>=3.0",
     "ruff>=0.3.0",
 ]
