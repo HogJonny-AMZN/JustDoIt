@@ -113,7 +113,23 @@ uv sync          # installs optional deps (Pillow, numpy, sounddevice)
 uv run python justdoit.py "hello"
 ```
 
-Core is zero-dependency Python stdlib. Optional deps unlock fonts, export formats, and audio.
+**Zero-dependency core** — Pure Python 3 stdlib for basic rendering.  
+**Optional dependencies** unlock advanced features:
+
+| Dependency | Purpose | Required For |
+|------------|---------|--------------|
+| **Pillow** | Image processing, TrueType font rasterization | `--ttf` fonts, `--save-png`, `--save-apng`, advanced image sampling |
+| **numpy** | Fast array operations, waveform generation | Sound synthesis, accelerated image processing (fallback available) |
+| **sounddevice** | Audio playback | `--sound` output (experimental) |
+
+Install specific extras:
+```bash
+pip install justdoit[ttf]        # Pillow only
+pip install justdoit[sound]      # numpy + sounddevice
+pip install justdoit              # core only (zero deps)
+```
+
+**Note on numpy**: Used for sound synthesis (required) and as an optional accelerator for image processing. Core ASCII rendering always works — numpy provides performance optimization but has a pure Python fallback.
 
 ---
 

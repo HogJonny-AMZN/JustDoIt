@@ -9,7 +9,16 @@
       "Bash(git push:*)",
       "Bash(.venv/bin/pytest:*)",
       "Bash(.venv/bin/python:*)",
-      "Bash(scripts/generate_gallery.py:*)"
+      "Bash(scripts/generate_gallery.py:*)",
+      "Bash(New-Item -ItemType File -Path \"D:\\\\Depot\\\\JustDoIt\\\\game\\\\assets\\\\.gitkeep\" -Force)",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType File -Path \"D:\\\\Depot\\\\JustDoIt\\\\game\\\\assets\\\\atlas\\\\.gitkeep\" -Force)",
+      "Bash(New-Item -ItemType File -Path \"D:\\\\Depot\\\\JustDoIt\\\\game\\\\assets\\\\sprites\\\\.gitkeep\" -Force)",
+      "Bash(Write-Output \"done\")",
+      "PowerShell(New-Item *)",
+      "PowerShell(Get-ChildItem -Recurse \"D:\\\\Depot\\\\JustDoIt\\\\game\" | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"D:\\\\Depot\\\\JustDoIt\\\\\", \"\"\\) })",
+      "PowerShell(Get-ChildItem \"D:\\\\Depot\\\\JustDoIt\\\\docs\\\\game_gallery\" | Select-Object Name, @{N='KB';E={[math]::Round\\($_.Length/1KB,1\\)}} | Format-Table -AutoSize)",
+      "PowerShell(Get-Item *)"
     ]
   },
   "hooks": {
