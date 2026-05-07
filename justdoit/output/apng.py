@@ -80,7 +80,7 @@ def frame_to_image(
     """
     _require_pil()
 
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import Image, ImageDraw
 
     tokens = parse(frame)
 
@@ -136,6 +136,7 @@ def to_apng(
     bg_color: str = "#111111",
     loop: int = 0,
     font_size: int = 14,
+    font_path: Optional[str] = None,
 ) -> bytes:
     """Convert a list of ANSI frame strings to APNG bytes.
 
@@ -144,6 +145,7 @@ def to_apng(
     :param bg_color: Background color as hex string (default: '#111111').
     :param loop: Number of times to loop (0 = infinite, 1 = play once).
     :param font_size: Font size in pixels (default: 14).
+    :param font_path: Optional path to a .ttf monospace font (overrides auto-detect).
     :returns: APNG file contents as bytes.
     :raises ImportError: If Pillow is not installed.
     :raises ValueError: If frames is empty.
@@ -155,7 +157,7 @@ def to_apng(
 
     duration_ms = int(1000 / fps)
 
-    images = [frame_to_image(f, font_size=font_size, bg_color=bg_color) for f in frames]
+    images = [frame_to_image(f, font_size=font_size, bg_color=bg_color, font_path=font_path) for f in frames]
 
     # Normalize all frames to the same size (use the first frame's dimensions)
     target_w = max(img.width for img in images)
@@ -192,6 +194,7 @@ def save_apng(
     bg_color: str = "#111111",
     loop: int = 0,
     font_size: int = 14,
+    font_path: Optional[str] = None,
 ) -> None:
     """Save an animation frame list as an APNG file.
 
@@ -201,9 +204,10 @@ def save_apng(
     :param bg_color: Background color as hex string (default: '#111111').
     :param loop: Number of times to loop (0 = infinite, 1 = play once).
     :param font_size: Font size in pixels (default: 14).
+    :param font_path: Optional path to a .ttf monospace font (overrides auto-detect).
     :raises ImportError: If Pillow is not installed.
     """
-    data = to_apng(frames, fps=fps, bg_color=bg_color, loop=loop, font_size=font_size)
+    data = to_apng(frames, fps=fps, bg_color=bg_color, loop=loop, font_size=font_size, font_path=font_path)
     Path(path).write_bytes(data)
     _LOGGER.info(f"Saved APNG to {path} ({len(frames)} frames @ {fps}fps)")
 
@@ -226,11 +230,19 @@ def _load_font(font_path: Optional[str], font_size: int):
             _LOGGER.warning(f"Could not load font '{font_path}': {exc}. Falling back to default.")
 
     _candidates = [
+        # Windows native
+        "C:/Windows/Fonts/consola.ttf",
+        "C:/Windows/Fonts/cour.ttf",
+        "C:/Windows/Fonts/lucon.ttf",
+        # WSL Windows mount
+        "/mnt/c/Windows/Fonts/consola.ttf",
+        "/mnt/c/Windows/Fonts/cour.ttf",
+        # Linux
         "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
         "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
+        # macOS
         "/System/Library/Fonts/Courier.ttc",
-        "/mnt/c/Windows/Fonts/cour.ttf",
     ]
     for candidate in _candidates:
         if os.path.exists(candidate):

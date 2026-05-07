@@ -20,7 +20,6 @@ All functions:
 import logging as _logging
 import math
 import re
-from typing import Optional
 
 # -------------------------------------------------------------------------
 # module global scope

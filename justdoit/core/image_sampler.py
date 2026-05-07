@@ -26,6 +26,7 @@ try:
     _NUMPY_AVAILABLE = True
 except ImportError:
     _NUMPY_AVAILABLE = False
+    _LOGGER.info("numpy not available — using pure Python fallback for image processing")
 
 
 # -------------------------------------------------------------------------
@@ -221,6 +222,8 @@ def image_to_ascii(
 
     if _NUMPY_AVAILABLE:
         import numpy as np
+        _LOGGER.debug("Using numpy-accelerated image sampling for %dx%d → %d cols x %d rows",
+                     img_w, img_h, cols, rows)
         gray_arr = np.array(gray_image)
         rgb_arr = np.array(rgb_image) if color else None
 
@@ -237,6 +240,8 @@ def image_to_ascii(
                 row_data.append((ch, rgb))
             grid.append(row_data)
     else:
+        _LOGGER.debug("Using pure Python image sampling (numpy unavailable) for %dx%d → %d cols x %d rows",
+                     img_w, img_h, cols, rows)
         gray_pixels = list(gray_image.tobytes())
         if color:
             raw = rgb_image.tobytes()

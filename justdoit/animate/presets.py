@@ -386,7 +386,7 @@ def density_dissolve(
             if color:
                 # Apply color only to non-space chars
                 colored = ""
-                from justdoit.effects.color import colorize, COLORS
+                from justdoit.effects.color import colorize
                 for ch in line:
                     if ch != " ":
                         colored += colorize(ch, color)

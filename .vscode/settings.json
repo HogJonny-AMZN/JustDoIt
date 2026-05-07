@@ -1,0 +1,64 @@
+{
+  // Python interpreter - use local .venv
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  
+  // Linting configuration - disable legacy linters
+  "python.linting.enabled": false,
+  "python.linting.flake8Enabled": false,
+  "python.linting.pylintEnabled": false,
+  "python.linting.mypyEnabled": false,
+  
+  // Disable flake8 extension explicitly (ms-python.flake8)
+  "flake8.enabled": false,
+  
+  // Disable isort extension completely - Ruff handles import sorting
+  "isort.check": false,
+  "isort.enable": false,
+  "isort.args": [],
+  
+  // Ruff - modern Python linter and formatter (configured in pyproject.toml)
+  "ruff.enable": true,
+  "ruff.importStrategy": "fromEnvironment",
+  "ruff.path": ["${workspaceFolder}/.venv/Scripts/ruff.exe"],
+  "ruff.lint.enable": true,
+  "ruff.lint.run": "onType",
+  
+  // Python language-specific settings
+  "[python]": {
+    "editor.formatOnSave": false,
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "never",
+      "source.organizeImports.isort": "never"
+    }
+  },
+  
+  // Global formatting settings
+  "python.formatting.provider": "none",
+  
+  // Testing - use pytest from local .venv
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
+  
+  // Terminal integration - ensure .venv activation
+  "python.terminal.activateEnvironment": true,
+  
+  // Pylance/IntelliSense configuration - use Pylance for type checking instead of mypy
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}"
+  ],
+  "python.analysis.diagnosticMode": "workspace",
+  
+  // Markdown linting - relax some rules
+  "markdownlint.config": {
+    "MD024": false,  // Allow duplicate headings
+    "MD032": false,  // Relax blank lines around lists
+    "MD040": false,  // Allow code blocks without language
+    "MD060": false   // Relax table column styling
+  }
+}

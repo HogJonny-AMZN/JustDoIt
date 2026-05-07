@@ -27,11 +27,12 @@ the image-to-ASCII pipeline (G09) and tests.
 import logging as _logging
 from typing import Optional
 
-from justdoit.core.char_db import (
+from justdoit.core.char_db import (  # noqa: F401
     PRINTABLE_ASCII as SHAPE_CHARS,
     get_char_db as _get_char_db,
     nearest_char as _nearest_char,
 )
+
 
 # -------------------------------------------------------------------------
 # module global scope
