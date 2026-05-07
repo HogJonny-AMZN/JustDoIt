@@ -13,7 +13,6 @@ for future photo-to-ASCII use).
 
 import logging as _logging
 import string
-from typing import Optional
 
 # -------------------------------------------------------------------------
 # module global scope

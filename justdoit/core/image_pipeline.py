@@ -13,7 +13,6 @@ Requires Pillow.
 """
 
 import logging as _logging
-from typing import Optional
 
 # -------------------------------------------------------------------------
 # module global scope
@@ -126,7 +125,6 @@ def render_text_as_image(
     """
     from PIL import Image, ImageDraw, ImageFont
 
-    from justdoit.core.image_sampler import image_to_ascii
 
     canvas_w = output_cols * cell_w
     canvas_h = output_rows * cell_h

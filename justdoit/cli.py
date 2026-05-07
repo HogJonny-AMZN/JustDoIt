@@ -10,7 +10,7 @@ import argparse
 import logging as _logging
 import os
 import sys
-from typing import Optional
+from pathlib import Path
 
 from justdoit.fonts import FONTS
 from justdoit.effects.color import COLORS, colorize
@@ -36,6 +36,72 @@ __version__ = "0.1.0"
 __author__ = ["jGalloway"]
 
 _LOGGER = _logging.getLogger(_MODULE_NAME)
+
+
+# -------------------------------------------------------------------------
+def _validate_text_length(text: str, max_length: int = 1000) -> None:
+    """Validate text length to prevent excessive memory usage.
+    
+    :param text: Input text to validate.
+    :param max_length: Maximum allowed character count.
+    :raises ValueError: If text exceeds max_length.
+    """
+    if len(text) > max_length:
+        raise ValueError(
+            f"Text too long: {len(text)} characters (maximum {max_length}). "
+            "Use --fit or truncate your input."
+        )
+
+
+# -------------------------------------------------------------------------
+def _validate_ttf_path(path: str) -> None:
+    """Validate TTF/OTF font file path.
+    
+    :param path: Path to font file.
+    :raises ValueError: If path is invalid, not a file, or wrong extension.
+    """
+    font_path = Path(path)
+    
+    if not font_path.exists():
+        raise ValueError(f"TTF font not found: {path}")
+    
+    if not font_path.is_file():
+        raise ValueError(f"TTF path is not a file: {path}")
+    
+    if font_path.suffix.lower() not in {".ttf", ".otf"}:
+        raise ValueError(
+            f"Invalid font file extension: {font_path.suffix}. "
+            "Expected .ttf or .otf"
+        )
+
+
+# -------------------------------------------------------------------------
+def _validate_save_path(path: str, expected_ext: str) -> None:
+    """Validate output file save path.
+    
+    :param path: Output file path.
+    :param expected_ext: Expected file extension (e.g., '.svg', '.png').
+    :raises ValueError: If path is invalid or parent directory doesn't exist.
+    """
+    save_path = Path(path)
+    
+    # Check parent directory exists
+    parent = save_path.parent
+    if not parent.exists():
+        raise ValueError(
+            f"Output directory does not exist: {parent}. "
+            "Create the directory first."
+        )
+    
+    # Warn if wrong extension (but don't fail)
+    if not save_path.suffix.lower() == expected_ext.lower():
+        warning_msg = (
+            f"Output path has extension {save_path.suffix}, expected {expected_ext}. "
+            "File will be saved anyway."
+        )
+        _LOGGER.warning(warning_msg)
+        # Also print to stderr so tests can see it
+        print(f"Warning: {warning_msg}", file=sys.stderr)
 
 
 # -------------------------------------------------------------------------
@@ -237,12 +303,30 @@ examples:
                 print(f"  {name:<10} {sample}")
         sys.exit(0)
 
+    # --- Validate input text length ---
+    if args.text:
+        try:
+            _validate_text_length(args.text)
+        except ValueError as exc:
+            _LOGGER.error("Text validation failed: %s", exc)
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+
     font_name: str = args.font
 
     if args.ttf:
+        # Validate TTF path before attempting to load
+        try:
+            _validate_ttf_path(args.ttf)
+        except ValueError as exc:
+            _LOGGER.error("TTF path validation failed: %s", exc)
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+        
         try:
             from justdoit.fonts.ttf import load_ttf_font
         except ImportError:
+            _LOGGER.error("TTF support unavailable: Pillow not installed")
             print(
                 "Error: TTF support requires Pillow. Install with: pip install Pillow",
                 file=sys.stderr,
@@ -251,9 +335,11 @@ examples:
         try:
             font_name = load_ttf_font(args.ttf, font_size=args.ttf_size)
         except ImportError as exc:
+            _LOGGER.error("TTF font import failed: %s", exc)
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
         except ValueError as exc:
+            _LOGGER.error("TTF font loading failed: %s", exc)
             print(f"Error loading TTF font: {exc}", file=sys.stderr)
             sys.exit(1)
 
@@ -268,6 +354,7 @@ examples:
         # Determine TTF path
         ttf_path = args.ttf if args.ttf else find_default_ttf()
         if ttf_path is None:
+            _LOGGER.error("--hd mode requires TTF font but none found")
             print(
                 "Error: --hd requires a TTF font. Use --ttf /path/to/font.ttf "
                 "or install a system font (e.g. fonts-dejavu).",
@@ -288,6 +375,7 @@ examples:
                 file=sys.stderr,
             )
         except (ImportError, ValueError) as exc:
+            _LOGGER.error("HD mode initialization failed: %s", exc)
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
 
@@ -298,6 +386,7 @@ examples:
         try:
             _target_rt = RenderTarget.from_string(args.target)
         except ValueError as exc:
+            _LOGGER.error("Gradient parsing failed: %s", exc)
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
 
@@ -368,6 +457,7 @@ examples:
                 from_col = parse_color(args.gradient[0])
                 to_col = parse_color(args.gradient[1])
             except ValueError as exc:
+                _LOGGER.error("Gradient color parsing failed: %s", exc)
                 print(f"Error: {exc}", file=sys.stderr)
                 sys.exit(1)
             output = linear_gradient(output, from_col, to_col, direction=args.gradient_dir)
@@ -376,11 +466,13 @@ examples:
                 inner_col = parse_color(args.radial[0])
                 outer_col = parse_color(args.radial[1])
             except ValueError as exc:
+                _LOGGER.error("Radial gradient color parsing failed: %s", exc)
                 print(f"Error: {exc}", file=sys.stderr)
                 sys.exit(1)
             output = radial_gradient(output, inner_col, outer_col)
         elif args.palette:
             if args.palette not in PRESETS:
+                _LOGGER.error("Unknown palette: %s", args.palette)
                 print(
                     f"Error: Unknown palette '{args.palette}'. "
                     f"Available: {', '.join(PRESETS.keys())}",
@@ -417,9 +509,21 @@ examples:
 
         # Save to file targets (can combine with terminal output)
         if args.save_html:
+            try:
+                _validate_save_path(args.save_html, ".html")
+            except ValueError as exc:
+                _LOGGER.error("HTML save path validation failed: %s", exc)
+                print(f"Error: {exc}", file=sys.stderr)
+                sys.exit(1)
             save_html(output, args.save_html)
         # --- 6. Handle --svg-font-size + --target auto-size inside save_svg block ---
         if args.save_svg:
+            try:
+                _validate_save_path(args.save_svg, ".svg")
+            except ValueError as exc:
+                _LOGGER.error("SVG save path validation failed: %s", exc)
+                print(f"Error: {exc}", file=sys.stderr)
+                sys.exit(1)
             svg_font_size = args.svg_font_size  # explicit override, may be None
             if svg_font_size is None and _target_rt is not None:
                 from justdoit.layout import measure
@@ -429,6 +533,12 @@ examples:
                 svg_font_size = _target_rt.svg_font_size_px(pt)
             save_svg(output, args.save_svg, font_size=svg_font_size or 14)
         if args.save_png:
+            try:
+                _validate_save_path(args.save_png, ".png")
+            except ValueError as exc:
+                _LOGGER.error("PNG save path validation failed: %s", exc)
+                print(f"Error: {exc}", file=sys.stderr)
+                sys.exit(1)
             try:
                 from justdoit.output.image import save_png
             except ImportError:
