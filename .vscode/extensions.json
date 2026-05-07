@@ -1,0 +1,22 @@
+{
+  "recommendations": [
+    // Python core
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+
+    // Output preview
+    "jock.svg",
+    "kisstkondoros.vscode-gutter-preview",
+
+    // Editor quality
+    "usernamehw.errorlens",
+    "eamodio.gitlens",
+
+    // Docs
+    "yzhang.markdown-all-in-one",
+
+    // ANSI terminal output debugging
+    "iliazeus.vscode-ansi"
+  ]
+}
