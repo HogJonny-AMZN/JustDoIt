@@ -7,10 +7,13 @@ via sounddevice. The update() hook is called each frame by animate.player
 and can be extended for envelope-phase-aware effects.
 """
 
-import logging as _logging
-from typing import Callable, Optional
+from __future__ import annotations
 
-import numpy as np
+import logging as _logging
+from typing import TYPE_CHECKING, Callable, Optional
+
+if TYPE_CHECKING:
+    import numpy as np
 
 # -------------------------------------------------------------------------
 # module global scope
@@ -34,9 +37,9 @@ class SoundPlayer:
     :param waveform: Pre-mixed float32 numpy array (full animation duration).
     :param sample_rate: Sample rate in Hz (default: 44100).
     :param _play_fn: Injectable play callback for testing.
-        Called as _play_fn((waveform, sample_rate)). Default: sounddevice.play.
+        Called as _play_fn(waveform, sample_rate). Default: sounddevice.play.
     :param _stop_fn: Injectable stop callback for testing.
-        Called as _stop_fn(None). Default: sounddevice.stop.
+        Called with no arguments. Default: sounddevice.stop.
     """
 
     def __init__(
@@ -51,7 +54,7 @@ class SoundPlayer:
         self._started = False
 
         if _play_fn is not None:
-            self._play = lambda: _play_fn((waveform, sample_rate))
+            self._play = lambda: _play_fn(waveform, sample_rate)
         else:
             def _default_play() -> None:
                 import sounddevice as sd
@@ -59,7 +62,7 @@ class SoundPlayer:
             self._play = _default_play
 
         if _stop_fn is not None:
-            self._stop = lambda: _stop_fn(None)
+            self._stop = _stop_fn
         else:
             def _default_stop() -> None:
                 import sounddevice as sd

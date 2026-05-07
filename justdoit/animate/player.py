@@ -87,6 +87,7 @@ def play(
     out = stream or sys.stdout
     frame_time = 1.0 / max(fps, 0.1)
     last_height = 0
+    _sound_started = False
 
     out.write(_HIDE_CURSOR)
     out.flush()
@@ -99,6 +100,7 @@ def play(
             total = len(all_frames)
             if sound_player is not None:
                 sound_player.start()
+                _sound_started = True
             idx = 0
             while True:
                 frame = all_frames[idx % total]
@@ -109,20 +111,25 @@ def play(
                 idx += 1
                 time.sleep(frame_time)
         else:
-            all_frames = list(frames)
-            total = len(all_frames)
             if sound_player is not None:
+                all_frames = list(frames)
+                total = len(all_frames)
                 sound_player.start()
-            for idx, frame in enumerate(all_frames):
-                _render_frame(out, frame, last_height)
-                last_height = frame.count("\n") + 1
-                if sound_player is not None:
+                _sound_started = True
+                for idx, frame in enumerate(all_frames):
+                    _render_frame(out, frame, last_height)
+                    last_height = frame.count("\n") + 1
                     sound_player.update(idx, total)
-                time.sleep(frame_time)
+                    time.sleep(frame_time)
+            else:
+                for frame in frames:
+                    _render_frame(out, frame, last_height)
+                    last_height = frame.count("\n") + 1
+                    time.sleep(frame_time)
     except KeyboardInterrupt:
         pass
     finally:
-        if sound_player is not None:
+        if sound_player is not None and _sound_started:
             sound_player.stop()
         out.write(_SHOW_CURSOR)
         out.write("\n")

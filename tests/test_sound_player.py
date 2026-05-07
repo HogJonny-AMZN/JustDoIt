@@ -16,7 +16,7 @@ def _make_player(duration: float = 1.0):
 
     waveform = sine_sweep(300.0, 1800.0, duration)
     calls = []
-    player = SoundPlayer(waveform, sample_rate=44100, _play_fn=calls.append)
+    player = SoundPlayer(waveform, sample_rate=44100, _play_fn=lambda w, sr: calls.append((w, sr)))
     return player, calls
 
 
@@ -64,8 +64,8 @@ def test_sound_player_stop_calls_stop_fn():
     player = SoundPlayer(
         waveform,
         sample_rate=44100,
-        _play_fn=lambda w: None,
-        _stop_fn=stop_calls.append,
+        _play_fn=lambda *_: None,
+        _stop_fn=lambda: stop_calls.append(True),
     )
     player.start()
     player.stop()
@@ -95,7 +95,7 @@ def test_animate_player_calls_sound_update_each_frame():
         def update(self, frame_idx: int, total_frames: int) -> None:
             update_calls.append((frame_idx, total_frames))
 
-    sound = _TrackingPlayer(waveform, _play_fn=lambda _: None, _stop_fn=lambda _: None)
+    sound = _TrackingPlayer(waveform, _play_fn=lambda *_: None, _stop_fn=lambda: None)
     anim_player.play(iter(["frame0\n", "frame1\n", "frame2\n"]), fps=100.0, sound_player=sound)
 
     assert len(update_calls) == 3
@@ -119,7 +119,7 @@ def test_animate_player_calls_sound_start_and_stop():
         def stop(self) -> None: events.append("stop")
         def update(self, frame_idx: int, total_frames: int) -> None: pass  # noqa: ARG002
 
-    sound = _TrackingPlayer(waveform, _play_fn=lambda _: None, _stop_fn=lambda _: None)
+    sound = _TrackingPlayer(waveform, _play_fn=lambda *_: None, _stop_fn=lambda: None)
     anim_player.play(iter(["frame\n"]), fps=100.0, sound_player=sound)
 
     assert events == ["start", "stop"]
