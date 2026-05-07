@@ -67,7 +67,7 @@ def to_image(
     """
     _require_pil()
 
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import Image, ImageDraw
 
     tokens = parse(text)
 
