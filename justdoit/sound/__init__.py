@@ -2,8 +2,10 @@
 Package: justdoit.sound
 Optional audio engine — procedural synthesis + frame-synchronized playback.
 
-Gracefully unavailable when numpy or sounddevice are not installed.
-All public API is no-op-safe when SOUND_AVAILABLE is False.
+Gracefully unavailable when numpy or sounddevice are not installed (including
+when PortAudio is missing, which raises OSError on sounddevice import).
+When SOUND_AVAILABLE is False, only that flag is exported — SoundPlayer and
+the synth helpers are not defined. Check SOUND_AVAILABLE before importing them.
 """
 
 import logging as _logging
@@ -31,6 +33,6 @@ try:
     )
     from justdoit.sound.player import SoundPlayer  # noqa: F401
     SOUND_AVAILABLE: bool = True
-except ImportError as _e:
-    _LOGGER.debug("Sound unavailable: %s", _e)
+except (ImportError, OSError) as _e:
+    _LOGGER.info("Sound module unavailable (requires numpy + sounddevice): %s", _e)
     SOUND_AVAILABLE: bool = False

@@ -3,8 +3,11 @@ Package: justdoit.sound.synth
 Procedural waveform synthesis helpers for the JustDoIt sound engine.
 
 All functions return float32 numpy arrays at the given sample_rate.
-Requires numpy — import is not gated here; callers must ensure SOUND_AVAILABLE.
+numpy is a required runtime dependency; this module is only imported when
+justdoit.sound.SOUND_AVAILABLE is True (i.e. numpy and sounddevice are present).
 """
+
+from __future__ import annotations
 
 import logging as _logging
 
@@ -35,6 +38,8 @@ def sine_sweep(
     :param sample_rate: Sample rate in Hz (default: 44100).
     :returns: float32 array of length int(sample_rate * duration).
     """
+    if duration <= 0 or sample_rate <= 0:
+        return np.zeros(0, dtype=np.float32)
     n = int(sample_rate * duration)
     t = np.linspace(0.0, duration, n, endpoint=False)
     # Instantaneous phase: integral of 2π * f(t) where f(t) ramps linearly
@@ -57,6 +62,8 @@ def sawtooth_sweep(
     :param sample_rate: Sample rate in Hz (default: 44100).
     :returns: float32 array of length int(sample_rate * duration), values in [-1, 1].
     """
+    if duration <= 0 or sample_rate <= 0:
+        return np.zeros(0, dtype=np.float32)
     n = int(sample_rate * duration)
     t = np.linspace(0.0, duration, n, endpoint=False)
     # Accumulated cycles: same chirp phase as sine_sweep divided by 2π
@@ -84,6 +91,8 @@ def bandpass_noise(
     :param sample_rate: Sample rate in Hz (default: 44100).
     :returns: float32 array of length int(sample_rate * duration).
     """
+    if duration <= 0 or sample_rate <= 0 or bandwidth_hz <= 0:
+        return np.zeros(0, dtype=np.float32)
     n = int(sample_rate * duration)
     noise = np.random.default_rng().standard_normal(n).astype(np.float32)
     freqs = np.fft.rfftfreq(n, d=1.0 / sample_rate)
@@ -171,6 +180,8 @@ def pitch_waver(
     :returns: float32 array same shape as signal.
     """
     n = len(signal)
+    if n == 0:
+        return signal.copy()
     t = np.arange(n, dtype=np.float64) / sample_rate
     phase_offset = (deviation / (2.0 * np.pi * max(rate, 1e-6))) * np.sin(2.0 * np.pi * rate * t)
     read_pos = np.clip((t + phase_offset) * sample_rate, 0.0, n - 1.0)
