@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(cd /mnt/d/Depot/JustDoIt *)",
+      "Read(//mnt/d/Depot/**)",
+      "Read(//mnt/**)",
+      "Bash(ls)",
+      "Read(//c/Windows/Fonts/**)"
     ]
   }
 }

@@ -66,7 +66,11 @@ def test_all_techniques():
     # ------------------------------------------------------------------
     # F01 — density fill
     density = render(TEXT, font="block", fill="density")
-    assert "@" in density or "#" in density, "F01: density fill should contain dense chars"
+    # A block font yields a binary mask, so solid ink maps to the darkest density
+    # char (█), not @/# (those are mid-gray ramps). Accept any of the densest chars.
+    from justdoit.effects.fill import DENSITY_CHARS
+
+    assert any(c in density for c in DENSITY_CHARS[:6]), "F01: density fill should contain dense chars"
 
     # ------------------------------------------------------------------
     # F06 — SDF fill

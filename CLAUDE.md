@@ -32,6 +32,7 @@ Use these when asked to perform common tasks — load the SKILL.md, follow it ex
 | Add a new fill effect | [`.claude/skills/add-fill-effect/SKILL.md`](.claude/skills/add-fill-effect/SKILL.md) |
 | Add a new font | [`.claude/skills/add-font/SKILL.md`](.claude/skills/add-font/SKILL.md) |
 | Regenerate gallery SVGs | [`.claude/skills/regenerate-gallery/SKILL.md`](.claude/skills/regenerate-gallery/SKILL.md) |
+| Regenerate animation gallery | [`.claude/skills/regenerate-anim-gallery/SKILL.md`](.claude/skills/regenerate-anim-gallery/SKILL.md) |
 
 ---
 
@@ -50,12 +51,23 @@ python justdoit.py "HEY" --ttf DejaVuSans   # TTF (requires Pillow)
 python justdoit.py --list-fonts
 python justdoit.py --list-colors
 
+# Newer effect / output flags (see "CLI Flags" below for the full set)
+python justdoit.py "HI" --animate glitch --fps 20 --loop   # terminal animation
+python justdoit.py "HI" --iso 4 --gradient red yellow      # 3D extrude + gradient
+python justdoit.py "HI" --hd --save-png out.png            # high-density 4K PNG
+python justdoit.py "HI" --measure                          # print size / display fit, exit
+
 # Dev environment (uv)
-uv sync --dev     # Create .venv, install pytest + Pillow
+uv sync --dev     # Create .venv, install all dev deps (pytest, Pillow, numpy, sounddevice, arcade, ruff)
 uv run pytest     # Run all tests
 uv run pytest -v  # Verbose
 uv run pytest -q  # Quiet
-uv run pytest tests/test_figlet.py -v  # Single test module
+uv run pytest tests/test_figlet.py -v          # Single test module
+uv run pytest -m "not slow and not manual"     # Skip slow/manual-marked tests (CI default)
+uv run ruff check .                             # Lint (line length 120; config in pyproject.toml)
+
+# Run the Arcade game (requires the `game` extra: arcade>=3.0, Pillow)
+uv run python -m game.main
 
 # Optional: install globally (legacy single-file)
 chmod +x justdoit.py && cp justdoit.py /usr/local/bin/justdoit
@@ -70,11 +82,15 @@ chmod +x justdoit.py && cp justdoit.py /usr/local/bin/justdoit
 ```text
 justdoit/
 ├── __init__.py            # Public API
-├── cli.py                 # argparse entry point → main()
+├── cli.py                 # argparse entry point → main() (large flag surface, see CLI Flags)
+├── layout.py              # Resolution/size helpers: measure(), RenderTarget, DISPLAYS, fit_text, --hd sizing (pure stdlib)
 ├── core/
 │   ├── glyph.py           # Glyph data structures
+│   ├── char_db.py         # Character metadata
 │   ├── rasterizer.py      # Glyph → ASCII raster pipeline
-│   └── pipeline.py        # render() orchestration
+│   ├── pipeline.py        # render() orchestration
+│   ├── image_pipeline.py  # Image → ASCII pipeline
+│   └── image_sampler.py   # Image sampling for ASCII conversion
 ├── fonts/
 │   ├── __init__.py        # Font registry
 │   ├── builtin/
@@ -83,14 +99,57 @@ justdoit/
 │   ├── figlet.py          # FIGlet (.flf) parser and renderer
 │   ├── figlet_fonts/      # Bundled .flf files: banner, big, block, bubble, digital, slant
 │   └── ttf.py             # TTF/OTF rasterizer (requires Pillow)
-├── effects/
+├── effects/               # See justdoit/effects/CLAUDE.md for the fill contract
 │   ├── color.py           # ANSI colorization, rainbow mode
-│   └── fill.py            # Density fill, SDF outline effects
+│   ├── fill.py            # Density fill, SDF outline effects
+│   ├── gradient.py        # Linear / radial gradients, palettes
+│   ├── isometric.py       # 3D isometric extrusion
+│   ├── spatial.py         # Warp, perspective, shear transforms
+│   ├── shape_fill.py      # Shape-aware fills
+│   ├── recursive.py       # Typographic recursion (text-in-text)
+│   └── generative.py      # Generative/simulation fills
+├── animate/               # Terminal animation engine (requires nothing; sound is optional)
+│   ├── player.py          # Frame-loop player w/ ANSI cursor control; optional sound hook
+│   └── presets.py         # Generators: typewriter, scanline, glitch, pulse, dissolve, ...
+├── sound/                 # OPTIONAL procedural audio — import-gated via SOUND_AVAILABLE
+│   ├── synth.py           # Waveform synthesis (sweeps, noise, decay) — needs numpy
+│   └── player.py          # Frame-synced async playback — needs sounddevice
 └── output/
-    └── terminal.py        # Terminal output helpers
+    ├── terminal.py        # Terminal output helpers
+    ├── ansi_parser.py     # Parse ANSI back into structured cells
+    ├── svg.py             # SVG export (--save-svg)
+    ├── html.py            # HTML export (--save-html)
+    ├── image.py           # PNG export (--save-png)
+    ├── apng.py            # Animated PNG export
+    ├── cast.py            # asciinema .cast export
+    ├── arcade_atlas.py    # Build font texture atlas (PNG + UV JSON) for the game
+    └── sprite_sheet.py    # Sprite strip generator — STUB (raises NotImplementedError)
 ```
 
 There is also a legacy `justdoit.py` at the repo root for backwards compatibility.
+
+### `game/` Package (Arcade side-scroller)
+
+`game/` is a separate top-level package — an Arcade (`arcade>=3.0`) ASCII side-scroller that uses JustDoIt as its asset pipeline. Logical resolution 3840×1080 (32:9), 60fps target. **Status: scaffold** — scenes, entities, physics, and collision exist but are incomplete. The player character is **GLYPHSTER** (a multi-stage evolving glyph; see design docs below).
+
+```text
+game/
+├── main.py            # Entry point → Arcade window + game loop  (uv run python -m game.main)
+├── build/             # Asset build: build_atlas.py, build_sprites.py (consume justdoit.output.*)
+├── engine/            # atlas, camera, tile_renderer, particle_system, post_process
+├── entities/          # player.py (PlayerState), enemy.py
+├── levels/            # level_01.py
+├── scenes/            # title / gameplay / game_over
+├── systems/           # physics.py, collision.py
+└── gallery/           # generate_game_gallery.py
+```
+
+Build flow: `justdoit.output.arcade_atlas.build_atlas()` packs a font into a texture atlas (PNG) + glyph UV map (JSON) → loaded at runtime by `game/engine/atlas.py`.
+
+Design docs:
+- [`docs/superpowers/specs/2026-04-30-ascii-arcade-game-design.md`](docs/superpowers/specs/2026-04-30-ascii-arcade-game-design.md)
+- [`docs/superpowers/specs/2026-05-01-glyphster-game-design.md`](docs/superpowers/specs/2026-05-01-glyphster-game-design.md)
+- [`docs/game_gallery/GLYPHSTER_PROGRESSION.md`](docs/game_gallery/GLYPHSTER_PROGRESSION.md)
 
 ### Rendering Pipeline
 
@@ -110,6 +169,21 @@ There is also a legacy `justdoit.py` at the repo root for backwards compatibilit
 | `banner`, `big`, `bubble`, `digital`, `slant` (figlet) | bundled `.flf` | varies | nothing |
 | TTF/OTF system fonts | Pillow rasterizer | configurable (default 7) | Pillow |
 
+### CLI Flags
+
+`cli.py` has grown well beyond `--font/--color/--gap/--ttf`. Grouped overview (run `python justdoit.py -h` for exact spelling/defaults):
+
+| Group | Flags |
+| ----- | ----- |
+| Animation | `--animate {typewriter,scanline,glitch,pulse,dissolve}`, `--fps`, `--loop` |
+| Spatial | `--iso DEPTH` `--iso-dir`, `--warp` `--warp-freq`, `--perspective` `--perspective-dir`, `--shear` `--shear-dir` |
+| Color/gradient | `--gradient FROM TO` `--gradient-dir`, `--radial INNER OUTER`, `--palette NAME` |
+| Fill | `--fill`, `--truchet-style`, `--recursion` `--recursion-sep` |
+| Output files | `--save-svg`, `--save-html`, `--save-png` (+ `--svg-font-size`) |
+| Sizing/display | `--target WxH[@Sx]`, `--hd [COLS]`, `--fit COLS`, `--measure`, `--ttf-size` |
+
+`--measure` and `--hd` are powered by `justdoit/layout.py` (`measure()`, `RenderTarget`, `DISPLAYS`). The 4K strategy is **PNG, not SVG** (see [`docs/VISION.md`](docs/VISION.md)).
+
 ### Adding New Fonts
 
 **Builtin font:** Create `justdoit/fonts/builtin/myfont.py` with `MYFONT: dict[str, list[str]]`, ensure all glyphs have identical row counts, then register in `justdoit/fonts/__init__.py`.
@@ -118,11 +192,17 @@ There is also a legacy `justdoit.py` at the repo root for backwards compatibilit
 
 ### Dependencies
 
-- **Core:** zero — pure Python 3 stdlib
-- **TTF/OTF fonts:** requires `Pillow` — **Pillow IS available** in the project `.venv` (installed via `uv sync --dev`)
-- **Tests:** `pytest` + `Pillow` (installed via `uv sync --dev`)
+Core install has **zero** dependencies. Optional features are `pyproject.toml` extras (all installed by `uv sync --dev`):
 
-> ⚠️ **Pillow note:** Pillow is confirmed available in this project's `.venv`. Always use `uv run` (not bare `python`) to ensure Pillow imports correctly. Do NOT fall back to system fonts or skip PIL-gated paths — use `uv run` and Pillow will be present.
+| Extra | Packages | Enables |
+| ----- | -------- | ------- |
+| `ttf` | `Pillow>=10.0` | TTF/OTF rasterization, PNG/image output |
+| `sound` | `numpy>=1.24`, `sounddevice>=0.4` | Procedural audio synth + frame-synced playback |
+| `game` | `arcade>=3.0`, `Pillow>=10.0` | The `game/` Arcade side-scroller |
+
+Each optional path is **import-gated** and degrades gracefully — e.g. `justdoit.sound` exposes a `SOUND_AVAILABLE` flag; PIL-gated code raises `ImportError` with an install hint at call time. Never hard-fail or silently skip these paths in tests; gate with `pytest.importorskip(...)`.
+
+> ⚠️ **Pillow note:** Pillow is confirmed available in this project's `.venv`. Always use `uv run` (not bare `python`) to ensure Pillow/numpy/sounddevice/arcade import correctly. Do NOT fall back to system fonts or skip PIL-gated paths — use `uv run` and the deps will be present.
 
 ### Python Environment — IMPORTANT
 

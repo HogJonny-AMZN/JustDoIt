@@ -174,14 +174,25 @@ def to_apng(
             canvas.paste(img, (0, 0))
             normalized.append(canvas)
 
+    # Round-trip each frame through PNG encode/decode so every frame is a
+    # fully independent pixel buffer — prevents disposal=0 bleed artifacts
+    # when frames have different widths.
+    clean = []
+    for img in normalized:
+        tmp = io.BytesIO()
+        img.save(tmp, format="PNG")
+        tmp.seek(0)
+        clean.append(PILImage.open(tmp).copy())
+
     buf = io.BytesIO()
-    normalized[0].save(
+    clean[0].save(
         buf,
         format="PNG",
         save_all=True,
-        append_images=normalized[1:],
+        append_images=clean[1:],
         loop=loop,
         duration=duration_ms,
+        disposal=2,
     )
     return buf.getvalue()
 
@@ -213,6 +224,72 @@ def save_apng(
 
 
 # -------------------------------------------------------------------------
+def save_gif(
+    frames: list[str],
+    path: str | Path,
+    fps: float = 24.0,
+    bg_color: str = "#111111",
+    loop: int = 0,
+    font_size: int = 14,
+    font_path: Optional[str] = None,
+) -> None:
+    """Save an animation frame list as an animated GIF file.
+
+    Uses the same rendering pipeline as save_apng so output is pixel-identical
+    to debug PNGs. GIF uses an optimized 256-color palette per frame.
+
+    :param frames: List of ANSI frame strings (one string per frame).
+    :param path: Output file path (e.g. 'output.gif').
+    :param fps: Playback speed in frames per second.
+    :param bg_color: Background color as hex string (default: '#111111').
+    :param loop: Number of times to loop (0 = infinite, 1 = play once).
+    :param font_size: Font size in pixels (default: 14).
+    :param font_path: Optional path to a .ttf monospace font (overrides auto-detect).
+    :raises ImportError: If Pillow is not installed.
+    :raises ValueError: If frames is empty.
+    """
+    _require_pil()
+
+    if not frames:
+        raise ValueError("frames must not be empty")
+
+    from PIL import Image as PILImage
+
+    duration_ms = int(1000 / fps)
+
+    images = [frame_to_image(f, font_size=font_size, bg_color=bg_color, font_path=font_path) for f in frames]
+
+    target_w = max(img.width for img in images)
+    target_h = max(img.height for img in images)
+    bg_rgb = _hex_to_rgb(bg_color)
+
+    normalized = []
+    for img in images:
+        if img.size == (target_w, target_h):
+            normalized.append(img)
+        else:
+            canvas = PILImage.new("RGB", (target_w, target_h), color=bg_rgb)
+            canvas.paste(img, (0, 0))
+            normalized.append(canvas)
+
+    # Convert to palette mode for GIF — quantize each frame independently
+    palette_frames = [img.quantize(colors=256, method=PILImage.Quantize.MEDIANCUT) for img in normalized]
+
+    buf = io.BytesIO()
+    palette_frames[0].save(
+        buf,
+        format="GIF",
+        save_all=True,
+        append_images=palette_frames[1:],
+        loop=loop,
+        duration=duration_ms,
+        disposal=2,
+    )
+    Path(path).write_bytes(buf.getvalue())
+    _LOGGER.info(f"Saved GIF to {path} ({len(frames)} frames @ {fps}fps)")
+
+
+# -------------------------------------------------------------------------
 def _load_font(font_path: Optional[str], font_size: int):
     """Load a PIL font, falling back gracefully if the path is invalid.
 
@@ -230,11 +307,14 @@ def _load_font(font_path: Optional[str], font_size: int):
             _LOGGER.warning(f"Could not load font '{font_path}': {exc}. Falling back to default.")
 
     _candidates = [
-        # Windows native
+        # Windows — Cascadia has full Unicode symbol coverage (◆ ◈ ◉ ◇ etc.)
+        "C:/Windows/Fonts/CascadiaMono.ttf",
+        "C:/Windows/Fonts/CascadiaCode.ttf",
         "C:/Windows/Fonts/consola.ttf",
         "C:/Windows/Fonts/cour.ttf",
         "C:/Windows/Fonts/lucon.ttf",
         # WSL Windows mount
+        "/mnt/c/Windows/Fonts/CascadiaMono.ttf",
         "/mnt/c/Windows/Fonts/consola.ttf",
         "/mnt/c/Windows/Fonts/cour.ttf",
         # Linux

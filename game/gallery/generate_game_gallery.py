@@ -110,6 +110,166 @@ _WALL_ROOM = """\
 ║  ║  ║░░║  ║  ║[◆]  ║░░║  ║  ║  ║  ║
 ╚══╩══╩══╩══╩══╩══╩══╩══╩══╩══╩══╩══╝"""
 
+# -------------------------------------------------------------------------
+# ANSI color codes for spider walk-cycle coloring
+# Parsed by justdoit.output.ansi_parser — bright codes 91–97 only.
+_ESC   = "\033"
+_A_RED = f"{_ESC}[91m"   # bright red   — core glyph ◆
+_A_CYN = f"{_ESC}[96m"   # bright cyan  — legs/connectors ╲ │ ╱ ─ ┼ ╬
+_A_WHT = f"{_ESC}[97m"   # white        — brackets ( )
+_A_YLW = f"{_ESC}[93m"   # bright yellow — body orbs ◈ ◉
+_A_MGT = f"{_ESC}[95m"   # magenta      — sigils ◇
+_A_BLU = f"{_ESC}[94m"   # bright blue  — carapace ╔═╗ ╚═╝
+_A_RST = f"{_ESC}[0m"    # reset
+
+
+# -------------------------------------------------------------------------
+def _walk_frames_start() -> list[str]:
+    """5-frame walk cycle — Starting spider form with ANSI colors.
+
+    Cycle: neutral → right-stride (middle /, outer-right backslash) → peak (all |)
+           → left-stride (outer-left flips to /) → settle.
+
+    :returns: List of 5 ANSI-colored frame strings.
+    """
+    R, C, W, X = _A_RED, _A_CYN, _A_WHT, _A_RST
+
+    f0 = (  # neutral
+        f"  {C}╲  │  ╱{X}\n"
+        f"   {C}╲─┼─╱{X}\n"
+        f"    {W}({X}{R}◆{X}{W}){X}\n"
+        f"   {C}╱─┼─╲{X}\n"
+        f"  {C}╱  │  ╲{X}"
+    )
+    f1 = (  # LEFT stays ╲, mid extends to /, RIGHT settles to |
+        f"  {C}╲   /  |{X}\n"
+        f"   {C}╲─┼──╱{X}\n"
+        f"    {W}({X}{R}◆{X}{W}){X}\n"
+        f"   {C}╱─┼──╲{X}\n"
+        f"  {C}╱   \\  |{X}"
+    )
+    f2 = (  # LEFT=|, mid=|, RIGHT=\ — rear inner arm ends straighten to |
+        f"  {C}|   |  \\{X}\n"
+        f"   {C}╲──┼──|{X}\n"
+        f"     {W}({X}{R}◆{X}{W}){X}\n"
+        f"   {C}╱──┼──|{X}\n"
+        f"  {C}|   |  /{X}"
+    )
+    f3 = (  # LEFT=/, mid=\, RIGHT=| — rear inner arm starts straighten to |
+        f"  {C}/  \\  |{X}\n"
+        f"  {C}|──┼─╱{X}\n"
+        f"    {W}({X}{R}◆{X}{W}){X}\n"
+        f"  {C}|──┼─╲{X}\n"
+        f"  {C}\\  /  |{X}"
+    )
+    f4 = (  # LEFT=|, mid=|, RIGHT=╱ (right tip cycles ╱→|→\→|→╱)
+        f"  {C}|  |  ╱{X}\n"
+        f"  {C}╲──┼─╱{X}\n"
+        f"    {W}({X}{R}◆{X}{W}){X}\n"
+        f"  {C}╱──┼─╲{X}\n"
+        f"  {C}|  |  ╲{X}"
+    )
+    return [f0, f1, f2, f3, f4]
+
+
+# -------------------------------------------------------------------------
+def _walk_frames_mid() -> list[str]:
+    """5-frame walk cycle — Mid-game spider form (◇ sigil leg tips).
+
+    ◇ sigils ride the outermost tips and extend/flip with them each frame.
+    Mirrors the scratch.md 5-frame pattern.
+
+    :returns: List of 5 ANSI-colored frame strings.
+    """
+    R, C, W, Y, M, X = _A_RED, _A_CYN, _A_WHT, _A_YLW, _A_MGT, _A_RST
+
+    f0 = (  # neutral — form at base position +2
+        f"  {M}◇{X}{C}╲  │  ╱{X}{M}◇{X}\n"
+        f"    {C}╲─┼─╱{X}\n"
+        f"    {W}({X}{Y}◈{X}{R}◆{X}{Y}◈{X}{W}){X}\n"
+        f"    {C}╱─┼─╲{X}\n"
+        f"  {M}◇{X}{C}╱  │  ╲{X}{M}◇{X}"
+    )
+    f1 = (  # LEFT stays ╲, mid /, RIGHT=| — stride lunge adds +1 (total +3)
+        f"   {M}◇{X}{C}╲   /  |{X}{M}◇{X}\n"
+        f"     {C}╲─┼──╱{X}\n"
+        f"     {W}({X}{Y}◈{X}{R}◆{X}{Y}◈{X}{W}){X}\n"
+        f"     {C}╱─┼──╲{X}\n"
+        f"   {M}◇{X}{C}╱   \\  |{X}{M}◇{X}"
+    )
+    f2 = (  # LEFT=|, mid=|, RIGHT=\ — rear inner arm ends straighten to |
+        f"   {M}◇{X}{C}|   |  \\{X}{M}◇{X}\n"
+        f"     {C}╲──┼──|{X}\n"
+        f"      {W}({X}{Y}◈{X}{R}◆{X}{Y}◈{X}{W}){X}\n"
+        f"     {C}╱──┼──|{X}\n"
+        f"   {M}◇{X}{C}|   |  /{X}{M}◇{X}"
+    )
+    f3 = (  # LEFT=/, mid=\, RIGHT=| — rear inner arm starts straighten to |
+        f"  {M}◇{X}{C}/  \\  |{X}{M}◇{X}\n"
+        f"   {C}|──┼─╱{X}\n"
+        f"    {W}({X}{Y}◈{X}{R}◆{X}{Y}◈{X}{W}){X}\n"
+        f"   {C}|──┼─╲{X}\n"
+        f"  {M}◇{X}{C}\\  /  |{X}{M}◇{X}"
+    )
+    f4 = (  # LEFT=|, mid=|, RIGHT=╱ — settled at base +2
+        f"  {M}◇{X}{C}|  |  ╱{X}{M}◇{X}\n"
+        f"   {C}╲──┼─╱{X}\n"
+        f"    {W}({X}{Y}◈{X}{R}◆{X}{Y}◈{X}{W}){X}\n"
+        f"   {C}╱──┼─╲{X}\n"
+        f"  {M}◇{X}{C}|  |  ╲{X}{M}◇{X}"
+    )
+    return [f0, f1, f2, f3, f4]
+
+
+# -------------------------------------------------------------------------
+def _walk_frames_full() -> list[str]:
+    """5-frame walk cycle — Full Progression form (carapace + ◉ core + ◈ junctions).
+
+    Carapace pins outer ◇ tips — inner ╲/╱ chars change direction in place.
+    Mirrors the scratch.md 5-frame pattern: neutral → right-stride → peak (all |)
+    → left-stride (╲ inside carapace flips to /) → settle.
+
+    :returns: List of 5 ANSI-colored frame strings.
+    """
+    R, C, W, Y, M, B, X = _A_RED, _A_CYN, _A_WHT, _A_YLW, _A_MGT, _A_BLU, _A_RST
+
+    f0 = (  # neutral — ◈ at col3, ╬ at col6, ◆ at col6
+        f"{B}╔═{X}{M}◇{X}{C}╲  │  ╱{X}{M}◇{X}{B}═╗{X}\n"
+        f"   {Y}◈{X}{C}╲─╬─╱{X}{Y}◈{X}\n"
+        f"    {W}({X}{Y}◉{X}{R}◆{X}{Y}◉{X}{W}){X}\n"
+        f"   {Y}◈{X}{C}╱─╬─╲{X}{Y}◈{X}\n"
+        f"{B}╚═{X}{M}◇{X}{C}╱  │  ╲{X}{M}◇{X}{B}═╝{X}"
+    )
+    f1 = (  # LEFT stays ╲, mid /, RIGHT=| — right arm extends to carapace ◇
+        f"{B}╔═{X}{M}◇{X}{C}╲   /  |{X}{M}◇{X}{B}═╗{X}\n"
+        f"   {Y}◈{X}{C}╲─╬──╱{X}{Y}◈{X}\n"
+        f"    {W}({X}{Y}◉{X}{R}◆{X}{Y}◉{X}{W}){X}\n"
+        f"   {Y}◈{X}{C}╱─╬──╲{X}{Y}◈{X}\n"
+        f"{B}╚═{X}{M}◇{X}{C}╱   \\  |{X}{M}◇{X}{B}═╝{X}"
+    )
+    f2 = (  # LEFT=|, mid=|, RIGHT=\ — rear inner arm ends straighten to |
+        f"{B}╔═{X}{M}◇{X}{C}|   |  \\{X}{M}◇{X}{B}═╗{X}\n"
+        f"   {Y}◈{X}{C}╲──╬─|{X}{Y}◈{X}\n"
+        f"     {W}({X}{Y}◉{X}{R}◆{X}{Y}◉{X}{W}){X}\n"
+        f"   {Y}◈{X}{C}╱──╬─|{X}{Y}◈{X}\n"
+        f"{B}╚═{X}{M}◇{X}{C}|   |  /{X}{M}◇{X}{B}═╝{X}"
+    )
+    f3 = (  # LEFT=/, mid=\, RIGHT=| — rear inner arm starts straighten to |
+        f"{B}╔═{X}{M}◇{X}{C}/  \\  |{X}{M}◇{X}{B}═╗{X}\n"
+        f"  {Y}◈{X}{C}|──╬─╱{X}{Y}◈{X}\n"
+        f"    {W}({X}{Y}◉{X}{R}◆{X}{Y}◉{X}{W}){X}\n"
+        f"  {Y}◈{X}{C}|──╬─╲{X}{Y}◈{X}\n"
+        f"{B}╚═{X}{M}◇{X}{C}\\  /  |{X}{M}◇{X}{B}═╝{X}"
+    )
+    f4 = (  # LEFT=|, mid=|, RIGHT=╱ — inner same as f3
+        f"{B}╔═{X}{M}◇{X}{C}|  |  ╱{X}{M}◇{X}{B}═╗{X}\n"
+        f"  {Y}◈{X}{C}╲──╬─╱{X}{Y}◈{X}\n"
+        f"    {W}({X}{Y}◉{X}{R}◆{X}{Y}◉{X}{W}){X}\n"
+        f"  {Y}◈{X}{C}╱──╬─╲{X}{Y}◈{X}\n"
+        f"{B}╚═{X}{M}◇{X}{C}|  |  ╲{X}{M}◇{X}{B}═╝{X}"
+    )
+    return [f0, f1, f2, f3, f4]
+
 
 # -------------------------------------------------------------------------
 def _build_entries() -> list[dict]:
@@ -131,35 +291,24 @@ def _build_entries() -> list[dict]:
         neon_word_glitch,
         neon_sign_startup,
         living_fill,
-        living_color,
         plasma_wave,
-        flame_flicker,
         flame_bloom,
-        bloom_pulse,
-        plasma_bloom,
         turing_bio,
         turing_warp,
-        iso_depth_breathe,
         flame_iso_bloom,
     )
 
     # Pre-render zone names using block font — used with string-operation presets
-    t_mesh      = render("THE MESH",    font="block")
     t_glyphster = render("GLYPHSTER",   font="block")
-    t_terminal  = render("TERMINAL",    font="block")
-    t_conduit   = render("CONDUIT",     font="block")
     t_rot       = render("THE ROT",     font="block")
-    t_vault     = render("THE VAULT",   font="block")
     t_core      = render("THE CORE",    font="block")
 
     # Plain-text versions for image-pipeline presets that re-render internally
     p_mesh      = "THE MESH"
-    p_glyphster = "GLYPHSTER"
     p_terminal  = "TERMINAL"
     p_conduit   = "CONDUIT"
     p_rot       = "THE ROT"
     p_vault     = "THE VAULT"
-    p_core      = "THE CORE"
 
     return [
 
@@ -170,7 +319,7 @@ def _build_entries() -> list[dict]:
             "name": "glyphster-title",
             "label": "GLYPHSTER — Living Fill",
             "description": "Conway's Game of Life grows inside the letterforms. The entity is alive.",
-            "frames": lambda: list(living_fill(t_glyphster, n_frames=48)),
+            "frames": lambda: list(living_fill("GLYPHSTER", n_frames=48)),
             "fps": 8.0, "loop": True,
         },
         {
@@ -212,6 +361,33 @@ def _build_entries() -> list[dict]:
             "description": "Density dissolve: the entity assembles from scattered glyph noise.",
             "frames": lambda: list(density_dissolve(_GLYPHSTER_START, n_frames=40, direction="loop", color="cyan", seed=42)),
             "fps": 12.0, "loop": True,
+        },
+
+        # ── WALK CYCLES ──────────────────────────────────────────────────────
+
+        {
+            "id": "W01", "category": "Walk",
+            "name": "walk-start",
+            "label": "Walk Cycle — Starting Form",
+            "description": "5-frame stride. Red core, cyan legs. The compact rogue process begins to move.",
+            "frames": _walk_frames_start,
+            "fps": 8.0, "loop": True,
+        },
+        {
+            "id": "W02", "category": "Walk",
+            "name": "walk-mid",
+            "label": "Walk Cycle — Mid-Game Form",
+            "description": "5-frame stride with ◇ sigil tips. Two abilities online. The form has presence.",
+            "frames": _walk_frames_mid,
+            "fps": 8.0, "loop": True,
+        },
+        {
+            "id": "W03", "category": "Walk",
+            "name": "walk-full",
+            "label": "Walk Cycle — Full Progression",
+            "description": "5-frame stride. Carapace active. ◉ core, ◈ junctions, ◇ sigils. Full entity.",
+            "frames": _walk_frames_full,
+            "fps": 8.0, "loop": True,
         },
 
         # ── ZONE AESTHETICS ──────────────────────────────────────────────────
@@ -311,7 +487,7 @@ def _build_entries() -> list[dict]:
             "name": "growth-terminal-gol",
             "label": "Glyph-Growth — Terminal (Conway GoL)",
             "description": "Zone 1 wall sub-layer: slow Conway's Game of Life — data age.",
-            "frames": lambda: list(living_fill(t_terminal, n_frames=48)),
+            "frames": lambda: list(living_fill("TERMINAL", n_frames=48)),
             "fps": 6.0, "loop": True,
         },
         {
@@ -395,20 +571,21 @@ def _write_readme(entries: list[dict], generated_at: str) -> None:
     lines += [
         "# GLYPHSTER — Visualization Gallery",
         "",
-        f"Game design visualization for the **GLYPHSTER** ASCII metroidvania.  ",
+        "Game design visualization for the **GLYPHSTER** ASCII metroidvania.  ",
         f"Generated: {generated_at}  ",
-        f"Script: `game/gallery/generate_game_gallery.py`",
+        "Script: `game/gallery/generate_game_gallery.py`",
         "",
         "---",
         "",
     ]
 
     categories = [
-        ("Glyphster", "Glyphster Character"),
-        ("Zone",      "Zone Aesthetics"),
-        ("Room",      "Room Mockups"),
+        ("Glyphster",   "Glyphster Character"),
+        ("Walk",        "Walk Cycles"),
+        ("Zone",        "Zone Aesthetics"),
+        ("Room",        "Room Mockups"),
         ("GlyphGrowth", "Glyph-Growth Sub-Layers"),
-        ("UI",        "UI / Aim System"),
+        ("UI",          "UI / Aim System"),
     ]
 
     for cat_key, cat_label in categories:

@@ -1,7 +1,7 @@
 # GLYPHSTER — Visualization Gallery
 
 Game design visualization for the **GLYPHSTER** ASCII metroidvania.  
-Generated: 2026-05-01 01:07:03  
+Generated: 2026-05-08 00:39:45  
 Script: `game/gallery/generate_game_gallery.py`
 
 ---
@@ -10,9 +10,9 @@ Script: `game/gallery/generate_game_gallery.py`
 
 | | |
 |---|---|
-| ![G01](G01-glyphster-title.apng) | ![G02](G02-glyphster-living-color.apng) |
-| **GLYPHSTER — Living Fill** | **GLYPHSTER — Age Heat Color** |
-| Conway's Game of Life grows inside the letterforms. The entity is alive. | GoL cells age from blue to red — stable vs transient structure revealed. |
+| ![G01](G01-glyphster-title.apng) | ![G02](G02-glyphster-density.apng) |
+| **GLYPHSTER — Living Fill** | **GLYPHSTER — Materialize** |
+| Conway's Game of Life grows inside the letterforms. The entity is alive. | Density dissolve: the entity assembles from scattered glyph noise into solid form. |
 
 | | |
 |---|---|
@@ -25,6 +25,22 @@ Script: `game/gallery/generate_game_gallery.py`
 | ![G05](G05-glyphster-full-form.apng) | ![G06](G06-glyphster-start-dissolve.apng) |
 | **Spider Form — Full Progression** | **Spider Form — Materialize** |
 | Carapace formed. All abilities active. The character sheet is complete. | Density dissolve: the entity assembles from scattered glyph noise. |
+
+---
+
+## Walk Cycles
+
+| | |
+|---|---|
+| ![W01](W01-walk-start.apng) | ![W02](W02-walk-mid.apng) |
+| **Walk Cycle — Starting Form** | **Walk Cycle — Mid-Game Form** |
+| 5-frame stride. Red core, cyan legs. The compact rogue process begins to move. | 5-frame stride with ◇ sigil tips. Two abilities online. The form has presence. |
+
+| |
+|---|
+| ![W03](W03-walk-full.apng) |
+| **Walk Cycle — Full Progression** |
+| 5-frame stride. Carapace active. ◉ core, ◈ junctions, ◇ sigils. Full entity. |
 
 ---
 

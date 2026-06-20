@@ -69,9 +69,13 @@ def test_gallery_profile_wide_values():
 
 
 def test_gallery_profile_4k_values():
-    """4k profile has correct svg_font_size and readme_img_width for GitHub display."""
+    """4k profile renders via HD pipeline; svg_font_size is informational (12)."""
     p = PROFILES["4k"]
-    assert p.svg_font_size == 72
+    # 4k uses HD rendering — the real font size is derived from hd_target_cols,
+    # so svg_font_size is informational only (see generate_gallery.py ~L1468).
+    assert p.use_hd is True
+    assert p.svg_font_size == 12
+    assert p.hd_target_cols == 240
     assert p.readme_img_width == 780   # display at 780px so GitHub renders correctly
     assert p.name == "4k"
 
@@ -83,10 +87,15 @@ def test_gallery_profiles_all_present():
     assert "4k" in PROFILES
 
 
-def test_gallery_profile_font_sizes_ordered():
-    """Profile svg_font_sizes increase: standard < wide < 4k."""
+def test_gallery_profile_resolution_increases():
+    """Resolution increases standard -> wide -> 4k.
+
+    For the non-HD standard profile this is svg_font_size; for the HD wide/4k
+    profiles svg_font_size is informational, so the meaningful "bigger output"
+    signal is the HD column target (hd_target_cols).
+    """
     assert PROFILES["standard"].svg_font_size < PROFILES["wide"].svg_font_size
-    assert PROFILES["wide"].svg_font_size < PROFILES["4k"].svg_font_size
+    assert PROFILES["wide"].hd_target_cols < PROFILES["4k"].hd_target_cols
 
 
 def test_gallery_profile_standard_uses_fixed_img_width():
